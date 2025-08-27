@@ -1,0 +1,11 @@
+{
+  "name": "@pocket-pixie/prettier-config",
+  "version": "0.0.0",
+  "private": true,
+  "files": [
+    "index.json"
+  ],
+  "devDependencies": {
+    "prettier": "^3.6.2"
+  }
+}

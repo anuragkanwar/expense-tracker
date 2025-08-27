@@ -1,0 +1,22 @@
+{
+  "name": "api",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "bun --watch src/index.ts",
+    "test": "vitest"
+  },
+  "dependencies": {
+    "@pocket-pixie/db": "workspace:^",
+    "@pocket-pixie/validators": "workspace:^",
+    "hono": "^4.9.4"
+  },
+  "devDependencies": {
+    "@pocket-pixie/eslint-config": "workspace:^",
+    "@pocket-pixie/typescript-config": "workspace:^",
+    "bun-types": "^1.2.21",
+    "typescript": "^5.9.2",
+    "vitest": "^3.2.4"
+  }
+}
