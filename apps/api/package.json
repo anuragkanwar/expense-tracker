@@ -4,10 +4,16 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "bun --watch src/index.ts",
-    "test": "vitest"
+    "build": "tsc",
+    "dev": "bun --watch --port 3000 src/index.ts",
+    "start": "bun dist/index.js",
+    "test": "vitest",
+    "check-types": "tsc --noEmit",
+    "lint": "eslint src --ext .ts,.tsx",
+    "clean": "rm -rf dist"
   },
   "dependencies": {
+    "@pocket-pixie/auth": "workspace:^",
     "@pocket-pixie/db": "workspace:^",
     "@pocket-pixie/validators": "workspace:^",
     "hono": "^4.9.4"

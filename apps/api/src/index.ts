@@ -1,39 +1,47 @@
 import { Hono } from "hono";
-import { logger } from "hono/logger";
-import { db, users, selectUserSchema } from "@pocket-pixie/db";
-import { UserSchema } from "@pocket-pixie/validators";
+import { corsMiddleware } from "./middleware/cors";
+import { errorHandler } from "./middleware/error";
+import { requestLogger } from "./middleware/logger";
+import { rateLimit } from "./middleware/rate-limit";
+import authRoutes from "./routes/auth";
+import healthRoutes from "./routes/health";
+import apiRoutes from "./routes/api";
 
 const app = new Hono();
 
-app.use("*", logger());
+// Global error handler (must be first)
+app.use("*", errorHandler);
 
-app.get("/", (c) => c.json({ message: "Hello Pocket Pixie!" }));
+// Global CORS middleware
+app.use("*", corsMiddleware);
 
-app.get("/users", async (c) => {
-  const allUsers = db.select().from(users).all();
-  return c.json(allUsers);
-});
+// Request logging
+app.use("*", requestLogger);
 
-app.post("/users", async (c) => {
-  const body = await c.req.json();
-  const parsed = UserSchema.safeParse(body);
+// Rate limiting for API routes
+app.use("/api/*", rateLimit);
 
-  if (!parsed.success) {
-    return c.json({ error: "Invalid data", issues: parsed.error.issues }, 400);
-  }
+// Health check (no auth required)
+app.route("/", healthRoutes);
 
-  try {
-    const newUser = db
-      .insert(users)
-      .values({ email: parsed.data.email })
-      .returning()
-      .get();
+// Authentication routes
+app.route("/api/auth", authRoutes);
 
-    const safeUser = selectUserSchema.parse(newUser);
-    return c.json({ user: safeUser, message: "User created successfully" }, 201);
-  } catch (error) {
-    return c.json({ error: "User with this email already exists" }, 409);
-  }
+// Protected API routes
+app.route("/api", apiRoutes);
+
+// 404 handler
+app.notFound((c) => {
+  return c.json(
+    {
+      success: false,
+      error: {
+        code: "NOT_FOUND",
+        message: "Endpoint not found",
+      },
+    },
+    404
+  );
 });
 
 export default app;
