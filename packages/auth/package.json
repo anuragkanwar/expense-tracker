@@ -1,5 +1,5 @@
 {
-  "name": "@pocket-pixie/db",
+  "name": "@pocket-pixie/auth",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -9,19 +9,15 @@
     "build": "tsc",
     "check-types": "tsc --noEmit",
     "lint": "eslint src --ext .ts,.tsx",
-    "db:generate": "drizzle-kit generate",
-    "db:migrate": "drizzle-kit migrate",
-    "clean": "rm -rf dist migrations/*.sql"
+    "clean": "rm -rf dist"
   },
   "dependencies": {
-    "better-sqlite3": "^12.2.0",
-    "drizzle-orm": "^0.44.5",
-    "drizzle-zod": "^0.8.3"
+    "@pocket-pixie/db": "workspace:^",
+    "better-auth": "^1.0.0",
+    "@better-auth/expo": "^1.0.0"
   },
   "devDependencies": {
     "@pocket-pixie/typescript-config": "workspace:^",
-    "@types/better-sqlite3": "^7.6.13",
-    "drizzle-kit": "^0.31.4",
     "typescript": "^5.9.2"
   }
 }
