@@ -11,10 +11,7 @@ yarn-error.log*
 *.db
 *.sqlite
 *.sqlite3
-local.db
-
-# Drizzle migration metadata (keep SQL files)
-migrations/meta/
+auth.db
 
 # Build outputs
 dist/

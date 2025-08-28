@@ -27,6 +27,11 @@ out/
 build
 dist
 
+# Database files
+*.db
+*.sqlite
+*.sqlite3
+
 
 # Debug
 npm-debug.log*

@@ -47,8 +47,12 @@ pnpm run dev:api          # API server only
 pnpm run dev:mobile       # Mobile app only
 
 # Database operations
-pnpm run db:generate      # Generate Drizzle schema
-pnpm run db:migrate       # Run database migrations
+pnpm run db:generate:all  # Generate all database schemas
+pnpm run db:migrate:all   # Run all database migrations
+pnpm run db:generate      # Generate main db schema
+pnpm run db:migrate       # Run main db migrations
+pnpm run auth:db:generate # Generate auth db schema
+pnpm run auth:db:migrate  # Run auth db migrations
 ```
 
 ### Building
@@ -154,11 +158,11 @@ pnpm run clean:all
 # Install all dependencies
 pnpm install
 
-# Generate database types
-pnpm run db:generate
+# Generate database types for all databases
+pnpm run db:generate:all
 
-# Run database migrations
-pnpm run db:migrate
+# Run database migrations for all databases
+pnpm run db:migrate:all
 ```
 
 ### Daily Development
@@ -240,11 +244,15 @@ pnpm run build --force
 
 ```bash
 # Regenerate types after schema changes
-pnpm run db:generate
+pnpm run db:generate:all
 
-# Reset database
-rm packages/db/local.db
-pnpm run db:migrate
+# Reset all databases
+rm packages/db/local.db packages/auth/auth.db
+pnpm run db:migrate:all
+
+# Reset individual databases
+rm packages/db/local.db && pnpm run db:migrate
+rm packages/auth/auth.db && pnpm run auth:db:migrate
 ```
 
 ## Performance Tips
@@ -259,7 +267,4 @@ pnpm run db:migrate
 - [ ] Set up CI/CD pipeline
 - [ ] Configure production deployments
 - [ ] Add testing scripts
-- [ ] Set up monitoring and logging</content>
-      </xai:function_call_1>  
-      <xai:function_call name="write">
-      <parameter name="filePath">/home/anumax/projects/pocket-pixie/apps/mobile/package.json
+- [ ] Set up monitoring and logging
