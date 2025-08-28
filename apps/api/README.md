@@ -63,11 +63,11 @@ This API server provides:
 2. **Database setup:**
 
    ```bash
-   # Generate TypeScript types from schema
-   pnpm run db:generate
+   # Generate TypeScript types and migrations for all databases
+   pnpm run db:generate:all
 
-   # Run migrations
-   pnpm run db:migrate
+   # Run migrations for all databases
+   pnpm run db:migrate:all
    ```
 
 3. **Environment variables:**
@@ -75,7 +75,8 @@ This API server provides:
    ```bash
    BETTER_AUTH_SECRET=your-secret-key-here
    BETTER_AUTH_URL=http://localhost:3000
-   DATABASE_URL=./local.db
+   DATABASE_URL=./packages/db/local.db
+   AUTH_DATABASE_URL=./packages/auth/auth.db
    ```
 
 ### Development Commands
@@ -247,15 +248,24 @@ The database schema is defined in `@pocket-pixie/db` package:
 
 ### Database Commands
 
+The API uses two separate databases:
+
+- **Main Database** (`packages/db/local.db`) - For business logic data
+- **Auth Database** (`packages/auth/auth.db`) - For authentication data
+
 ```bash
-# Generate TypeScript types from schema
-pnpm run db:generate
+# Generate and migrate all databases
+pnpm run db:generate:all
+pnpm run db:migrate:all
 
-# Run migrations
-pnpm run db:migrate
+# Individual database commands
+pnpm run db:generate          # Main database types
+pnpm run db:migrate           # Main database migrations
+pnpm run auth:db:generate     # Auth database types
+pnpm run auth:db:migrate      # Auth database migrations
 
-# Reset database (delete local.db and migrate)
-rm ../../packages/db/local.db && pnpm run db:migrate
+# Reset databases
+rm packages/db/local.db packages/auth/auth.db && pnpm run db:migrate:all
 ```
 
 ## 🧪 Testing

@@ -12,6 +12,7 @@
     "clean": "rm -rf dist"
   },
   "devDependencies": {
+    "@pocket-pixie/eslint-config": "workspace:^",
     "@pocket-pixie/typescript-config": "workspace:*",
     "typescript": "^5.9.2"
   },

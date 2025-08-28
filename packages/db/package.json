@@ -19,6 +19,7 @@
     "drizzle-zod": "^0.8.3"
   },
   "devDependencies": {
+    "@pocket-pixie/eslint-config": "workspace:^",
     "@pocket-pixie/typescript-config": "workspace:^",
     "@types/better-sqlite3": "^7.6.13",
     "drizzle-kit": "^0.31.4",

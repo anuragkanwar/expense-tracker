@@ -9,15 +9,21 @@
     "build": "tsc",
     "check-types": "tsc --noEmit",
     "lint": "eslint src --ext .ts,.tsx",
-    "clean": "rm -rf dist"
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "drizzle-kit migrate",
+    "clean": "rm -rf dist migrations/*.sql"
   },
   "dependencies": {
     "@pocket-pixie/db": "workspace:^",
     "better-auth": "^1.0.0",
-    "@better-auth/expo": "^1.0.0"
+    "@better-auth/expo": "^1.0.0",
+    "better-sqlite3": "^12.2.0",
+    "drizzle-orm": "^0.44.5"
   },
   "devDependencies": {
+    "@pocket-pixie/eslint-config": "workspace:^",
     "@pocket-pixie/typescript-config": "workspace:^",
+    "@types/better-sqlite3": "^7.6.13",
     "typescript": "^5.9.2"
   }
 }
