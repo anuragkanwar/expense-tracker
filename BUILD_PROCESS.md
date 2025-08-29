@@ -43,16 +43,18 @@ mobile (uses auth)
 pnpm run dev
 
 # Start specific services
-pnpm run dev:api          # API server only
-pnpm run dev:mobile       # Mobile app only
+pnpm run dev:api          # API server with full CRUD and clean architecture
+pnpm run dev:mobile       # Mobile app with auth integration
 
 # Database operations
-pnpm run db:generate:all  # Generate all database schemas
-pnpm run db:migrate:all   # Run all database migrations
-pnpm run db:generate      # Generate main db schema
-pnpm run db:migrate       # Run main db migrations
-pnpm run auth:db:generate # Generate auth db schema
-pnpm run auth:db:migrate  # Run auth db migrations
+pnpm run db:generate      # Generate database schema from types
+pnpm run db:migrate       # Run database migrations
+
+# API-specific commands
+cd apps/api
+pnpm run test            # Run API tests with path alias support
+pnpm run build           # Build with tsc-alias path resolution
+pnpm run dev             # Start development server with hot reload
 ```
 
 ### Building
@@ -63,9 +65,18 @@ pnpm run build
 
 # Build specific parts
 pnpm run build:packages   # Build all packages
-pnpm run build:api        # Build API only
+pnpm run build:api        # Build API with tsc-alias path resolution
 pnpm run build:mobile     # Build mobile app
 ```
+
+### Build Features
+
+**✅ API Package Special Features:**
+
+- **TypeScript Compilation**: Standard .ts to .js conversion
+- **tsc-alias Integration**: Resolves `@/` path aliases to relative paths
+- **Clean Output**: Production-ready JavaScript with correct imports
+- **Path Alias Support**: Clean imports in development, resolved paths in production
 
 ### Code Quality
 
@@ -152,17 +163,17 @@ pnpm run clean:all
 
 ## Development Workflow
 
-### First Time Setup
+### First Time Setup (Simplified)
 
 ```bash
 # Install all dependencies
 pnpm install
 
-# Generate database types for all databases
-pnpm run db:generate:all
+# Generate database types
+pnpm run db:generate
 
-# Run database migrations for all databases
-pnpm run db:migrate:all
+# Run database migrations
+pnpm run db:migrate
 ```
 
 ### Daily Development
@@ -172,9 +183,45 @@ pnpm run db:migrate:all
 pnpm run dev
 
 # Or start individually
-pnpm run dev:api      # Terminal 1
-pnpm run dev:mobile   # Terminal 2
+pnpm run dev:api      # Terminal 1 - Full CRUD API with clean architecture
+pnpm run dev:mobile   # Terminal 2 - Full mobile app with auth
 ```
+
+### Development Features
+
+**✅ API Package:**
+
+- **Hot Reload**: Bun's watch mode for instant updates
+- **Path Aliases**: Clean `@/` imports with full IntelliSense
+- **Type Safety**: Full TypeScript support with schema validation
+- **Testing**: Vitest with path alias resolution
+- **Clean Architecture**: Repository-Service-Route pattern
+- **Database Schema**: Single source of truth for all types
+- **Zod Validation**: Runtime type checking with schema-derived DTOs
+
+### Architecture Benefits
+
+**✅ Clean Separation of Concerns:**
+
+- **Routes**: HTTP handling and response formatting
+- **Services**: Business logic and validation
+- **Repositories**: Data access and transformation
+- **Models**: TypeScript interfaces from database schema
+- **DTOs**: Request/response validation schemas
+
+**✅ Type Safety Throughout:**
+
+- Database schema generates TypeScript types
+- Models use database-generated types
+- DTOs extend schema types with validation
+- All layers maintain type consistency
+
+**✅ Developer Experience:**
+
+- Path aliases for clean imports
+- Hot reload for instant feedback
+- Comprehensive testing setup
+- Full IntelliSense support
 
 ### Building for Production
 
@@ -182,12 +229,38 @@ pnpm run dev:mobile   # Terminal 2
 # Build all packages
 pnpm run build
 
+# Build API with path alias resolution
+pnpm run build:api
+# Includes: TypeScript compilation + tsc-alias resolution
+
 # Build mobile app for staging
 cd apps/mobile
 pnpm run build:staging
 
 # Build mobile app for production
 pnpm run build:production
+```
+
+### Path Alias Resolution
+
+The API package uses **tsc-alias** for path alias resolution:
+
+```bash
+# Build process with alias resolution
+pnpm run build:api
+# 1. TypeScript: Compiles .ts to .js (with @/ aliases)
+# 2. tsc-alias: Resolves @/ to relative paths
+# 3. Result: Production-ready .js with correct imports
+```
+
+**Example:**
+
+```typescript
+// Source: @/services/student-service
+import { StudentRepository } from "@/repositories/student-repository";
+
+// After tsc-alias: ../services/student-service
+import { StudentRepository } from "../repositories/student-repository";
 ```
 
 ## Turborepo Features Used
@@ -228,6 +301,17 @@ pnpm run clean:all
 pnpm install
 ```
 
+### API Build Issues (Recently Resolved)
+
+The API package previously had build configuration issues that have been fixed:
+
+- ✅ **RESOLVED**: Removed `"noEmit": true` from API tsconfig.json
+- ✅ **RESOLVED**: Added explicit `.js` extensions for NodeNext compatibility
+- ✅ **RESOLVED**: Clean build process with no artifacts in source directories
+- ✅ **RESOLVED**: Proper TypeScript compilation to `apps/api/dist/`
+
+If you encounter API build issues, the configuration is now correct and should work out of the box.
+
 ### Build Order Issues
 
 Turborepo handles build order automatically, but if you need to force rebuild:
@@ -240,19 +324,14 @@ pnpm run clean
 pnpm run build --force
 ```
 
-### Database Issues
+### Database Issues (Simplified)
 
 ```bash
 # Regenerate types after schema changes
-pnpm run db:generate:all
+pnpm run db:generate
 
-# Reset all databases
-rm packages/db/local.db packages/auth/auth.db
-pnpm run db:migrate:all
-
-# Reset individual databases
+# Reset database
 rm packages/db/local.db && pnpm run db:migrate
-rm packages/auth/auth.db && pnpm run auth:db:migrate
 ```
 
 ## Performance Tips

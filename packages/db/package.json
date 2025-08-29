@@ -13,16 +13,17 @@
     "db:migrate": "drizzle-kit migrate",
     "clean": "rm -rf dist migrations/*.sql"
   },
-  "dependencies": {
-    "better-sqlite3": "^12.2.0",
-    "drizzle-orm": "^0.44.5",
-    "drizzle-zod": "^0.8.3"
-  },
   "devDependencies": {
     "@pocket-pixie/eslint-config": "workspace:^",
     "@pocket-pixie/typescript-config": "workspace:^",
     "@types/better-sqlite3": "^7.6.13",
     "drizzle-kit": "^0.31.4",
     "typescript": "^5.9.2"
+  },
+  "dependencies": {
+    "@types/bun": "^1.2.21",
+    "@types/node": "^24.3.0",
+    "better-sqlite3": "^12.2.0",
+    "drizzle-orm": "^0.44.5"
   }
 }

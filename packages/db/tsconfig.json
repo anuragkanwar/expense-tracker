@@ -1,11 +1,10 @@
 {
   "extends": "@pocket-pixie/typescript-config/base.json",
   "include": ["src/**/*.ts"],
-  "exclude": ["node_modules"],
+  "exclude": ["node_modules", "**/*.test.ts", "**/*.spec.ts"],
   "compilerOptions": {
     "outDir": "./dist",
     "rootDir": "./src",
-    "moduleResolution": "NodeNext",
     "allowSyntheticDefaultImports": true
   }
 }

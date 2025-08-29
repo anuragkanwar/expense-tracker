@@ -7,10 +7,11 @@ Database package for Pocket Pixie, providing SQLite database connection, schema 
 This package provides:
 
 - **SQLite database** connection with Drizzle ORM
-- **Schema definitions** for users, sessions, and accounts
+- **Schema definitions** for students (currently focused on student management)
 - **Type-safe** database operations
 - **Migration support** with Drizzle Kit
 - **Development** and production database configurations
+- **Clean architecture** with proper error handling
 
 ## 🏗️ Architecture
 
@@ -47,16 +48,18 @@ await db.insert(user).values({
 ### Schema Usage
 
 ```typescript
-import { user, session, account } from "@pocket-pixie/db";
+import { studentTable, db } from "@pocket-pixie/db";
 
 // Use in your application
-const newUser = await db.insert(user).values({
-  id: "user-123",
-  email: "user@example.com",
-  emailVerified: true,
-  createdAt: new Date(),
-  updatedAt: new Date(),
+const newStudent = await db.insert(studentTable).values({
+  id: "student-123",
+  name: "John Doe",
+  email: "john@example.com",
+  age: 25
 });
+
+// Query students
+const students = await db.select().from(studentTable);
 ```
 
 ## 🛠️ Development
@@ -111,84 +114,43 @@ pnpm run clean
 
 ## 📊 Database Schema
 
-### Users Table
+### Students Table
 
 ```typescript
-export const user = sqliteTable("user", {
+export const studentTable = sqliteTable("student", {
   id: text("id").primaryKey(),
+  name: text("name").notNull(),
   email: text("email").notNull().unique(),
-  password: text("password"),
-  emailVerified: integer("email_verified", { mode: "boolean" }).default(false),
-  createdAt: integer("created_at", { mode: "timestamp" }).default(
-    sql`(unixepoch())`
-  ),
-  updatedAt: integer("updated_at", { mode: "timestamp" }).default(
-    sql`(unixepoch())`
-  ),
+  age: integer("age"),
+  createdAt: integer("created_at", { mode: "timestamp" })
+    .$defaultFn(() => new Date())
+    .notNull(),
 });
 ```
 
-### Sessions Table
+### TypeScript Types
 
 ```typescript
-export const session = sqliteTable("session", {
-  id: text("id").primaryKey(),
-  userId: text("user_id")
-    .notNull()
-    .references(() => user.id, { onDelete: "cascade" }),
-  token: text("token").notNull().unique(),
-  expiresAt: integer("expires_at", { mode: "timestamp" }).notNull(),
-  createdAt: integer("created_at", { mode: "timestamp" }).default(
-    sql`(unixepoch())`
-  ),
-  updatedAt: integer("updated_at", { mode: "timestamp" }).default(
-    sql`(unixepoch())`
-  ),
-});
-```
+// Generated types from schema
+export type Student = typeof studentTable.$inferSelect;
+export type NewStudent = typeof studentTable.$inferInsert;
 
-### Accounts Table
+// Example usage
+const student: Student = {
+  id: "123",
+  name: "John Doe",
+  email: "john@example.com",
+  age: 25,
+  createdAt: new Date()
+};
 
-```typescript
-export const account = sqliteTable("account", {
-  id: text("id").primaryKey(),
-  userId: text("user_id")
-    .notNull()
-    .references(() => user.id, { onDelete: "cascade" }),
-  accountId: text("account_id").notNull(),
-  providerId: text("provider_id").notNull(),
-  accessToken: text("access_token"),
-  refreshToken: text("refresh_token"),
-  accessTokenExpiresAt: integer("access_token_expires_at", {
-    mode: "timestamp",
-  }),
-  refreshTokenExpiresAt: integer("refresh_token_expires_at", {
-    mode: "timestamp",
-  }),
-  scope: text("scope"),
-  idToken: text("id_token"),
-  password: text("password"),
-  createdAt: integer("created_at", { mode: "timestamp" }).default(
-    sql`(unixepoch())`
-  ),
-  updatedAt: integer("updated_at", { mode: "timestamp" }).default(
-    sql`(unixepoch())`
-  ),
-});
-```
-
-### Verification Table
-
-```typescript
-export const verification = sqliteTable("verification", {
-  id: text("id").primaryKey(),
-  identifier: text("identifier").notNull(),
-  value: text("value").notNull(),
-  expiresAt: integer("expires_at", { mode: "timestamp" }).notNull(),
-  createdAt: integer("created_at", { mode: "timestamp" }).default(
-    sql`(unixepoch())`
-  ),
-});
+const newStudent: NewStudent = {
+  id: "456",
+  name: "Jane Smith",
+  email: "jane@example.com",
+  age: 22
+  // createdAt will be auto-generated
+};
 ```
 
 ## 🔧 Configuration
@@ -199,9 +161,19 @@ export const verification = sqliteTable("verification", {
 // src/index.ts
 import Database from "better-sqlite3";
 import { drizzle } from "drizzle-orm/better-sqlite3";
+import { resolve, dirname } from "path";
+import { fileURLToPath } from "url";
 import * as schema from "./schema.js";
 
-const sqlite = new Database(process.env.DATABASE_URL || "./local.db");
+// ES module compatibility for __dirname
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
+// Create SQLite database connection
+const dbPath = resolve(__dirname, "../local.db");
+const sqlite = new Database(dbPath);
+
+// Create Drizzle database instance
 export const db = drizzle(sqlite, { schema });
 ```
 
@@ -291,6 +263,24 @@ DATABASE_URL=./test.db pnpm run db:migrate
 cp production.db production-backup-$(date +%Y%m%d-%H%M%S).db
 ```
 
+## 🚀 Recent Improvements
+
+### v1.0.0 Updates
+
+- **Simplified Schema**: Focused on student management with clean, minimal schema
+- **ES Module Support**: Full ES module compatibility with proper path resolution
+- **Type Safety**: Enhanced TypeScript types with proper null safety
+- **Clean Architecture**: Repository-Service pattern with proper error handling
+- **Production Ready**: Optimized for both development and production environments
+
+### Key Features
+
+- **SQLite Database**: Fast, reliable, file-based database
+- **Drizzle ORM**: Type-safe database operations
+- **Migration Support**: Automated schema migrations
+- **Error Handling**: Proper error management and logging
+- **Performance**: Optimized queries and connection management
+
 ## 📊 Performance
 
 ### Optimization Tips
@@ -304,12 +294,18 @@ cp production.db production-backup-$(date +%Y%m%d-%H%M%S).db
 
 ```typescript
 // Select specific columns
-const users = await db.select({ id: user.id, email: user.email }).from(user);
+const students = await db
+  .select({
+    id: studentTable.id,
+    name: studentTable.name,
+    email: studentTable.email
+  })
+  .from(studentTable);
 
-// Use transactions
+// Use transactions for batch operations
 await db.transaction(async (tx) => {
-  await tx.insert(user).values(userData);
-  await tx.insert(session).values(sessionData);
+  await tx.insert(studentTable).values(studentData1);
+  await tx.insert(studentTable).values(studentData2);
 });
 ```
 
@@ -435,13 +431,11 @@ db.execute(sql`SELECT * FROM users`);
 
 ```typescript
 import {
-  user,
-  session,
-  account,
-  verification,
+  studentTable,
+  db,
   // Types
-  selectUserSchema,
-  insertUserSchema,
+  Student,
+  NewStudent,
 } from "@pocket-pixie/db";
 ```
 

@@ -27,25 +27,35 @@ pocket-pixie/
 ├── apps/
 │   ├── api/                 # Backend API server (Hono + TypeScript)
 │   │   ├── src/             # Source TypeScript files
-│   │   └── dist/            # Compiled JavaScript output
+│   │   ├── dist/            # ✅ Compiled JavaScript output
+│   │   └── package.json     # API-specific configuration
 │   └── mobile/              # React Native/Expo mobile app
+│       ├── src/             # React Native source files
+│       └── package.json     # Mobile app configuration
 ├── packages/
 │   ├── auth/                # Authentication package (Better Auth)
 │   │   ├── src/             # Source TypeScript files
-│   │   └── dist/            # Compiled JavaScript output
+│   │   ├── dist/            # ✅ Compiled JavaScript output
+│   │   └── package.json     # Auth package configuration
 │   ├── db/                  # Database package (Drizzle ORM + SQLite)
 │   │   ├── src/             # Source TypeScript files
-│   │   ├── dist/            # Compiled JavaScript output
-│   │   └── migrations/      # Database migration files
+│   │   ├── dist/            # ✅ Compiled JavaScript output
+│   │   ├── migrations/      # Database migration files
+│   │   └── package.json     # Database package configuration
 │   ├── validators/          # Zod validation schemas
 │   │   ├── src/             # Source TypeScript files
-│   │   └── dist/            # Compiled JavaScript output
+│   │   ├── dist/            # ✅ Compiled JavaScript output
+│   │   └── package.json     # Validators package configuration
 │   ├── config-eslint/       # ESLint configuration
+│   │   └── package.json     # ESLint config package
 │   ├── config-prettier/     # Prettier configuration
+│   │   └── package.json     # Prettier config package
 │   └── config-typescript/   # TypeScript configuration
-├── tools/
-│   └── types/               # Shared TypeScript types
-└── package.json             # Root package with workspace config
+│       └── package.json     # TypeScript config package
+├── .env                     # Root environment variables
+├── package.json             # Root package with workspace config
+├── turbo.json               # Turborepo configuration
+└── pnpm-workspace.yaml      # pnpm workspace configuration
 ```
 
 ## 🏗️ Architecture
@@ -55,24 +65,115 @@ pocket-pixie/
 ```
 config-* (no dependencies)
     ↓
-validators (Zod schemas)
+validators (uses config-typescript)
     ↓
-db (Database models & connection)
+db (uses config-typescript) - Student schema (single source of truth)
     ↓
-auth (Authentication logic)
-    ↓
+api (uses db, validators) - Full CRUD API with clean architecture
+mobile (uses auth) - Full auth integration
+```
+
+### Architecture Benefits
+
+- **Single Source of Truth**: Database schema defines all data structures
+- **Type Safety**: Generated types ensure consistency across backend and frontend
+- **Clean Architecture**: Repository-Service-Route pattern with proper separation
+- **Path Aliases**: Clean imports with `@/` aliases resolved by tsc-alias
+- **Maintainability**: Changes to schema automatically propagate to all layers
+- **Validation**: Zod schemas ensure data integrity at runtime
+
+### API Endpoints (Full CRUD)
+
+#### Health & Status
+
+- `GET /` - API health check and status
+
+#### Student CRUD Operations
+
+- `GET /students` - Get all students (with pagination support)
+- `GET /students/:id` - Get student by ID
+- `POST /students` - Create new student
+- `PUT /students/:id` - Update existing student
+- `DELETE /students/:id` - Delete student
+
+#### Request/Response Examples
+
+**Create Student:**
+
+```json
+POST /students
+{
+  "name": "John Doe",
+  "email": "john.doe@example.com",
+  "age": 20
+}
+```
+
+**Response:**
+
+```json
+{
+  "success": true,
+  "data": {
+    "id": "uuid-generated",
+    "name": "John Doe",
+    "email": "john.doe@example.com",
+    "age": 20,
+    "createdAt": "2025-08-29T16:46:00.000Z"
+  },
+  "message": "Student created successfully"
+}
+```
+
+### Path Aliases & Clean Imports
+
+The API uses **path aliases** for clean, maintainable imports:
+
+```typescript
+// Clean imports with path aliases
+import { StudentService } from "@/services/student-service";
+import { createStudentSchema } from "@/dtos/student";
+import type { Student } from "@/models/student";
+
+// Resolved to relative paths in compiled JavaScript
+import { StudentService } from "../services/student-service";
+import { createStudentSchema } from "../dtos/student";
+```
+
+**✅ Benefits:**
+
+- **Clean Code**: No `../../../` in imports
+- **Maintainable**: Easy to refactor and move files
+- **Type-Safe**: Full IntelliSense support
+- **Build-Safe**: tsc-alias resolves aliases to correct paths
+
+**Response:**
+
+```json
+{
+  "success": true,
+  "data": {
+    "id": "uuid-generated",
+    "name": "John Doe",
+    "email": "john.doe@example.com",
+    "age": 20,
+    "createdAt": "2025-08-29T16:46:00.000Z"
+  }
+}
+```
+
 api (Backend server)
 mobile (Frontend app)
-```
+
+````
 
 ### Tech Stack
 
-**Backend:**
+**Backend (Simplified):**
 
 - **Runtime:** Bun
 - **Framework:** Hono
-- **Database:** SQLite + Drizzle ORM
-- **Auth:** Better Auth
+- **Database:** SQLite + Drizzle ORM (Student schema only)
 - **Validation:** Zod
 - **Language:** TypeScript
 
@@ -92,37 +193,49 @@ mobile (Frontend app)
 - **Formatting:** Prettier
 - **Type Checking:** TypeScript
 
+## ✅ Build Status
+
+**All packages are building successfully!** 🎉
+
+- ✅ **packages/auth/dist/** - Authentication package compiled
+- ✅ **packages/db/dist/** - Database package compiled
+- ✅ **packages/validators/dist/** - Validators package compiled
+- ✅ **apps/api/dist/** - API server compiled (recently fixed)
+
+### Recent Fixes
+
+- **API Build Issue Fixed**: Removed `"noEmit": true` from API tsconfig.json
+- **Import Extensions**: Added explicit `.js` extensions for NodeNext compatibility
+- **Build Configuration**: Updated TypeScript config for proper compilation
+- **Package Cleanup**: Removed unnecessary root index.ts and compiled eslint config files
+- **Clean Architecture**: API package now builds cleanly to `apps/api/dist/` without artifacts in source
+
 ## 🗄️ Database Architecture
 
 This monorepo uses **separate databases** for different concerns to ensure security isolation and independent scaling:
 
-### Database Separation
+### Database Setup (Simplified)
 
-- **`packages/db/local.db`** - Main business logic database
-  - User profiles, business data, application-specific tables
-- **`packages/auth/auth.db`** - Authentication-specific database
-  - Auth sessions, tokens, authentication-related data
+- **`packages/db/local.db`** - Main database
+  - Student records (id, name, email, age)
+- **No auth database** - Authentication removed for simplicity
 
-### Database Commands
+### Database Commands (Simplified)
 
 ```bash
-# Individual databases
-pnpm run db:generate          # Generate types for main database
-pnpm run db:migrate           # Migrate main database
-pnpm run auth:db:generate     # Generate types for auth database
-pnpm run auth:db:migrate      # Migrate auth database
+# Main database only
+pnpm run db:generate          # Generate types for student database
+pnpm run db:migrate           # Migrate student database
 
-# All databases at once
-pnpm run db:generate:all      # Generate types for all databases
-pnpm run db:migrate:all       # Migrate all databases
-```
+# Note: Auth database removed for simplicity
+````
 
-### Why Separate Databases?
+### Simplified Database Setup
 
-- **Security isolation** between authentication and business data
-- **Independent scaling** of auth vs business logic
-- **Clean separation** of concerns
-- **Easier maintenance** and troubleshooting
+- **Single database** with student schema only
+- **Easy to understand** and modify
+- **Perfect for testing** the basic setup
+- **Add authentication database later** when needed
 
 ## 🔨 Build Process & File Organization
 
@@ -174,7 +287,9 @@ src/*.d.ts.map
 
 ```bash
 # Development workflow
-pnpm run build:packages    # Compiles all packages
+pnpm run build             # ✅ Compiles ALL packages and apps
+pnpm run build:packages    # ✅ Compiles only packages (auth, db, validators)
+pnpm run build:api         # ✅ Compiles API app to dist/
 # ✅ Source files in src/ remain clean
 # ✅ Generated files go to dist/
 # ✅ Git status shows only source file changes
@@ -185,6 +300,41 @@ pnpm run db:migrate:all    # Applies migrations
 # ✅ Migration files are committed
 # ✅ Database files are ignored
 ```
+
+### Build Output Verification
+
+After running builds, verify outputs exist:
+
+```bash
+# Check package builds
+ls packages/*/dist/
+# Should show: auth/db/validators dist folders
+
+# Check API build (with tsc-alias)
+ls apps/api/dist/
+# Should show: compiled JS files with resolved path aliases
+
+# Check build success
+pnpm run build:api && echo "✅ API build successful!"
+```
+
+### tsc-alias Integration
+
+The API package uses **tsc-alias** to resolve path aliases in compiled JavaScript:
+
+```bash
+# Build process with path alias resolution
+pnpm run build:api
+# 1. TypeScript compilation (creates .js with @/ aliases)
+# 2. tsc-alias resolution (converts @/ to relative paths)
+# 3. Final .js files with correct import paths
+```
+
+**✅ Result:**
+
+- **Development**: Clean `@/` imports in TypeScript
+- **Build**: Automatic alias resolution to relative paths
+- **Runtime**: Correct import paths in production JavaScript
 
 ### Benefits
 
@@ -238,7 +388,7 @@ pnpm run dev:mobile       # Mobile app only
 # Build commands
 pnpm run build            # Build all packages
 pnpm run build:packages   # Build packages only (outputs to dist/)
-pnpm run build:api        # Build API only
+pnpm run build:api        # Build API with tsc-alias path resolution
 pnpm run build:mobile     # Build mobile app
 
 # Code quality
@@ -247,15 +397,12 @@ pnpm run lint:fix         # Lint and auto-fix
 pnpm run check-types      # Type check all packages
 pnpm run format           # Format code with Prettier
 
-# Database
-pnpm run db:generate      # Generate Drizzle types (main db)
-pnpm run db:migrate       # Run database migrations (main db)
-pnpm run auth:db:generate # Generate Drizzle types (auth db)
-pnpm run auth:db:migrate  # Run database migrations (auth db)
-pnpm run db:generate:all  # Generate all databases
-pnpm run db:migrate:all   # Migrate all databases
+# Database (Simplified)
+pnpm run db:generate      # Generate Drizzle types (student db)
+pnpm run db:migrate       # Run database migrations (student db)
 
 # Note: Migration files are committed to git, database files are ignored
+# Auth database removed for simplicity
 
 # Cleanup
 pnpm run clean            # Clean build artifacts (dist/, *.tsbuildinfo)
@@ -282,12 +429,11 @@ This monorepo uses **Turbo** for task orchestration with intelligent caching and
 - **`dev:api`** → API workspace only
 - **`dev:mobile`** → Mobile workspace only
 
-#### **Database Scripts**
+#### **Database Scripts (Simplified)**
 
-- **`db:generate`** → Main business database (`@pocket-pixie/db`)
-- **`auth:db:generate`** → Auth database (`@pocket-pixie/auth`)
-- **`db:generate:all`** → Both databases simultaneously
-- **`db:migrate:all`** → Migrate both databases simultaneously
+- **`db:generate`** → Student database (`@pocket-pixie/db`)
+- **`db:migrate`** → Migrate student database
+- **Note:** Auth database scripts removed for simplicity
 
 ### Mobile App Development
 
@@ -322,18 +468,19 @@ cd apps/mobile && pnpm run start:production
 - **Modern UI:** NativeWind + TailwindCSS
 - **Type Safety:** Full TypeScript coverage
 
-## 🔧 API Server Features
+## 🔧 API Server Features (Simplified)
 
 - **REST API:** Hono framework with TypeScript
-- **Authentication:** Better Auth integration
-- **Database:** SQLite with Drizzle ORM
+- **Database:** SQLite with Drizzle ORM (Student schema)
 - **Validation:** Zod schemas
-- **CORS:** Configured for development and production
 - **Hot Reload:** Bun's watch mode for development
+- **Basic Endpoints:** Health check and student data
+
+**Note:** Authentication and CORS middleware removed for simplicity.
 
 ## 🚀 Deployment
 
-### API Deployment
+### API Deployment (Simplified)
 
 ```bash
 # Build the API (outputs to apps/api/dist/)
@@ -342,6 +489,8 @@ pnpm run build:api
 # Start production server
 cd apps/api && bun dist/index.js
 ```
+
+**Note:** Simplified deployment without authentication setup.
 
 ### Mobile App Deployment
 
@@ -363,16 +512,13 @@ cd apps/mobile && pnpm run build:production
 
 ## 🔒 Environment Variables
 
-### Root `.env`
+### Root `.env` (Simplified)
 
 ```bash
-BETTER_AUTH_SECRET=your-secret-key-here
-BETTER_AUTH_URL=http://localhost:3000
 DATABASE_URL=./packages/db/local.db
-AUTH_DATABASE_URL=./packages/auth/auth.db
 ```
 
-**Note:** Database files (`.db`) are ignored by git. Only migration files in `packages/*/migrations/` are committed.
+**Note:** Authentication environment variables removed for simplicity. Database files (`.db`) are ignored by git. Only migration files in `packages/*/migrations/` are committed.
 
 ### Mobile App Environments
 
@@ -400,9 +546,55 @@ AUTH_DATABASE_URL=./packages/auth/auth.db
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-## 🆘 Support
+## 🆘 Support & Troubleshooting
 
-If you encounter any issues:
+### Build Issues
+
+**API Build Fails:**
+
+```bash
+# If API build fails, check:
+pnpm run build:api  # Test API build specifically
+ls apps/api/dist/   # Verify dist folder exists
+```
+
+**Package Build Issues:**
+
+```bash
+# Clean and rebuild
+pnpm run clean:all
+pnpm install
+pnpm run build
+```
+
+**Import Extension Errors:**
+
+- ✅ **RESOLVED**: API package now uses explicit `.js` extensions
+- ✅ **RESOLVED**: TypeScript config updated for NodeNext compatibility
+- ✅ **RESOLVED**: Clean build process with no artifacts in source directories
+
+### Common Issues
+
+1. **Database connection errors:**
+
+   ```bash
+   pnpm run db:migrate:all  # Reset databases
+   ```
+
+2. **TypeScript compilation errors:**
+
+   ```bash
+   pnpm run check-types     # Check for type errors
+   pnpm run build:api       # Rebuild API specifically
+   ```
+
+3. **Metro bundler issues (mobile):**
+   ```bash
+   cd apps/mobile && pnpm run clean
+   pnpm run start
+   ```
+
+### Getting Help
 
 1. Check the [BUILD_PROCESS.md](./BUILD_PROCESS.md) for common solutions
 2. Review individual package READMEs

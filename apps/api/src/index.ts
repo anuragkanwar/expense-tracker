@@ -1,36 +1,40 @@
 import { Hono } from "hono";
-import { corsMiddleware } from "./middleware/cors";
-import { errorHandler } from "./middleware/error";
-import { requestLogger } from "./middleware/logger";
-import { rateLimit } from "./middleware/rate-limit";
-import authRoutes from "./routes/auth";
-import healthRoutes from "./routes/health";
-import apiRoutes from "./routes/api";
+import studentRoutes from "@/routes/students";
+import { errorHandler } from "@/middleware/error-handler";
+import { logger } from "@/middleware/logger";
 
+// API setup with proper architecture and middlewares
 const app = new Hono();
 
-// Global error handler (must be first)
-app.use("*", errorHandler);
+// Global middlewares
+app.use("*", logger());
+app.use("*", errorHandler());
 
-// Global CORS middleware
-app.use("*", corsMiddleware);
+// Health check endpoint
+app.get("/", (c) => {
+  return c.json({
+    success: true,
+    message: "Pocket Pixie API is running!",
+    version: "1.0.0",
+    timestamp: new Date().toISOString(),
+    environment: process.env.NODE_ENV || "development",
+  });
+});
 
-// Request logging
-app.use("*", requestLogger);
+// API info endpoint
+app.get("/health", (c) => {
+  return c.json({
+    success: true,
+    status: "healthy",
+    timestamp: new Date().toISOString(),
+    uptime: process.uptime(),
+  });
+});
 
-// Rate limiting for API routes
-app.use("/api/*", rateLimit);
+// Mount student routes
+app.route("/students", studentRoutes);
 
-// Health check (no auth required)
-app.route("/", healthRoutes);
-
-// Authentication routes
-app.route("/api/auth", authRoutes);
-
-// Protected API routes
-app.route("/api", apiRoutes);
-
-// 404 handler
+// 404 handler (handled by error middleware)
 app.notFound((c) => {
   return c.json(
     {
@@ -40,7 +44,7 @@ app.notFound((c) => {
         message: "Endpoint not found",
       },
     },
-    404
+    404 as any
   );
 });
 
