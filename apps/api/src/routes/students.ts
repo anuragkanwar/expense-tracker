@@ -1,28 +1,46 @@
 import { Hono } from "hono";
-import { StudentService } from "@/services/student-service";
-import { createStudentSchema, updateStudentSchema } from "@/dtos/student";
+import type { IStudentService } from "@/services";
+import {
+  createStudentDto,
+  updateStudentDto,
+  studentResponseDto,
+  studentListResponseDto,
+  transformStudentForApi,
+  transformStudentsForApi,
+} from "@/dtos/student";
 
 const router = new Hono();
-const studentService = new StudentService();
+
+// Service will be injected via middleware
+declare module "hono" {
+  interface ContextVariableMap {
+    studentService: IStudentService;
+  }
+}
 
 // GET /students - Get all students with pagination
 router.get("/", async (c) => {
   try {
+    const studentService = c.get("studentService");
     const limit = parseInt(c.req.query("limit") || "10");
     const offset = parseInt(c.req.query("offset") || "0");
 
     const students = await studentService.getAllStudents(limit, offset);
+    const transformedStudents = transformStudentsForApi(students);
+
+    // Validate the response format
+    const response = studentListResponseDto.parse({
+      students: transformedStudents,
+      total: students.length, // In real app, this would be total count from DB
+      page: Math.floor(offset / limit) + 1,
+      limit,
+    });
 
     return c.json({
       success: true,
-      data: students,
-      pagination: {
-        limit,
-        offset,
-        count: students.length,
-      },
+      data: response,
     });
-  } catch (error) {
+  } catch (error: any) {
     return c.json(
       {
         success: false,
@@ -39,7 +57,9 @@ router.get("/", async (c) => {
 // GET /students/:id - Get student by ID
 router.get("/:id", async (c) => {
   try {
+    const studentService = c.get("studentService");
     const id = c.req.param("id");
+
     const student = await studentService.getStudentById(id);
 
     if (!student) {
@@ -55,9 +75,14 @@ router.get("/:id", async (c) => {
       );
     }
 
+    const transformedStudent = transformStudentForApi(student);
+
+    // Validate the response format
+    const response = studentResponseDto.parse(transformedStudent);
+
     return c.json({
       success: true,
-      data: student,
+      data: response,
     });
   } catch (error) {
     return c.json(
@@ -76,17 +101,22 @@ router.get("/:id", async (c) => {
 // POST /students - Create new student
 router.post("/", async (c) => {
   try {
+    const studentService = c.get("studentService");
     const body = await c.req.json();
 
-    // Validate input
-    const validatedData = createStudentSchema.parse(body);
+    // Validate input using DTO
+    const validatedData = createStudentDto.parse(body);
 
     const student = await studentService.createStudent(validatedData);
+    const transformedStudent = transformStudentForApi(student);
+
+    // Validate the response format
+    const response = studentResponseDto.parse(transformedStudent);
 
     return c.json(
       {
         success: true,
-        data: student,
+        data: response,
         message: "Student created successfully",
       },
       201
@@ -106,7 +136,10 @@ router.post("/", async (c) => {
       );
     }
 
-    if (error.message === "Email already exists") {
+    if (
+      error.message?.includes("Email already exists") ||
+      error.message?.includes("UNIQUE constraint")
+    ) {
       return c.json(
         {
           success: false,
@@ -135,11 +168,12 @@ router.post("/", async (c) => {
 // PUT /students/:id - Update student
 router.put("/:id", async (c) => {
   try {
+    const studentService = c.get("studentService");
     const id = c.req.param("id");
     const body = await c.req.json();
 
-    // Validate input
-    const validatedData = updateStudentSchema.parse(body);
+    // Validate input using DTO
+    const validatedData = updateStudentDto.parse(body);
 
     const student = await studentService.updateStudent(id, validatedData);
 
@@ -156,9 +190,14 @@ router.put("/:id", async (c) => {
       );
     }
 
+    const transformedStudent = transformStudentForApi(student);
+
+    // Validate the response format
+    const response = studentResponseDto.parse(transformedStudent);
+
     return c.json({
       success: true,
-      data: student,
+      data: response,
       message: "Student updated successfully",
     });
   } catch (error: any) {
@@ -176,7 +215,10 @@ router.put("/:id", async (c) => {
       );
     }
 
-    if (error.message === "Email already exists") {
+    if (
+      error.message?.includes("Email already exists") ||
+      error.message?.includes("UNIQUE constraint")
+    ) {
       return c.json(
         {
           success: false,
@@ -205,6 +247,7 @@ router.put("/:id", async (c) => {
 // DELETE /students/:id - Delete student
 router.delete("/:id", async (c) => {
   try {
+    const studentService = c.get("studentService");
     const id = c.req.param("id");
 
     const deleted = await studentService.deleteStudent(id);
@@ -227,7 +270,7 @@ router.delete("/:id", async (c) => {
       message: "Student deleted successfully",
     });
   } catch (error: any) {
-    if (error.message === "Student not found") {
+    if (error.message?.includes("Student not found")) {
       return c.json(
         {
           success: false,

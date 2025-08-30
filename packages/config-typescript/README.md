@@ -136,9 +136,27 @@ pnpm run check-types
 
 ## 📚 Related Documentation
 
-- [ESLint Config](../config-eslint/README.md) - Linting configuration
-- [Prettier Config](../config-prettier/README.md) - Code formatting
-- [TypeScript Handbook](https://www.typescriptlang.org/docs/)
+### Project Overview
+
+- [Root README](../../../README.md) - Main project documentation and architecture
+- [Build Process](../../../BUILD_PROCESS.md) - Turborepo build pipeline
+
+### Applications Using This Config
+
+- [API Documentation](../../apps/api/README.md) - Backend API TypeScript setup
+- [Mobile App](../../apps/mobile/README.md) - React Native TypeScript setup
+- [Database Package](../db/README.md) - Database package TypeScript setup
+- [Auth Package](../auth/README.md) - Authentication package TypeScript setup
+
+### Related Configuration Packages
+
+- [ESLint Config](../config-eslint/README.md) - Code linting configuration
+- [Prettier Config](../config-prettier/README.md) - Code formatting configuration
+- [Validators Package](../validators/README.md) - Data validation schemas
+
+### External Resources
+
+- [TypeScript Handbook](https://www.typescriptlang.org/docs/) - Official TypeScript documentation
 
 ## 📄 License
 

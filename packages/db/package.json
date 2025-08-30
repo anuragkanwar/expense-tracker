@@ -7,23 +7,28 @@
   "types": "./src/index.ts",
   "scripts": {
     "build": "tsc",
-    "check-types": "tsc --noEmit",
-    "lint": "eslint src --ext .ts,.tsx",
+    "dev": "concurrently \"turso dev --db-file local.db\" \"drizzle-kit studio\"",
+    "db:run": "turso dev --db-file local.db",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
+    "db:push": "drizzle-kit push",
+    "db:studio": "drizzle-kit studio",
+    "lint": "eslint src --ext .ts,.tsx",
     "clean": "rm -rf dist migrations/*.sql"
   },
   "devDependencies": {
     "@pocket-pixie/eslint-config": "workspace:^",
     "@pocket-pixie/typescript-config": "workspace:^",
-    "@types/better-sqlite3": "^7.6.13",
+    "concurrently": "^9.2.1",
     "drizzle-kit": "^0.31.4",
     "typescript": "^5.9.2"
   },
   "dependencies": {
+    "@libsql/client": "^0.15.14",
     "@types/bun": "^1.2.21",
     "@types/node": "^24.3.0",
-    "better-sqlite3": "^12.2.0",
-    "drizzle-orm": "^0.44.5"
+    "drizzle-orm": "^0.44.5",
+    "drizzle-zod": "^0.8.3",
+    "zod": "^4.1.3"
   }
 }

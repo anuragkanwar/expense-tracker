@@ -26,13 +26,56 @@ config-* (no dependencies)
     ↓
 validators (uses config-typescript)
     ↓
-db (uses config-typescript)
+db (uses config-typescript, drizzle-zod)
     ↓
 auth (uses db, config-typescript)
     ↓
-api (uses auth, db, validators)
+api (uses auth, db, validators, auto-generated schemas)
 mobile (uses auth)
 ```
+
+## Architecture Flow
+
+```
+🎯 Drizzle Schema (Single Source of Truth)
+    ↓
+🔄 drizzle-zod (Auto-Generated Schemas)
+    ↓
+📋 Smart DTOs (Field Control)
+    ↓
+🛠️ Clean API Routes
+    ↓
+📚 OpenAPI Documentation
+```
+
+config-\* (no dependencies)
+↓
+validators (uses config-typescript)
+↓
+db (uses config-typescript, drizzle-zod, auto-generates Zod schemas)
+↓
+auth (uses db, config-typescript)
+↓
+api (uses auth, db, validators, smart DTOs)
+mobile (uses auth)
+
+```
+
+## Architecture Flow
+
+```
+
+🎯 Drizzle Schema (Single Source of Truth)
+↓
+🔄 Auto-Generated Zod Schemas
+↓
+📋 Smart DTOs (Field Control)
+↓
+🛠️ Clean API Routes
+↓
+📚 OpenAPI Documentation
+
+````
 
 ## Available Commands
 
@@ -42,9 +85,12 @@ mobile (uses auth)
 # Start all dev servers
 pnpm run dev
 
+# Start API + Database together (recommended for development)
+pnpm run dev:server       # API + Database + Drizzle Studio
+
 # Start specific services
-pnpm run dev:api          # API server with full CRUD and clean architecture
-pnpm run dev:mobile       # Mobile app with auth integration
+cd apps/api && pnpm run dev    # API server only
+cd packages/db && pnpm run dev # Database + Drizzle Studio only
 
 # Database operations
 pnpm run db:generate      # Generate database schema from types
@@ -55,7 +101,7 @@ cd apps/api
 pnpm run test            # Run API tests with path alias support
 pnpm run build           # Build with tsc-alias path resolution
 pnpm run dev             # Start development server with hot reload
-```
+````
 
 ### Building
 
@@ -119,10 +165,11 @@ pnpm run clean:all
 
 ### 3. **DB Package**
 
-- **Purpose**: Database connection and schemas
+- **Purpose**: Database connection, schemas, and auto-generated Zod schemas
 - **Build**: TypeScript compilation
-- **Dependencies**: `config-typescript`
+- **Dependencies**: `config-typescript`, `zod`, `drizzle-zod`
 - **Special commands**:
+  - `dev`: Start database server + Drizzle Studio concurrently
   - `db:generate`: Generate Drizzle types from schema
   - `db:migrate`: Run database migrations
 - **Used by**: `auth`, `api`
@@ -136,10 +183,11 @@ pnpm run clean:all
 
 ### 5. **API App**
 
-- **Purpose**: Backend server
+- **Purpose**: Backend server with auto-generated schemas and smart DTOs
 - **Build**: TypeScript compilation
 - **Dependencies**: `auth`, `db`, `validators`
 - **Dev server**: `bun --watch --port 3000`
+- **Features**: Uses auto-generated Zod schemas from Drizzle, smart DTOs for field control, auto-generated OpenAPI docs
 
 ### 6. **Mobile App**
 
@@ -174,6 +222,8 @@ pnpm run db:generate
 
 # Run database migrations
 pnpm run db:migrate
+
+# 🎉 Zod schemas are auto-generated from Drizzle - no extra steps!
 ```
 
 ### Daily Development
@@ -182,9 +232,12 @@ pnpm run db:migrate
 # Start all services
 pnpm run dev
 
+# Start API + Database together (recommended)
+pnpm run dev:server   # API + Database + Drizzle Studio
+
 # Or start individually
-pnpm run dev:api      # Terminal 1 - Full CRUD API with clean architecture
-pnpm run dev:mobile   # Terminal 2 - Full mobile app with auth
+cd apps/api && pnpm run dev    # API server
+cd packages/db && pnpm run dev # Database + Drizzle Studio
 ```
 
 ### Development Features
@@ -196,8 +249,10 @@ pnpm run dev:mobile   # Terminal 2 - Full mobile app with auth
 - **Type Safety**: Full TypeScript support with schema validation
 - **Testing**: Vitest with path alias resolution
 - **Clean Architecture**: Repository-Service-Route pattern
-- **Database Schema**: Single source of truth for all types
-- **Zod Validation**: Runtime type checking with schema-derived DTOs
+- **Single Source of Truth**: Drizzle schema drives everything
+- **Auto-Generated Schemas**: Zod schemas auto-generated from Drizzle using `drizzle-zod`
+- **Smart DTOs**: Field-level control over client data
+- **Auto OpenAPI Docs**: Scalar UI with full API documentation
 
 ### Architecture Benefits
 
@@ -341,9 +396,22 @@ rm packages/db/local.db && pnpm run db:migrate
 3. **Filter when possible**: Use `--filter` to run only what you need
 4. **Clean regularly**: Use `pnpm run clean` to remove stale cache
 
-## Next Steps
+## 📚 Related Documentation
 
-- [ ] Set up CI/CD pipeline
-- [ ] Configure production deployments
-- [ ] Add testing scripts
-- [ ] Set up monitoring and logging
+- [Root README](../README.md) - Main project documentation
+- [API Documentation](../apps/api/README.md) - Backend API
+- [Mobile App](../apps/mobile/README.md) - React Native application
+- [Database Package](../packages/db/README.md) - Database setup
+- [Auth Package](../packages/auth/README.md) - Authentication
+- [Environment Setup](../apps/mobile/README_ENVIRONMENTS.md) - Mobile app environments
+
+## 🤝 Contributing
+
+1. Follow the existing architectural patterns
+2. Test changes across all affected packages
+3. Update documentation for any process changes
+4. Ensure build compatibility across platforms
+
+## 📄 License
+
+This project is licensed under the MIT License.

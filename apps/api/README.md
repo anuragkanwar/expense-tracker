@@ -44,9 +44,10 @@ This API server provides:
 
 ### Dependencies
 
-- `@pocket-pixie/db` - Database schema and types (single source of truth)
+- `@pocket-pixie/db` - Database schema, auto-generated Zod schemas, and types (single source of truth)
 - `drizzle-orm` - Type-safe database operations
 - `zod` - Runtime type validation and schema creation
+- `@hono/zod-openapi` - OpenAPI documentation generation
 - `hono` - Web framework for API routes
 - `tsc-alias` - Path alias resolution for builds
 - `vite` - Development server and testing configuration
@@ -54,7 +55,9 @@ This API server provides:
 ### Architecture Benefits
 
 - **Type Safety**: Database schema generates TypeScript types used throughout the API
-- **Single Source of Truth**: Schema changes automatically propagate to models and DTOs
+- **Single Source of Truth**: Drizzle schema → auto-generated Zod schemas → smart DTOs
+- **Auto-Generated Schemas**: Zod schemas automatically created from database tables
+- **Smart DTOs**: Field-level control over what gets sent to clients
 - **Clean Architecture**: Repository-Service-Route pattern with proper separation
 - **Middleware System**: Centralized error handling, logging, and validation
 - **Custom Error Classes**: Structured error responses with proper HTTP codes
@@ -434,6 +437,7 @@ rm packages/db/local.db && pnpm run db:migrate
 ```
 
 **✅ Features:**
+
 - SQLite database with Drizzle ORM
 - Type-safe database operations
 - Automatic migrations
@@ -559,11 +563,27 @@ The API includes comprehensive monitoring and logging:
 
 ## 📚 Related Documentation
 
-- [Root README](../README.md) - Main project documentation
-- [Build Process](../../BUILD_PROCESS.md) - Turborepo build pipeline
-- [Database Package](../../packages/db/README.md) - Database setup
-- [Auth Package](../../packages/auth/README.md) - Authentication
-- [Mobile App](../mobile/README.md) - Frontend application
+### Project Overview
+
+- [Root README](../../README.md) - Main project documentation and architecture
+- [Build Process](../../BUILD_PROCESS.md) - Turborepo build pipeline and commands
+
+### Core Packages
+
+- [Database Package](../../packages/db/README.md) - Turso + Drizzle ORM setup
+- [Auth Package](../../packages/auth/README.md) - Better Auth integration
+- [Validators Package](../../packages/validators/README.md) - Zod validation schemas
+
+### Applications
+
+- [Mobile App](../mobile/README.md) - React Native + Expo frontend
+- [Mobile Environments](../mobile/README_ENVIRONMENTS.md) - Environment configuration
+
+### Development Tools
+
+- [ESLint Config](../../packages/config-eslint/README.md) - Code linting rules
+- [Prettier Config](../../packages/config-prettier/README.md) - Code formatting
+- [TypeScript Config](../../packages/config-typescript/README.md) - TypeScript setup
 
 ## 🆘 Troubleshooting
 

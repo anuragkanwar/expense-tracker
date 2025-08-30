@@ -98,9 +98,27 @@ npx prettier --write .
 
 ## 📚 Related Documentation
 
-- [ESLint Config](../config-eslint/README.md) - Linting configuration
+### Project Overview
+
+- [Root README](../../../README.md) - Main project documentation and architecture
+- [Build Process](../../../BUILD_PROCESS.md) - Turborepo build pipeline
+
+### Applications Using This Config
+
+- [API Documentation](../../apps/api/README.md) - Backend API formatting
+- [Mobile App](../../apps/mobile/README.md) - React Native formatting
+- [Database Package](../db/README.md) - Database package formatting
+- [Auth Package](../auth/README.md) - Authentication package formatting
+
+### Related Configuration Packages
+
+- [ESLint Config](../config-eslint/README.md) - Code linting configuration
 - [TypeScript Config](../config-typescript/README.md) - TypeScript configuration
-- [Prettier Documentation](https://prettier.io/docs/en/configuration.html)
+- [Validators Package](../validators/README.md) - Data validation schemas
+
+### External Resources
+
+- [Prettier Documentation](https://prettier.io/docs/en/configuration.html) - Official Prettier docs
 
 ## 📄 License
 

@@ -301,11 +301,27 @@ pnpm run lint
 
 ## 📚 Related Documentation
 
-- [Root README](../README.md) - Main project documentation
-- [Environment Setup](./README_ENVIRONMENTS.md) - Detailed environment configuration
-- [Build Process](../../BUILD_PROCESS.md) - Turborepo build pipeline
-- [API Documentation](../api/README.md) - Backend API
-- [Auth Package](../../packages/auth/README.md) - Authentication
+### Project Overview
+
+- [Root README](../../README.md) - Main project documentation and architecture
+- [Build Process](../../BUILD_PROCESS.md) - Turborepo build pipeline and commands
+
+### Environment Configuration
+
+- [Environment Setup](./README_ENVIRONMENTS.md) - Detailed environment configuration guide
+
+### Backend Services
+
+- [API Documentation](../api/README.md) - Backend API with clean architecture
+- [Auth Package](../../packages/auth/README.md) - Authentication integration
+- [Database Package](../../packages/db/README.md) - Database setup and schemas
+
+### Development Tools
+
+- [Validators Package](../../packages/validators/README.md) - Data validation schemas
+- [ESLint Config](../../packages/config-eslint/README.md) - Code linting rules
+- [Prettier Config](../../packages/config-prettier/README.md) - Code formatting
+- [TypeScript Config](../../packages/config-typescript/README.md) - TypeScript setup
 
 ## 🆘 Troubleshooting
 

@@ -20,6 +20,11 @@
       "persistent": true,
       "dependsOn": ["^build"]
     },
+    "serve": {
+      "cache": false,
+      "persistent": true,
+      "dependsOn": ["^build"]
+    },
     "db:generate": {
       "cache": false,
       "dependsOn": []

@@ -4,7 +4,7 @@ export default {
   schema: "./src/schema.ts",
   out: "./migrations",
   dbCredentials: {
-    url: process.env.DATABASE_URL ?? "./local.db",
+    url: process.env.TURSO_DATABASE_URL ?? "file:./local.db",
   },
-  dialect: "sqlite"
+  dialect: "turso",
 } satisfies Config;

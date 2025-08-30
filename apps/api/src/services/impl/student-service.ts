@@ -1,22 +1,18 @@
-import { StudentRepository } from "@/repositories/student-repository";
+import type { IStudentRepository } from "../../repositories";
+import type { IStudentService } from "../index";
 import type {
   Student,
   CreateStudentData,
   UpdateStudentData,
-} from "@/models/student";
-import { createStudentSchema, updateStudentSchema } from "@/dtos/student";
+} from "../../models/student";
 import {
   StudentNotFoundError,
   StudentEmailConflictError,
-} from "@/errors/student-errors";
-import { BadRequestError } from "@/errors/base-error";
+} from "../../errors/student-errors";
+import { BadRequestError } from "../../errors/base-error";
 
-export class StudentService {
-  private repository: StudentRepository;
-
-  constructor() {
-    this.repository = new StudentRepository();
-  }
+export class StudentService implements IStudentService {
+  constructor(private repository: IStudentRepository) {}
 
   async getAllStudents(
     limit: number = 10,
@@ -34,18 +30,13 @@ export class StudentService {
   }
 
   async createStudent(data: CreateStudentData): Promise<Student> {
-    // Validate input data
-    const validatedData = createStudentSchema.parse(data);
-
     // Check if email already exists
-    const existingStudent = await this.repository.findByEmail(
-      validatedData.email
-    );
+    const existingStudent = await this.repository.findByEmail(data.email);
     if (existingStudent) {
-      throw new StudentEmailConflictError(validatedData.email);
+      throw new StudentEmailConflictError(data.email);
     }
 
-    return this.repository.create(validatedData);
+    return this.repository.create(data);
   }
 
   async updateStudent(
@@ -56,9 +47,6 @@ export class StudentService {
       throw new BadRequestError("Invalid student ID");
     }
 
-    // Validate input data
-    const validatedData = updateStudentSchema.parse(data);
-
     // Check if student exists
     const existingStudent = await this.repository.findById(id);
     if (!existingStudent) {
@@ -66,16 +54,14 @@ export class StudentService {
     }
 
     // Check if email is being updated and if it already exists
-    if (validatedData.email && validatedData.email !== existingStudent.email) {
-      const emailExists = await this.repository.findByEmail(
-        validatedData.email
-      );
+    if (data.email && data.email !== existingStudent.email) {
+      const emailExists = await this.repository.findByEmail(data.email);
       if (emailExists) {
-        throw new StudentEmailConflictError(validatedData.email);
+        throw new StudentEmailConflictError(data.email);
       }
     }
 
-    return this.repository.update(id, validatedData);
+    return this.repository.update(id, data);
   }
 
   async deleteStudent(id: string): Promise<boolean> {

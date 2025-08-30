@@ -356,10 +356,27 @@ export default [
 
 ## 📚 Related Documentation
 
-- [Root README](../../README.md) - Main project documentation
+### Project Overview
+
+- [Root README](../../../README.md) - Main project documentation and architecture
+- [Build Process](../../../BUILD_PROCESS.md) - Turborepo build pipeline
+
+### Applications Using This Config
+
+- [API Documentation](../../apps/api/README.md) - Backend API linting
+- [Mobile App](../../apps/mobile/README.md) - React Native linting
+- [Database Package](../db/README.md) - Database package linting
+- [Auth Package](../auth/README.md) - Authentication package linting
+
+### Related Configuration Packages
+
 - [Prettier Config](../config-prettier/README.md) - Code formatting configuration
 - [TypeScript Config](../config-typescript/README.md) - TypeScript configuration
-- [ESLint Documentation](https://eslint.org/docs/latest/) - Official ESLint docs
+- [Validators Package](../validators/README.md) - Data validation schemas
+
+### External Resources
+
+- [ESLint Documentation](https://eslint.org/docs/latest/) - Official ESLint documentation
 
 ## 🤝 Contributing
 

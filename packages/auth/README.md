@@ -352,11 +352,27 @@ The auth package includes:
 
 ## 📚 Related Documentation
 
-- [Root README](../../README.md) - Main project documentation
-- [Database Package](../db/README.md) - Database setup
-- [API Documentation](../../apps/api/README.md) - API server
-- [Mobile App](../../apps/mobile/README.md) - Mobile application
-- [Better Auth Docs](https://better-auth.com) - Official documentation
+### Project Overview
+
+- [Root README](../../../README.md) - Main project documentation and architecture
+- [Build Process](../../../BUILD_PROCESS.md) - Turborepo build pipeline
+
+### Applications Using This Package
+
+- [API Documentation](../../apps/api/README.md) - Backend API server
+- [Mobile App](../../apps/mobile/README.md) - React Native application
+- [Mobile Environments](../../apps/mobile/README_ENVIRONMENTS.md) - Environment configuration
+
+### Related Packages
+
+- [Database Package](../db/README.md) - User data storage
+- [Validators Package](../validators/README.md) - Data validation schemas
+- [ESLint Config](../config-eslint/README.md) - Code quality rules
+- [TypeScript Config](../config-typescript/README.md) - TypeScript configuration
+
+### External Resources
+
+- [Better Auth Docs](https://better-auth.com) - Official Better Auth documentation
 
 ## 🤝 Contributing
 

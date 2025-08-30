@@ -441,9 +441,26 @@ z.object({
 
 ## 📚 Related Documentation
 
-- [Root README](../../README.md) - Main project documentation
-- [API Documentation](../../apps/api/README.md) - API using these validators
-- [Zod Documentation](https://zod.dev) - Official Zod documentation
+### Project Overview
+
+- [Root README](../../../README.md) - Main project documentation and architecture
+- [Build Process](../../../BUILD_PROCESS.md) - Turborepo build pipeline
+
+### Applications Using This Package
+
+- [API Documentation](../../apps/api/README.md) - Backend API server validation
+- [Mobile App](../../apps/mobile/README.md) - Frontend data validation
+- [Auth Package](../auth/README.md) - Authentication validation
+
+### Related Packages
+
+- [Database Package](../db/README.md) - Database schemas and types
+- [ESLint Config](../config-eslint/README.md) - Code quality rules
+- [TypeScript Config](../config-typescript/README.md) - TypeScript configuration
+
+### External Resources
+
+- [Zod Documentation](https://zod.dev) - Official Zod validation library docs
 
 ## 🤝 Contributing
 
