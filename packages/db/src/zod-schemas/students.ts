@@ -1,15 +1,12 @@
 import { createSelectSchema, createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
-import { studentTable } from "./schema.js";
+import { studentTable } from "../schemas/students.js";
 
 // ==========================================
-// AUTO-GENERATED ZOD SCHEMAS FROM DRIZZLE
+// STUDENT ZOD SCHEMAS (Auto-generated from Drizzle)
 // ==========================================
 
-// These schemas are automatically generated from your Drizzle table definitions
-// No manual schema definition needed - just change your Drizzle schema!
-
-// Base schemas auto-generated from Drizzle
+// Base schemas auto-generated from studentTable
 export const studentSelectSchema = createSelectSchema(studentTable);
 export const studentInsertSchema = createInsertSchema(studentTable);
 
@@ -42,7 +39,3 @@ export type StudentInsertValidated = z.infer<
   typeof studentInsertSchemaWithValidation
 >;
 export type StudentResponse = z.infer<typeof studentResponseSchema>;
-
-// ==========================================
-// CLEAN EXPORTS - Ready for production
-// ==========================================

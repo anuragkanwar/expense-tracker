@@ -97,7 +97,7 @@ This API server provides:
    DATABASE_URL=./packages/db/local.db
    ```
 
-   **Note:** Authentication environment variables removed for simplicity.
+   **Note:** Authentication is handled by the `@pocket-pixie/db` package.
 
 ### Development Commands
 
@@ -409,6 +409,10 @@ For production:
 The database schema is defined in `@pocket-pixie/db` package:
 
 - **Students** - Student records with CRUD operations
+- **Users** - User authentication and profiles
+- **Sessions** - Authentication sessions
+- **Accounts** - OAuth account connections
+- **Verification** - Email verification tokens
 
 ```typescript
 // Student table schema
@@ -570,8 +574,7 @@ The API includes comprehensive monitoring and logging:
 
 ### Core Packages
 
-- [Database Package](../../packages/db/README.md) - Turso + Drizzle ORM setup
-- [Auth Package](../../packages/auth/README.md) - Better Auth integration
+- [Database Package](../../packages/db/README.md) - Turso + Drizzle ORM + Better Auth setup
 - [Validators Package](../../packages/validators/README.md) - Zod validation schemas
 
 ### Applications

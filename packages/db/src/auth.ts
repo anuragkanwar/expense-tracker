@@ -1,0 +1,22 @@
+import { betterAuth } from "better-auth";
+import { drizzleAdapter } from "better-auth/adapters/drizzle";
+import { db } from "./database.js";
+
+// Better Auth configuration using the existing db connection
+export const auth = betterAuth({
+  database: drizzleAdapter(db, {
+    provider: "sqlite",
+  }),
+  emailAndPassword: {
+    enabled: true,
+  },
+  trustedOrigins: [
+    "pocket-pixie://",
+    "http://localhost:3000",
+    "http://localhost:8081",
+    "http://YOUR_COMPUTER_IP:3000", // Replace with your computer's IP
+  ],
+});
+
+// Auth client will be created in the mobile app using the existing configuration
+// This is exported for API usage only

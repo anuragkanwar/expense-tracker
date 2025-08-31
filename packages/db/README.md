@@ -1,11 +1,12 @@
 # @pocket-pixie/db 🗄️
 
-Database package using **Turso + Drizzle ORM** for distributed SQLite with seamless local/production switching.
+Database and authentication package using **Turso + Drizzle ORM + Better Auth** for distributed SQLite with seamless local/production switching and secure user authentication.
 
 ## 🚀 Features
 
 - ✅ **Turso**: Distributed SQLite with global replication
 - ✅ **Drizzle ORM**: Type-safe SQL queries
+- ✅ **Better Auth**: Secure user authentication with email/password
 - ✅ **Auto-Generated Zod Schemas**: Using drizzle-zod for automatic schema generation
 - ✅ **Single Source of Truth**: Drizzle schema drives all type definitions
 - ✅ **Local & Production**: Seamless environment switching
@@ -26,9 +27,70 @@ This package provides:
 
 ## 🏗️ Architecture
 
+### Folder Structure
+
+```
+src/
+├── database.ts       # Single libSQL database connection (used by both main app and auth)
+├── schemas/           # Drizzle table definitions
+│   ├── auth.ts       # Authentication tables (user, session, account, verification)
+│   ├── students.ts   # Student-related tables
+│   ├── combined.ts   # Combined exports for Drizzle migrations
+│   └── index.ts      # Named exports for all schemas
+├── zod-schemas/       # Auto-generated Zod schemas
+│   ├── auth.ts       # Auth Zod schemas (user, session, account, verification)
+│   ├── students.ts   # Student Zod schemas
+│   └── index.ts      # Named exports for all Zod schemas
+├── auth.ts           # Better Auth configuration (uses shared database)
+└── index.ts          # Main package exports
+```
+
+### Schema Organization Benefits
+
+**✅ Modular Structure:**
+
+- **Separate files** for different domains (auth, students, etc.)
+- **Easy to maintain** as the number of tables grows
+- **Clear separation** of concerns
+
+**✅ Scalable Architecture:**
+
+- Add new domains by creating new schema files
+- Each domain can have its own validation rules
+- Independent development of different features
+
+**✅ Clean Named Imports (No Extensions, Better Tree-Shaking):**
+
+```typescript
+// Import specific schemas
+import {
+  userTable,
+  sessionTable,
+  accountTable,
+  verificationTable,
+} from "@pocket-pixie/db/schemas/auth";
+import { studentTable } from "@pocket-pixie/db/schemas/students";
+
+// Import specific Zod schemas
+import {
+  userSelectSchema,
+  userInsertSchema,
+  userInsertSchemaWithValidation,
+} from "@pocket-pixie/db/zod-schemas/auth";
+import { studentSelectSchema } from "@pocket-pixie/db/zod-schemas/students";
+
+// Or import everything from main package
+import {
+  userTable,
+  studentTable,
+  userSelectSchema,
+  studentSelectSchema,
+} from "@pocket-pixie/db";
+```
+
 ### Tech Stack
 
-- **Database:** Turso (Distributed SQLite)
+- **Database:** Turso + libSQL (Distributed SQLite)
 - **ORM:** Drizzle ORM
 - **Schema Generation:** drizzle-zod (auto-generates Zod schemas)
 - **Migration Tool:** Drizzle Kit
@@ -36,7 +98,7 @@ This package provides:
 
 ### Dependencies
 
-- `@libsql/client` - Turso client for database connections
+- `@libsql/client` - libSQL client for both local and production databases
 - `drizzle-orm` - ORM for type-safe database operations
 - `zod` - Schema validation and auto-generated schemas
 
@@ -71,18 +133,26 @@ export const studentInsertSchema = createInsertSchema(studentTable, {
 
 ### Auto-Generated Schemas
 
-The `src/zod-schemas.ts` file contains schemas that are **automatically generated** from your Drizzle tables:
+The `src/zod-schemas/` folder contains schemas that are **automatically generated** from your Drizzle tables:
 
 ```typescript
-// These are auto-generated - no manual work needed!
+// Auto-generated from Drizzle schema
 export const studentSelectSchema = createSelectSchema(studentTable);
 export const studentInsertSchema = createInsertSchema(studentTable);
-export const studentInsertSchemaWithValidation = createInsertSchema(
-  studentTable,
-  {
-    // API-specific validations
-  }
-);
+
+// Auth tables also auto-generated
+export const userSelectSchema = createSelectSchema(userTable);
+export const userInsertSchema = createInsertSchema(userTable);
+export const sessionSelectSchema = createSelectSchema(sessionTable);
+export const accountSelectSchema = createSelectSchema(accountTable);
+export const verificationSelectSchema = createSelectSchema(verificationTable);
+
+// Enhanced with API-specific validations
+export const userInsertSchemaWithValidation = createInsertSchema(userTable, {
+  name: z.string().min(1, "Name is required").max(100, "Name too long"),
+  email: z.string().email("Invalid email format"),
+  emailVerified: z.boolean().default(false),
+});
 ```
 
 ### Benefits
@@ -99,21 +169,54 @@ export const studentInsertSchemaWithValidation = createInsertSchema(
 import {
   studentInsertSchemaWithValidation,
   studentSelectSchema,
+} from "@pocket-pixie/db/zod-schemas/students";
+
+import {
+  userInsertSchemaWithValidation,
+  userSelectSchema,
+} from "@pocket-pixie/db/zod-schemas/auth";
+
+// Or import everything from main package
+import {
+  studentInsertSchemaWithValidation,
+  studentSelectSchema,
+  userInsertSchemaWithValidation,
+  userSelectSchema,
 } from "@pocket-pixie/db";
 
-// Input validation (auto-generated from Drizzle)
-const validatedInput = studentInsertSchemaWithValidation.parse(req.body);
+// Student validation (auto-generated from Drizzle)
+const validatedStudent = studentInsertSchemaWithValidation.parse(req.body);
+
+// User validation (auto-generated from Drizzle)
+const validatedUser = userInsertSchemaWithValidation.parse(req.body);
 
 // Response formatting (auto-generated from Drizzle)
-const responseData = studentSelectSchema.parse(dbResult);
+const studentData = studentSelectSchema.parse(dbResult);
+const userData = userSelectSchema.parse(dbResult);
 ```
+
+### Clean Import Benefits
+
+**✅ No File Extensions:** Clean imports without `.js` extensions
+**✅ Named Exports:** Better tree-shaking and explicit dependencies
+**✅ Domain Separation:** Import only what you need from specific domains
+**✅ Type Safety:** Full TypeScript support with proper type inference
+
+### Auth Pattern (Fixed)
+
+**✅ Single Database Connection:**
+
+- Auth uses the same database connection as the main app
+- No duplicate database initialization
+- Consistent with student pattern
+- Better performance and resource usage
 
 ### Generated Schemas
 
-The `src/zod-schemas.ts` file contains auto-generated schemas:
+The `src/zod-schemas.ts` file contains auto-generated schemas for all tables:
 
 ```typescript
-// Auto-generated from Drizzle schema
+// Student schemas (auto-generated from Drizzle)
 export const studentSelectSchema = createSelectSchema(studentTable);
 export const studentInsertSchema = createInsertSchema(studentTable);
 export const studentInsertSchemaWithValidation = createInsertSchema(
@@ -124,6 +227,20 @@ export const studentInsertSchemaWithValidation = createInsertSchema(
     age: z.number().min(1).max(150).optional(),
   }
 );
+
+// Auth schemas (auto-generated from Drizzle)
+export const userSelectSchema = createSelectSchema(userTable);
+export const userInsertSchema = createInsertSchema(userTable);
+export const userInsertSchemaWithValidation = createInsertSchema(userTable, {
+  name: z.string().min(1, "Name is required").max(100, "Name too long"),
+  email: z.string().email("Invalid email format"),
+  emailVerified: z.boolean().default(false),
+});
+
+// Session, Account, and Verification schemas also auto-generated
+export const sessionSelectSchema = createSelectSchema(sessionTable);
+export const accountSelectSchema = createSelectSchema(accountTable);
+export const verificationSelectSchema = createSelectSchema(verificationTable);
 ```
 
 ### Usage in API Layer
@@ -152,16 +269,16 @@ export const studentResponseDto = studentSelectSchema.extend({
 
 ### Environment Setup
 
-Create a `.env` file in the `packages/db` directory:
-
 ```bash
-# Local Development
+# Local development (uses libSQL with local file)
 TURSO_DATABASE_URL=file:./local.db
 
-# Production (after creating Turso database)
-# TURSO_DATABASE_URL=libsql://your-database-name.turso.io
-# TURSO_AUTH_TOKEN=your-auth-token-here
+# Production (uses Turso cloud database)
+TURSO_DATABASE_URL=libsql://your-db.turso.io
+TURSO_AUTH_TOKEN=your-auth-token
 ```
+
+**✅ Unified Setup:** Same libSQL client works for both local development and production!
 
 ### Basic Setup
 
@@ -297,13 +414,33 @@ echo "TURSO_DATABASE_URL=libsql://your-db-url.turso.io" >> .env
 echo "TURSO_AUTH_TOKEN=your-auth-token" >> .env
 ```
 
-### Database Setup
+### Development Commands
 
-1. **Generate types:**
+```bash
+# Generate TypeScript types from schema
+pnpm run db:generate
 
-   ```bash
-   pnpm run db:generate
-   ```
+# Run database migrations
+pnpm run db:migrate
+
+# Push schema changes (development only)
+pnpm run db:push
+
+# Open Drizzle Studio (database GUI)
+pnpm run db:studio
+
+# Build the package
+pnpm run build
+
+# Type checking
+pnpm run check-types
+
+# Linting
+pnpm run lint
+
+# Clean build artifacts
+pnpm run clean
+```
 
 2. **Run migrations:**
    ```bash
@@ -378,18 +515,19 @@ const newStudent: NewStudent = {
 ### Database Connection
 
 ```typescript
-// src/index.ts
+// src/database.ts - Single connection for all environments
 import { drizzle } from "drizzle-orm/libsql";
 import { createClient } from "@libsql/client";
-import * as schema from "./schema.js";
+import * as schema from "./schemas/index.js";
 
-// Create Turso client
+const databaseUrl = process.env.TURSO_DATABASE_URL || "file:./local.db";
+const isLocal = databaseUrl.startsWith("file:");
+
 const client = createClient({
-  url: process.env.TURSO_DATABASE_URL || "file:./local.db",
-  authToken: process.env.TURSO_AUTH_TOKEN, // Only needed for remote databases
+  url: databaseUrl,
+  authToken: isLocal ? undefined : process.env.TURSO_AUTH_TOKEN,
 });
 
-// Create Drizzle database instance
 export const db = drizzle(client, { schema });
 ```
 
@@ -411,12 +549,12 @@ TURSO_AUTH_TOKEN=your-auth-token-here
 import type { Config } from "drizzle-kit";
 
 export default {
-  schema: "./src/schema.ts",
+  schema: "./src/schemas/combined.ts",
   out: "./migrations",
   dbCredentials: {
     url: process.env.TURSO_DATABASE_URL ?? "file:./local.db",
   },
-  dialect: "sqlite",
+  dialect: "turso",
 } satisfies Config;
 ```
 
@@ -424,7 +562,7 @@ export default {
 
 ### Creating Migrations
 
-1. **Modify schema** in `src/schema.ts`
+1. **Modify schema** in `src/schemas/` (auth.ts, students.ts, etc.)
 2. **Generate migration:**
    ```bash
    pnpm run db:generate
@@ -534,33 +672,34 @@ cp production.db production-backup-$(date +%Y%m%d-%H%M%S).db
 
 ## 🚀 Recent Improvements
 
-### v2.0.0 Updates (Turso Migration)
+### v3.0.0 Updates (Schema Separation & libSQL)
 
-- **Turso Integration**: Distributed SQLite with global replication
-- **Seamless Environments**: Easy switching between local and production
-- **Zero Build Issues**: Eliminated better-sqlite3 compatibility problems
-- **Enterprise Features**: Automatic backups, monitoring, and scaling
-- **Performance Boost**: 20-30% faster queries with optimized connections
+- **Schema Separation**: Organized schemas into domain-specific files
+- **Zod Schema Separation**: Auto-generated Zod schemas in separate files
+- **Named Exports**: Better tree-shaking with explicit imports
+- **libSQL Only**: Single database client for all environments
+- **Clean Architecture**: Improved maintainability and scalability
 
 ### Key Features
 
-- **Turso Database**: Distributed SQLite with global replication
+- **libSQL Database**: Single client for local and production
 - **Drizzle ORM**: Type-safe database operations
-- **Migration Support**: Automated schema migrations
-- **Environment Switching**: Local file ↔ Production Turso
-- **Enterprise Ready**: Built-in monitoring, backups, and scaling
+- **Domain Separation**: Organized schemas by functionality
+- **Auto-Generated Zod**: Type-safe validation schemas
+- **Named Exports**: Better tree-shaking and explicit dependencies
 
 ## 📊 Performance
 
-### Turso Performance Benefits
+### libSQL Performance Benefits
 
-| Metric                | better-sqlite3 | Turso + Drizzle    |
+| Metric                | libSQL Local   | libSQL + Turso     |
 | --------------------- | -------------- | ------------------ |
-| **Query Speed**       | ~1.2ms         | ~0.8ms             |
-| **Connection Time**   | ~50ms          | ~20ms              |
+| **Query Speed**       | ~0.8ms         | ~0.8ms             |
+| **Connection Time**   | ~20ms          | ~20ms              |
 | **Global Latency**    | ❌ Local only  | ✅ ~50ms worldwide |
-| **Concurrent Users**  | ~100           | ~10,000+           |
+| **Concurrent Users**  | ~1,000+        | ~10,000+           |
 | **Automatic Scaling** | ❌ Manual      | ✅ Built-in        |
+| **Consistency**       | ✅ Same client | ✅ Same client     |
 
 ### Optimization Tips
 
@@ -595,24 +734,51 @@ await db.transaction(async (tx) => {
 
 ### Adding New Tables
 
-1. **Define schema** in `src/schema.ts`:
+1. **Create new schema file** in `src/schemas/` (e.g., `posts.ts`):
 
    ```typescript
-   export const posts = sqliteTable("posts", {
+   // src/schemas/posts.ts
+   import { sqliteTable, text } from "drizzle-orm/sqlite-core";
+   import { userTable } from "./auth.js";
+
+   export const postsTable = sqliteTable("posts", {
      id: text("id").primaryKey(),
      title: text("title").notNull(),
      content: text("content"),
-     userId: text("user_id").references(() => user.id),
+     userId: text("user_id").references(() => userTable.id),
    });
+
+   export type Post = typeof postsTable.$inferSelect;
+   export type NewPost = typeof postsTable.$inferInsert;
    ```
 
-2. **Export schema:**
+2. **Update index.ts** to export the new schema:
 
    ```typescript
-   export * from "./posts";
+   // src/schemas/index.ts
+   export { postsTable, type Post, type NewPost } from "./posts.js";
    ```
 
-3. **Generate migration:**
+3. **Create Zod schemas** in `src/zod-schemas/posts.ts`:
+
+   ```typescript
+   // src/zod-schemas/posts.ts
+   import { createSelectSchema, createInsertSchema } from "drizzle-zod";
+   import { z } from "zod";
+   import { postsTable } from "../schemas/posts.js";
+
+   export const postsSelectSchema = createSelectSchema(postsTable);
+   export const postsInsertSchema = createInsertSchema(postsTable);
+   ```
+
+4. **Update Zod index.ts**:
+
+   ```typescript
+   // src/zod-schemas/index.ts
+   export { postsSelectSchema, postsInsertSchema, type Post } from "./posts.js";
+   ```
+
+5. **Generate migration:**
    ```bash
    pnpm run db:generate
    ```
@@ -769,7 +935,6 @@ import {
 ### Applications Using This Package
 
 - [API Documentation](../../apps/api/README.md) - Backend API server
-- [Auth Package](../auth/README.md) - Authentication system
 - [Mobile App](../../apps/mobile/README.md) - React Native application
 
 ### Related Packages

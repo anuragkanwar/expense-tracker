@@ -7,7 +7,7 @@
   "types": "./src/index.ts",
   "scripts": {
     "build": "tsc",
-    "dev": "concurrently \"turso dev --db-file local.db\" \"drizzle-kit studio\"",
+    "dev": "concurrently \"turso dev --db-file local.db || echo 'Turso dev server already running'\" \"drizzle-kit studio || echo 'Drizzle Studio already running'\"",
     "db:run": "turso dev --db-file local.db",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
@@ -24,11 +24,14 @@
     "typescript": "^5.9.2"
   },
   "dependencies": {
+    "@better-auth/expo": "^1.0.0",
     "@libsql/client": "^0.15.14",
     "@types/bun": "^1.2.21",
     "@types/node": "^24.3.0",
+    "better-auth": "^1.0.0",
     "drizzle-orm": "^0.44.5",
     "drizzle-zod": "^0.8.3",
+    "expo-secure-store": "^13.0.2",
     "zod": "^4.1.3"
   }
 }

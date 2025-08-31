@@ -9,7 +9,7 @@ A modern React Native mobile application built with Expo, featuring authenticati
 pnpm install
 
 # Start development server
-pnpm run start
+pnpm run dev:mobile
 
 # Or start with specific environment
 pnpm run start:staging
@@ -41,10 +41,10 @@ This mobile app provides:
 
 ### Key Dependencies
 
-- `@pocket-pixie/auth` - Authentication client
+- `better-auth` - Authentication framework
+- `@better-auth/expo` - Expo-specific authentication client
 - `expo-router` - File-based navigation
 - `nativewind` - TailwindCSS for React Native
-- `@better-auth/expo/client` - Expo-specific auth client
 
 ## 🛠️ Development
 
@@ -87,7 +87,7 @@ pnpm run start:staging
 pnpm run start:production
 
 # Start for device testing
-pnpm run start:device
+pnpm run dev:mobile
 
 # Build for staging
 pnpm run build:staging
@@ -177,7 +177,7 @@ EXPO_PUBLIC_ENV=production
 4. **Start the app:**
 
    ```bash
-   EXPO_PUBLIC_ENV=device pnpm run start
+   EXPO_PUBLIC_ENV=device pnpm run dev:mobile
    ```
 
 5. **Scan QR code** with Expo Go app on your phone
@@ -186,11 +186,11 @@ EXPO_PUBLIC_ENV=production
 
 ```bash
 # iOS Simulator
-pnpm run start
+pnpm run dev:mobile
 # Press 'i' in terminal
 
 # Android Emulator
-pnpm run start
+pnpm run dev:mobile
 # Press 'a' in terminal
 ```
 
@@ -313,8 +313,7 @@ pnpm run lint
 ### Backend Services
 
 - [API Documentation](../api/README.md) - Backend API with clean architecture
-- [Auth Package](../../packages/auth/README.md) - Authentication integration
-- [Database Package](../../packages/db/README.md) - Database setup and schemas
+- [Database Package](../../packages/db/README.md) - Database and authentication setup
 
 ### Development Tools
 
@@ -332,7 +331,7 @@ pnpm run lint
    ```bash
    # Clear Metro cache
    pnpm run clean
-   pnpm run start
+   pnpm run dev:mobile
    ```
 
 2. **Authentication problems:**

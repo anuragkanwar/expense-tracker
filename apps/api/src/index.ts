@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import { Scalar } from "@scalar/hono-api-reference";
 import studentRoutes from "@/routes/students";
+import authRoutes from "@/routes/auth";
 import { errorHandler } from "@/middleware/error-handler";
 import { logger } from "@/middleware/logger";
 import { diMiddleware } from "@/middleware/di-middleware";
@@ -34,6 +35,9 @@ app.get("/health", (c) => {
     uptime: process.uptime(),
   });
 });
+
+// Mount auth routes
+app.route("/api/auth", authRoutes);
 
 // Mount student routes
 app.route("/students", studentRoutes);

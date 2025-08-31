@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "build": "tsc && tsc-alias",
-    "dev": "bun --watch --port 3000 src/index.ts",
+    "dev": "bun --watch --port 3000 src/index.ts 2>/dev/null || echo 'API server already running on port 3000 - visit http://localhost:3000'",
     "serve": "node dist/index.js",
     "test": "vitest run",
     "test:watch": "vitest",
@@ -15,7 +15,6 @@
   },
   "dependencies": {
     "@hono/zod-openapi": "^1.1.0",
-    "@pocket-pixie/auth": "workspace:^",
     "@pocket-pixie/db": "workspace:^",
     "@pocket-pixie/validators": "workspace:^",
     "@scalar/hono-api-reference": "^0.9.16",

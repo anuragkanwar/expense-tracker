@@ -6,8 +6,9 @@ import * as SecureStore from "expo-secure-store";
 const getApiUrl = () => {
   // Check if we're running on a physical device (not simulator)
   const isDevice = process.env.EXPO_PUBLIC_ENV === "device";
+  const isDevelopment = process.env.NODE_ENV !== "production";
 
-  if (__DEV__) {
+  if (isDevelopment) {
     // Development mode
     if (isDevice) {
       // Running on physical device - use computer's IP
