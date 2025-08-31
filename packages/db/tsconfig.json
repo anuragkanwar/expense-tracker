@@ -1,13 +1,3 @@
-// {
-//   "extends": "@pocket-pixie/typescript-config/base.json",
-//   "include": ["src/**/*.ts"],
-//   "exclude": ["node_modules", "**/*.test.ts", "**/*.spec.ts"],
-//   "compilerOptions": {
-//     "outDir": "./dist",
-//     "rootDir": "./src",
-//     "allowSyntheticDefaultImports": true
-//   }
-// }
 {
   "extends": "@pocket-pixie/typescript-config/base.json",
   "include": [
@@ -41,9 +31,6 @@
     "noUnusedLocals": false,
     "noUnusedParameters": false,
     "noPropertyAccessFromIndexSignature": false,
-    "types": [
-      "bun-types"
-    ],
     "baseUrl": ".",
     "paths": {
       "@/*": [
