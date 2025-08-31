@@ -11,18 +11,15 @@ export const studentSelectSchema = createSelectSchema(student);
 export const studentInsertSchema = createInsertSchema(student);
 
 // Enhanced schemas with API-specific validations
-export const studentInsertSchemaWithValidation = createInsertSchema(
-  student,
-  {
-    name: z.string().min(1, "Name is required").max(100, "Name too long"),
-    email: z.string().email("Invalid email format"),
-    age: z
-      .number()
-      .min(1, "Age must be positive")
-      .max(150, "Age too high")
-      .optional(),
-  }
-);
+export const studentInsertSchemaWithValidation = createInsertSchema(student, {
+  name: z.string().min(1, "Name is required").max(100, "Name too long"),
+  email: z.string().email("Invalid email format"),
+  age: z
+    .number()
+    .min(1, "Age must be positive")
+    .max(150, "Age too high")
+    .optional(),
+});
 
 // For API responses (transforms Date to string for JSON)
 export const studentResponseSchema = studentSelectSchema.extend({

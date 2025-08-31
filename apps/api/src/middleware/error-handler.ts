@@ -17,10 +17,21 @@ export const errorHandler = (): MiddlewareHandler => {
       }
 
       // Handle Zod validation errors
-      if (error && typeof error === "object" && "name" in error && error.name === "ZodError") {
+      if (
+        error &&
+        typeof error === "object" &&
+        "name" in error &&
+        error.name === "ZodError"
+      ) {
         const zodError = error as any;
-        const validationError = new ValidationError("Validation failed", zodError.errors);
-        return c.json(validationError.toJSON(), validationError.statusCode as any);
+        const validationError = new ValidationError(
+          "Validation failed",
+          zodError.errors
+        );
+        return c.json(
+          validationError.toJSON(),
+          validationError.statusCode as any
+        );
       }
 
       // Handle database errors
@@ -61,9 +72,12 @@ export const errorHandler = (): MiddlewareHandler => {
         success: false,
         error: {
           code: "INTERNAL_ERROR",
-          message: process.env.NODE_ENV === "production"
-            ? "An unexpected error occurred"
-            : error instanceof Error ? error.message : "Unknown error",
+          message:
+            process.env.NODE_ENV === "production"
+              ? "An unexpected error occurred"
+              : error instanceof Error
+                ? error.message
+                : "Unknown error",
         },
       };
 

@@ -1,11 +1,6 @@
 import { createSelectSchema, createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
-import {
-  user,
-  session,
-  account,
-  verification,
-} from "@/schemas/auth";
+import { user, session, account, verification } from "@/schemas/auth";
 
 // ==========================================
 // AUTH ZOD SCHEMAS (Auto-generated from Drizzle)
@@ -35,29 +30,23 @@ export const userInsertSchemaWithValidation = createInsertSchema(user, {
   image: z.string().url().optional(),
 });
 
-export const sessionInsertSchemaWithValidation = createInsertSchema(
-  session,
-  {
-    token: z.string().min(1, "Token is required"),
-    userId: z.string().min(1, "User ID is required"),
-    ipAddress: z.string().optional(),
-    userAgent: z.string().optional(),
-  }
-);
+export const sessionInsertSchemaWithValidation = createInsertSchema(session, {
+  token: z.string().min(1, "Token is required"),
+  userId: z.string().min(1, "User ID is required"),
+  ipAddress: z.string().optional(),
+  userAgent: z.string().optional(),
+});
 
-export const accountInsertSchemaWithValidation = createInsertSchema(
-  account,
-  {
-    accountId: z.string().min(1, "Account ID is required"),
-    providerId: z.string().min(1, "Provider ID is required"),
-    userId: z.string().min(1, "User ID is required"),
-    accessToken: z.string().optional(),
-    refreshToken: z.string().optional(),
-    idToken: z.string().optional(),
-    scope: z.string().optional(),
-    password: z.string().optional(),
-  }
-);
+export const accountInsertSchemaWithValidation = createInsertSchema(account, {
+  accountId: z.string().min(1, "Account ID is required"),
+  providerId: z.string().min(1, "Provider ID is required"),
+  userId: z.string().min(1, "User ID is required"),
+  accessToken: z.string().optional(),
+  refreshToken: z.string().optional(),
+  idToken: z.string().optional(),
+  scope: z.string().optional(),
+  password: z.string().optional(),
+});
 
 export const verificationInsertSchemaWithValidation = createInsertSchema(
   verification,
