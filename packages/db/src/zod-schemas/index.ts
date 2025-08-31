@@ -10,7 +10,7 @@ export {
   type StudentInsert,
   type StudentInsertValidated,
   type StudentResponse,
-} from "./students.js";
+} from "./students";
 
 // Auth Zod schemas
 export {
@@ -46,4 +46,4 @@ export {
   type VerificationInsert,
   type VerificationInsertValidated,
   type VerificationResponse,
-} from "./auth.js";
+} from "./auth";

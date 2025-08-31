@@ -1,34 +1,34 @@
 import { createSelectSchema, createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 import {
-  userTable,
-  sessionTable,
-  accountTable,
-  verificationTable,
-} from "../schemas/auth.js";
+  user,
+  session,
+  account,
+  verification,
+} from "@/schemas/auth";
 
 // ==========================================
 // AUTH ZOD SCHEMAS (Auto-generated from Drizzle)
 // ==========================================
 
 // User table schemas (auto-generated from userTable)
-export const userSelectSchema = createSelectSchema(userTable);
-export const userInsertSchema = createInsertSchema(userTable);
+export const userSelectSchema = createSelectSchema(user);
+export const userInsertSchema = createInsertSchema(user);
 
 // Session table schemas (auto-generated from sessionTable)
-export const sessionSelectSchema = createSelectSchema(sessionTable);
-export const sessionInsertSchema = createInsertSchema(sessionTable);
+export const sessionSelectSchema = createSelectSchema(session);
+export const sessionInsertSchema = createInsertSchema(session);
 
 // Account table schemas (auto-generated from accountTable)
-export const accountSelectSchema = createSelectSchema(accountTable);
-export const accountInsertSchema = createInsertSchema(accountTable);
+export const accountSelectSchema = createSelectSchema(account);
+export const accountInsertSchema = createInsertSchema(account);
 
 // Verification table schemas (auto-generated from verificationTable)
-export const verificationSelectSchema = createSelectSchema(verificationTable);
-export const verificationInsertSchema = createInsertSchema(verificationTable);
+export const verificationSelectSchema = createSelectSchema(verification);
+export const verificationInsertSchema = createInsertSchema(verification);
 
 // Enhanced auth schemas with validations
-export const userInsertSchemaWithValidation = createInsertSchema(userTable, {
+export const userInsertSchemaWithValidation = createInsertSchema(user, {
   name: z.string().min(1, "Name is required").max(100, "Name too long"),
   email: z.string().email("Invalid email format"),
   emailVerified: z.boolean().default(false),
@@ -36,7 +36,7 @@ export const userInsertSchemaWithValidation = createInsertSchema(userTable, {
 });
 
 export const sessionInsertSchemaWithValidation = createInsertSchema(
-  sessionTable,
+  session,
   {
     token: z.string().min(1, "Token is required"),
     userId: z.string().min(1, "User ID is required"),
@@ -46,7 +46,7 @@ export const sessionInsertSchemaWithValidation = createInsertSchema(
 );
 
 export const accountInsertSchemaWithValidation = createInsertSchema(
-  accountTable,
+  account,
   {
     accountId: z.string().min(1, "Account ID is required"),
     providerId: z.string().min(1, "Provider ID is required"),
@@ -60,7 +60,7 @@ export const accountInsertSchemaWithValidation = createInsertSchema(
 );
 
 export const verificationInsertSchemaWithValidation = createInsertSchema(
-  verificationTable,
+  verification,
   {
     identifier: z.string().min(1, "Identifier is required"),
     value: z.string().min(1, "Value is required"),
@@ -95,28 +95,28 @@ export const verificationResponseSchema = verificationSelectSchema.extend({
 // TYPE EXPORTS
 // ==========================================
 
-export type UserSelect = z.infer<typeof userSelectSchema>;
+export type User = z.infer<typeof userSelectSchema>;
 export type UserInsert = z.infer<typeof userInsertSchema>;
 export type UserInsertValidated = z.infer<
   typeof userInsertSchemaWithValidation
 >;
 export type UserResponse = z.infer<typeof userResponseSchema>;
 
-export type SessionSelect = z.infer<typeof sessionSelectSchema>;
+export type Session = z.infer<typeof sessionSelectSchema>;
 export type SessionInsert = z.infer<typeof sessionInsertSchema>;
 export type SessionInsertValidated = z.infer<
   typeof sessionInsertSchemaWithValidation
 >;
 export type SessionResponse = z.infer<typeof sessionResponseSchema>;
 
-export type AccountSelect = z.infer<typeof accountSelectSchema>;
+export type Account = z.infer<typeof accountSelectSchema>;
 export type AccountInsert = z.infer<typeof accountInsertSchema>;
 export type AccountInsertValidated = z.infer<
   typeof accountInsertSchemaWithValidation
 >;
 export type AccountResponse = z.infer<typeof accountResponseSchema>;
 
-export type VerificationSelect = z.infer<typeof verificationSelectSchema>;
+export type Verification = z.infer<typeof verificationSelectSchema>;
 export type VerificationInsert = z.infer<typeof verificationInsertSchema>;
 export type VerificationInsertValidated = z.infer<
   typeof verificationInsertSchemaWithValidation

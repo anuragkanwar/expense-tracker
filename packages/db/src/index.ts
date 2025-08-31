@@ -1,9 +1,9 @@
 // Import database connection
-export { db } from "./database.js";
+export { db } from "./database";
 
 // Export all schema types and utilities
-export * from "./schemas/index.js";
-export * from "./zod-schemas/index.js";
+export * from "./schemas";
+export * from "./zod-schemas";
 
 // Export auth instance
-export { auth } from "./auth.js";
+export { auth } from "./auth";

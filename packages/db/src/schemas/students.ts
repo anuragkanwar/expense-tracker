@@ -1,7 +1,7 @@
 import { sqliteTable, text, integer } from "drizzle-orm/sqlite-core";
 
 // Student table schema - REAL SQLite database schema
-export const studentTable = sqliteTable("student", {
+export const student = sqliteTable("student", {
   id: text("id").primaryKey(),
   name: text("name").notNull(),
   email: text("email").notNull().unique(),
@@ -12,8 +12,5 @@ export const studentTable = sqliteTable("student", {
 });
 
 // TypeScript types generated from the schema
-export type Student = typeof studentTable.$inferSelect;
-export type NewStudent = typeof studentTable.$inferInsert;
-
-// For API compatibility
-export const student = studentTable;
+export type Student = typeof student.$inferSelect;
+export type NewStudent = typeof student.$inferInsert;

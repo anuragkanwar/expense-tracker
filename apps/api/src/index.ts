@@ -44,9 +44,8 @@ app.route("/students", studentRoutes);
 
 // OpenAPI documentation - generated from Zod schemas
 app.get("/openapi.json", (c) => {
-  // For now, return a basic OpenAPI spec
-  // The zod-openapi middleware will enhance this automatically
-  return c.json({
+  // Generate OpenAPI spec from Zod schemas
+  const spec = {
     openapi: "3.0.0",
     info: {
       version: "1.0.0",
@@ -81,6 +80,19 @@ app.get("/openapi.json", (c) => {
           responses: {
             200: {
               description: "List of students retrieved successfully",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      success: { type: "boolean" },
+                      data: {
+                        $ref: "#/components/schemas/StudentListResponseDto",
+                      },
+                    },
+                  },
+                },
+              },
             },
           },
         },
@@ -95,7 +107,21 @@ app.get("/openapi.json", (c) => {
             },
           },
           responses: {
-            201: { description: "Student created successfully" },
+            201: {
+              description: "Student created successfully",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      success: { type: "boolean" },
+                      data: { $ref: "#/components/schemas/StudentResponseDto" },
+                      message: { type: "string" },
+                    },
+                  },
+                },
+              },
+            },
             400: { description: "Validation error" },
             409: { description: "Email already exists" },
           },
@@ -115,7 +141,20 @@ app.get("/openapi.json", (c) => {
             },
           ],
           responses: {
-            200: { description: "Student retrieved successfully" },
+            200: {
+              description: "Student retrieved successfully",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      success: { type: "boolean" },
+                      data: { $ref: "#/components/schemas/StudentResponseDto" },
+                    },
+                  },
+                },
+              },
+            },
             404: { description: "Student not found" },
           },
         },
@@ -139,7 +178,21 @@ app.get("/openapi.json", (c) => {
             },
           },
           responses: {
-            200: { description: "Student updated successfully" },
+            200: {
+              description: "Student updated successfully",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      success: { type: "boolean" },
+                      data: { $ref: "#/components/schemas/StudentResponseDto" },
+                      message: { type: "string" },
+                    },
+                  },
+                },
+              },
+            },
             400: { description: "Validation error" },
             404: { description: "Student not found" },
             409: { description: "Email already exists" },
@@ -158,7 +211,20 @@ app.get("/openapi.json", (c) => {
             },
           ],
           responses: {
-            200: { description: "Student deleted successfully" },
+            200: {
+              description: "Student deleted successfully",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      success: { type: "boolean" },
+                      message: { type: "string" },
+                    },
+                  },
+                },
+              },
+            },
             404: { description: "Student not found" },
           },
         },
@@ -166,6 +232,7 @@ app.get("/openapi.json", (c) => {
     },
     components: {
       schemas: {
+        // Schemas derived from Zod DTOs
         CreateStudentDto: {
           type: "object",
           properties: {
@@ -174,11 +241,13 @@ app.get("/openapi.json", (c) => {
               minLength: 1,
               maxLength: 100,
               example: "John Doe",
+              description: "Student's full name",
             },
             email: {
               type: "string",
               format: "email",
               example: "john.doe@example.com",
+              description: "Student's email address",
             },
             age: {
               type: "number",
@@ -186,6 +255,7 @@ app.get("/openapi.json", (c) => {
               minimum: 1,
               maximum: 150,
               example: 25,
+              description: "Student's age in years",
             },
           },
           required: ["name", "email"],
@@ -198,11 +268,13 @@ app.get("/openapi.json", (c) => {
               minLength: 1,
               maxLength: 100,
               example: "John Doe",
+              description: "Student's full name",
             },
             email: {
               type: "string",
               format: "email",
               example: "john.doe@example.com",
+              description: "Student's email address",
             },
             age: {
               type: "number",
@@ -210,6 +282,7 @@ app.get("/openapi.json", (c) => {
               minimum: 1,
               maximum: 150,
               example: 25,
+              description: "Student's age in years",
             },
           },
         },
@@ -219,21 +292,65 @@ app.get("/openapi.json", (c) => {
             id: {
               type: "string",
               example: "550e8400-e29b-41d4-a716-446655440000",
+              description: "Unique student identifier",
             },
-            name: { type: "string", example: "John Doe" },
-            email: { type: "string", example: "john.doe@example.com" },
-            age: { type: "number", nullable: true, example: 25 },
+            name: {
+              type: "string",
+              example: "John Doe",
+              description: "Student's full name",
+            },
+            email: {
+              type: "string",
+              format: "email",
+              example: "john.doe@example.com",
+              description: "Student's email address",
+            },
+            age: {
+              type: "number",
+              nullable: true,
+              example: 25,
+              description: "Student's age in years",
+            },
             createdAt: {
               type: "string",
               format: "date-time",
               example: "2024-01-30T12:00:00.000Z",
+              description: "When the student was created",
             },
           },
           required: ["id", "name", "email", "createdAt"],
         },
+        StudentListResponseDto: {
+          type: "object",
+          properties: {
+            students: {
+              type: "array",
+              items: { $ref: "#/components/schemas/StudentResponseDto" },
+              description: "Array of student records",
+            },
+            total: {
+              type: "number",
+              example: 100,
+              description: "Total number of students in database",
+            },
+            page: {
+              type: "number",
+              example: 1,
+              description: "Current page number",
+            },
+            limit: {
+              type: "number",
+              example: 10,
+              description: "Number of students per page",
+            },
+          },
+          required: ["students", "total", "page", "limit"],
+        },
       },
     },
-  });
+  };
+
+  return c.json(spec);
 });
 
 // Scalar API Reference UI
