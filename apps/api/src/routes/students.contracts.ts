@@ -18,7 +18,7 @@ const ParamsSchema = z.object({
 // Contract for POST /students
 export const createStudentRoute = createRoute({
   method: "post",
-  path: "/student",
+  path: "/",
   request: {
     body: {
       content: {
@@ -41,7 +41,7 @@ export const createStudentRoute = createRoute({
 // Contract for GET /students/:id
 export const getStudentByIdRoute = createRoute({
   method: "get",
-  path: "/student/{id}",
+  path: "/{id}",
   request: {
     params: ParamsSchema,
   },
@@ -56,7 +56,7 @@ export const getStudentByIdRoute = createRoute({
 
 export const deleteStudentByIdRoute = createRoute({
   method: "delete",
-  path: "/student/{id}",
+  path: "/{id}",
   request: {
     params: ParamsSchema,
   },

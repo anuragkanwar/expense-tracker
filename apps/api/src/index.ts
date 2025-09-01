@@ -1,11 +1,14 @@
 import { OpenAPIHono } from "@hono/zod-openapi";
 import { Scalar } from "@scalar/hono-api-reference";
-import { StudentRoutes } from "@/routes/students";
-import authRoutes from "@/routes/auth";
 import { errorHandler } from "@/middleware/error-handler";
 import { logger } from "@/middleware/logger";
 import { dependencyInjector } from "@/middleware/di-middleware";
-
+import {
+  authRoutes,
+  studentRoutes
+} from "./routes";
+import { auth } from "@pocket-pixie/db";
+import { cors } from "hono/cors";
 // API setup
 const app = new OpenAPIHono();
 
@@ -13,7 +16,22 @@ const app = new OpenAPIHono();
 app.use("*", logger());
 app.use("*", dependencyInjector);
 app.use("*", errorHandler());
-
+app.use(
+  "/api/auth/*", // or replace with "*" to enable cors for all routes
+  cors({
+    origin: [
+      "pocket-pixie://",
+      "http://localhost:3000",
+      "http://localhost:8081",
+      "http://YOUR_COMPUTER_IP:3000", // Replace with your computer's IP
+    ], // replace with your origin
+    allowHeaders: ["Content-Type", "Authorization"],
+    allowMethods: ["POST", "GET", "OPTIONS"],
+    exposeHeaders: ["Content-Length"],
+    maxAge: 600,
+    credentials: true,
+  }),
+);
 // Health check endpoint
 app.get("/", (c) => {
   return c.json({
@@ -37,10 +55,14 @@ app.get("/health", (c) => {
 });
 
 // Mount auth routes
-app.route("/api/auth", authRoutes);
+// app.route("/api/auth", authRoutes);
+
+// app.on(["POST", "GET"], "/api/auth/*", (c) => {
+//   return auth.handler(c.req.raw);
+// });
 
 // Mount student routes
-app.route("/students", StudentRoutes);
+app.route("/api/students", studentRoutes);
 
 // OpenAPI documentation - generated from Zod schemas
 app.doc("/openapi.json", {

@@ -6,9 +6,9 @@ import {
 } from "./students.contracts";
 import { StudentCreate } from "@/models/student";
 
-export const StudentRoutes = new OpenAPIHono();
+export const studentRoutes = new OpenAPIHono();
 
-StudentRoutes.openapi(createStudentRoute, async (c) => {
+studentRoutes.openapi(createStudentRoute, async (c) => {
   const { studentService } = c.get("services");
   const validatedData = c.req.valid("json") as StudentCreate;
   try {
@@ -23,7 +23,7 @@ StudentRoutes.openapi(createStudentRoute, async (c) => {
   }
 });
 
-StudentRoutes.openapi(getStudentByIdRoute, async (c) => {
+studentRoutes.openapi(getStudentByIdRoute, async (c) => {
   const { studentService } = c.get("services");
   const { id } = c.req.valid("param");
   const student = await studentService.getStudentById(id);
@@ -33,7 +33,7 @@ StudentRoutes.openapi(getStudentByIdRoute, async (c) => {
   return c.json(student);
 });
 
-StudentRoutes.openapi(deleteStudentByIdRoute, async (c) => {
+studentRoutes.openapi(deleteStudentByIdRoute, async (c) => {
   const { studentService } = c.get("services");
   const { id } = c.req.valid("param");
   const student = await studentService.deleteStudent(id);

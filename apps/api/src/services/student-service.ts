@@ -1,5 +1,3 @@
-import type { IStudentRepository } from "../../repositories";
-import type { IStudentService } from "../index";
 import type {
   StudentResponse,
   StudentCreate,
@@ -8,18 +6,15 @@ import type {
 import {
   StudentNotFoundError,
   StudentEmailConflictError,
-} from "../../errors/student-errors";
-import { BadRequestError } from "../../errors/base-error";
+} from "../errors/student-errors";
+import { BadRequestError } from "../errors/base-error";
+import { StudentRepository } from "@/repositories/student-repository";
 
-export class StudentService implements IStudentService {
-  private readonly studentRepository: IStudentRepository;
+export class StudentService {
+  private readonly studentRepository;
 
-  constructor({
-    studentRepository: repository,
-  }: {
-    studentRepository: IStudentRepository;
-  }) {
-    this.studentRepository = repository;
+  constructor({ studentRepository }: { studentRepository: StudentRepository }) {
+    this.studentRepository = studentRepository;
   }
 
   async getAllStudents(

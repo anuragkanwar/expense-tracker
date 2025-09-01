@@ -30,3 +30,4 @@ export const auth = betterAuth({
     "http://YOUR_COMPUTER_IP:3000", // Replace with your computer's IP
   ],
 });
+

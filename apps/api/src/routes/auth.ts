@@ -1,21 +1,32 @@
-import { Hono } from "hono";
-import { auth } from "@pocket-pixie/db";
+import { OpenAPIHono } from "@hono/zod-openapi";
+import { signInRoute, signOutRoute, signUpRoute } from "./auth.contracts";
+import { SignIn, SignUp } from "@/models/auth";
 
-const authRoutes = new Hono();
+import { auth } from "@pocket-pixie/db"
 
-// Better Auth handler for Hono
-authRoutes.all("/*", async (c) => {
-  const request = new Request(c.req.url, {
-    method: c.req.method,
-    headers: c.req.raw.headers,
-    body: c.req.raw.body,
-  });
+export const authRoutes = new OpenAPIHono();
 
-  const response = await auth.handler(request);
-  return new Response(response.body, {
-    status: response.status,
-    headers: response.headers,
-  });
+authRoutes.openapi(signUpRoute, async (c) => {
+  try {
+    return auth.handler(c.req.raw);
+  } catch (error: any) {
+    return c.json({ error }, 500);
+  }
 });
 
-export default authRoutes;
+authRoutes.openapi(signInRoute, async (c) => {
+  try {
+    return auth.handler(c.req.raw);
+  } catch (error: any) {
+    return c.json({ error }, 500);
+  }
+});
+
+
+authRoutes.openapi(signOutRoute, async (c) => {
+  try {
+    return auth.handler(c.req.raw);
+  } catch (error: any) {
+    return c.json({ error }, 500);
+  }
+})

@@ -6,10 +6,9 @@ import {
   StudentUpdate,
   transformStudentForApi,
 } from "@/models/student";
-import type { IStudentRepository } from "../index";
 import { db as DATABASE } from "@pocket-pixie/db";
 
-export class StudentRepository implements IStudentRepository {
+export class StudentRepository {
   private db: typeof DATABASE;
   constructor({ db }: { db: typeof DATABASE }) {
     this.db = db;
