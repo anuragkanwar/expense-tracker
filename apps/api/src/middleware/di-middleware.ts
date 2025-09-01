@@ -1,14 +1,27 @@
-import type { MiddlewareHandler } from "hono";
+import { createMiddleware } from "hono/factory";
 import { container } from "../container";
 import type { IStudentService } from "../services";
 
-/**
- * Middleware to inject dependencies into Hono context
- * This makes services available to all route handlers
- */
-export const diMiddleware: MiddlewareHandler = async (c, next) => {
-  // Resolve services from container and inject into context
-  c.set("studentService", container.resolve<IStudentService>("studentService"));
-
-  await next();
+// Define the types of services using interfaces
+export type InjectedServices = {
+  studentService: IStudentService; // 👈 Use the INTERFACE type here
+  // otherService: IOtherService;
 };
+
+// This declaration now uses the interface
+declare module "hono" {
+  interface ContextVariableMap {
+    services: InjectedServices;
+  }
+}
+
+export const dependencyInjector = createMiddleware(async (c, next) => {
+  const scope = container.createScope();
+
+  const services: InjectedServices = {
+    studentService: scope.resolve<IStudentService>("studentService"),
+  };
+
+  c.set("services", services);
+  await next();
+});

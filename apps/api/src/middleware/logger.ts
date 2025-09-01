@@ -9,6 +9,8 @@ export const logger = (): MiddlewareHandler => {
     // Only log in non-production environments
     if (process.env.NODE_ENV !== "production") {
       console.log(`[${new Date().toISOString()}] ${method} ${url} - Start`);
+      // const body = await c.req.json();
+      // console.log(`body : ${JSON.stringify(body)}`);
     }
 
     await next();

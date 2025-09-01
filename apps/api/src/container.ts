@@ -1,30 +1,23 @@
-import { createContainer, asClass, asValue } from "awilix";
+import { createContainer, asClass, asValue, Lifetime } from "awilix";
 import { StudentRepository } from "./repositories/impl/student-repository";
 import { StudentService } from "./services/impl/student-service";
 import { db } from "@pocket-pixie/db";
 
-// Create the container
 const container = createContainer();
 
-// Register repositories
-container.register({
-  studentRepository: asClass(StudentRepository)
-    .scoped()
-    .inject(() => container.resolve("db")),
-});
-
-// Register services
-container.register({
-  studentService: asClass(StudentService)
-    .scoped()
-    .inject(() => container.resolve("studentRepository")),
-});
-
-// Register infrastructure
+// Register the database instance as a singleton value
 container.register({
   db: asValue(db),
 });
 
-// Export container
+// Register other classes. Awilix will automatically inject dependencies
+// based on the constructor parameter names.
+container.register({
+  // Repositories should be scoped to the request
+  studentRepository: asClass(StudentRepository, { lifetime: Lifetime.SCOPED }),
+
+  // Services should also be scoped to the request
+  studentService: asClass(StudentService, { lifetime: Lifetime.SCOPED }),
+});
+
 export { container };
-export type Container = typeof container;

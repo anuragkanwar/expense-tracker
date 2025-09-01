@@ -10,7 +10,3 @@ export const student = sqliteTable("student", {
     .$defaultFn(() => new Date())
     .notNull(),
 });
-
-// TypeScript types generated from the schema
-export type Student = typeof student.$inferSelect;
-export type NewStudent = typeof student.$inferInsert;

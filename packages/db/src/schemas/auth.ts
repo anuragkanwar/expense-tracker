@@ -63,21 +63,3 @@ export const verification = sqliteTable("verification", {
     () => /* @__PURE__ */ new Date()
   ),
 });
-// // TypeScript types generated from the schema
-// export type User = typeof user.$inferSelect;
-// export type NewUser = typeof user.$inferInsert;
-//
-// export type Session = typeof sessionTable.$inferSelect;
-// export type NewSession = typeof sessionTable.$inferInsert;
-//
-// export type Account = typeof accountTable.$inferSelect;
-// export type NewAccount = typeof accountTable.$inferInsert;
-//
-// export type Verification = typeof verificationTable.$inferSelect;
-// export type NewVerification = typeof verificationTable.$inferInsert;
-//
-// // For API compatibility
-// export const user = userTable;
-// export const session = sessionTable;
-// export const account = accountTable;
-// export const verification = verificationTable;

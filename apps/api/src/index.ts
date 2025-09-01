@@ -1,17 +1,17 @@
-import { OpenAPIHono } from '@hono/zod-openapi';
+import { OpenAPIHono } from "@hono/zod-openapi";
 import { Scalar } from "@scalar/hono-api-reference";
-import studentRoutes from "@/routes/students";
+import { StudentRoutes } from "@/routes/students";
 import authRoutes from "@/routes/auth";
 import { errorHandler } from "@/middleware/error-handler";
 import { logger } from "@/middleware/logger";
-import { diMiddleware } from "@/middleware/di-middleware";
+import { dependencyInjector } from "@/middleware/di-middleware";
 
 // API setup
 const app = new OpenAPIHono();
 
 // Global middlewares
 app.use("*", logger());
-app.use("*", diMiddleware);
+app.use("*", dependencyInjector);
 app.use("*", errorHandler());
 
 // Health check endpoint
@@ -40,15 +40,15 @@ app.get("/health", (c) => {
 app.route("/api/auth", authRoutes);
 
 // Mount student routes
-app.route("/students", studentRoutes);
+app.route("/students", StudentRoutes);
 
 // OpenAPI documentation - generated from Zod schemas
-app.doc('/openapi.json', {
-  openapi: '3.1.0',
+app.doc("/openapi.json", {
+  openapi: "3.1.0",
   info: {
-    version: '1.0.0',
-    title: 'Student Management API',
-    description: 'An API for managing student records.',
+    version: "1.0.0",
+    title: "Student Management API",
+    description: "An API for managing student records.",
   },
 });
 

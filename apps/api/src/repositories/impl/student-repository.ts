@@ -1,57 +1,56 @@
 import { student } from "@pocket-pixie/db";
 import { eq } from "drizzle-orm";
-import type {
-  Student,
-  CreateStudentData,
-  UpdateStudentData,
-} from "../../models/student";
+import {
+  StudentResponse,
+  StudentCreate,
+  StudentUpdate,
+  transformStudentForApi,
+} from "@/models/student";
 import type { IStudentRepository } from "../index";
+import { db as DATABASE } from "@pocket-pixie/db";
 
 export class StudentRepository implements IStudentRepository {
-  constructor(private db: any) { }
+  private db: typeof DATABASE;
+  constructor({ db }: { db: typeof DATABASE }) {
+    this.db = db;
+  }
 
-  async findAll(limit: number = 10, offset: number = 0): Promise<Student[]> {
+  async findAll(
+    limit: number = 10,
+    offset: number = 0
+  ): Promise<StudentResponse[]> {
     const result = await this.db
       .select()
       .from(student)
       .limit(limit)
       .offset(offset);
-
-    return result.map((row: any) => ({
-      id: row.id,
-      name: row.name,
-      email: row.email,
-      age: row.age,
-      createdAt: new Date(row.createdAt),
-    }));
+    return result.map((row) => {
+      return transformStudentForApi(row);
+    });
   }
 
-  async findById(id: string): Promise<Student | null> {
-    const result = await (this.db as any)
+  async findById(id: string): Promise<StudentResponse | null> {
+    const result = await this.db
       .select()
       .from(student)
-      .where((eq as any)(student.id, id))
+      .where(eq(student.id, id))
       .limit(1);
 
     if (result.length === 0) {
       return null;
     }
-
     const row = result[0];
-    return {
-      id: row.id,
-      name: row.name,
-      email: row.email,
-      age: row.age,
-      createdAt: new Date(row.createdAt),
-    };
+    if (!row) {
+      return null;
+    }
+    return transformStudentForApi(row);
   }
 
-  async findByEmail(email: string): Promise<Student | null> {
-    const result = await (this.db as any)
+  async findByEmail(email: string): Promise<StudentResponse | null> {
+    const result = await this.db
       .select()
       .from(student)
-      .where((eq as any)(student.email, email))
+      .where(eq(student.email, email))
       .limit(1);
 
     if (result.length === 0) {
@@ -68,14 +67,14 @@ export class StudentRepository implements IStudentRepository {
       name: row.name,
       email: row.email,
       age: row.age,
-      createdAt: new Date(row.createdAt),
+      createdAt: new Date(row.createdAt).toISOString(),
     };
   }
 
-  async create(data: CreateStudentData): Promise<Student> {
+  async create(data: StudentCreate): Promise<StudentResponse> {
     const id = crypto.randomUUID();
 
-    await (this.db as any).insert(student).values({
+    await this.db.insert(student).values({
       id,
       name: data.name,
       email: data.email,
@@ -90,7 +89,10 @@ export class StudentRepository implements IStudentRepository {
     return created;
   }
 
-  async update(id: string, data: UpdateStudentData): Promise<Student | null> {
+  async update(
+    id: string,
+    data: StudentUpdate
+  ): Promise<StudentResponse | null> {
     const updateData: any = {};
 
     if (data.name !== undefined) {
@@ -103,35 +105,28 @@ export class StudentRepository implements IStudentRepository {
       updateData.age = data.age;
     }
 
-    await (this.db as any)
-      .update(student)
-      .set(updateData)
-      .where((eq as any)(student.id, id));
+    await this.db.update(student).set(updateData).where(eq(student.id, id));
 
     return this.findById(id);
   }
 
   async delete(id: string): Promise<boolean> {
-    const result = await (this.db as any)
-      .delete(student)
-      .where((eq as any)(student.id, id));
+    const result = await this.db.delete(student).where(eq(student.id, id));
 
-    return result.changes > 0;
+    return result.rowsAffected > 0;
   }
 
   async count(): Promise<number> {
-    const result = await (this.db as any)
-      .select({ count: student.id })
-      .from(student);
+    const result = await this.db.select({ count: student.id }).from(student);
 
     return result.length;
   }
 
   async emailExists(email: string, excludeId?: string): Promise<boolean> {
-    const result = await (this.db as any)
+    const result = await this.db
       .select()
       .from(student)
-      .where((eq as any)(student.email, email))
+      .where(eq(student.email, email))
       .limit(1);
 
     return result.length > 0;

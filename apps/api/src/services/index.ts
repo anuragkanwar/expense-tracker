@@ -1,13 +1,16 @@
 import type {
-  Student,
-  CreateStudentData,
-  UpdateStudentData,
+  StudentResponse,
+  StudentCreate,
+  StudentUpdate,
 } from "@/models/student";
 
 export interface IStudentService {
-  getAllStudents(limit?: number, offset?: number): Promise<Student[]>;
-  getStudentById(id: string): Promise<Student | null>;
-  createStudent(data: CreateStudentData): Promise<Student>;
-  updateStudent(id: string, data: UpdateStudentData): Promise<Student | null>;
+  getAllStudents(limit?: number, offset?: number): Promise<StudentResponse[]>;
+  getStudentById(id: string): Promise<StudentResponse | null>;
+  createStudent(data: StudentCreate): Promise<StudentResponse>;
+  updateStudent(
+    id: string,
+    data: StudentUpdate
+  ): Promise<StudentResponse | null>;
   deleteStudent(id: string): Promise<boolean>;
 }

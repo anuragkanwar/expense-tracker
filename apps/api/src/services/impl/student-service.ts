@@ -1,10 +1,10 @@
 import type { IStudentRepository } from "../../repositories";
 import type { IStudentService } from "../index";
 import type {
-  Student,
-  CreateStudentData,
-  UpdateStudentData,
-} from "../../models/student";
+  StudentResponse,
+  StudentCreate,
+  StudentUpdate,
+} from "@/models/student";
 import {
   StudentNotFoundError,
   StudentEmailConflictError,
@@ -12,56 +12,66 @@ import {
 import { BadRequestError } from "../../errors/base-error";
 
 export class StudentService implements IStudentService {
-  constructor(private repository: IStudentRepository) {}
+  private readonly studentRepository: IStudentRepository;
+
+  constructor({
+    studentRepository: repository,
+  }: {
+    studentRepository: IStudentRepository;
+  }) {
+    this.studentRepository = repository;
+  }
 
   async getAllStudents(
     limit: number = 10,
     offset: number = 0
-  ): Promise<Student[]> {
-    return this.repository.findAll(limit, offset);
+  ): Promise<StudentResponse[]> {
+    return this.studentRepository.findAll(limit, offset);
   }
 
-  async getStudentById(id: string): Promise<Student | null> {
+  async getStudentById(id: string): Promise<StudentResponse | null> {
     if (!id || typeof id !== "string") {
       throw new BadRequestError("Invalid student ID");
     }
 
-    return this.repository.findById(id);
+    return this.studentRepository.findById(id);
   }
 
-  async createStudent(data: CreateStudentData): Promise<Student> {
+  async createStudent(data: StudentCreate): Promise<StudentResponse> {
     // Check if email already exists
-    const existingStudent = await this.repository.findByEmail(data.email);
+    const existingStudent = await this.studentRepository.findByEmail(
+      data.email
+    );
     if (existingStudent) {
       throw new StudentEmailConflictError(data.email);
     }
 
-    return this.repository.create(data);
+    return this.studentRepository.create(data);
   }
 
   async updateStudent(
     id: string,
-    data: UpdateStudentData
-  ): Promise<Student | null> {
+    data: StudentUpdate
+  ): Promise<StudentResponse | null> {
     if (!id || typeof id !== "string") {
       throw new BadRequestError("Invalid student ID");
     }
 
     // Check if student exists
-    const existingStudent = await this.repository.findById(id);
+    const existingStudent = await this.studentRepository.findById(id);
     if (!existingStudent) {
       return null;
     }
 
     // Check if email is being updated and if it already exists
     if (data.email && data.email !== existingStudent.email) {
-      const emailExists = await this.repository.findByEmail(data.email);
+      const emailExists = await this.studentRepository.findByEmail(data.email);
       if (emailExists) {
         throw new StudentEmailConflictError(data.email);
       }
     }
 
-    return this.repository.update(id, data);
+    return this.studentRepository.update(id, data);
   }
 
   async deleteStudent(id: string): Promise<boolean> {
@@ -70,11 +80,11 @@ export class StudentService implements IStudentService {
     }
 
     // Check if student exists
-    const existingStudent = await this.repository.findById(id);
+    const existingStudent = await this.studentRepository.findById(id);
     if (!existingStudent) {
       throw new StudentNotFoundError(id);
     }
 
-    return this.repository.delete(id);
+    return this.studentRepository.delete(id);
   }
 }

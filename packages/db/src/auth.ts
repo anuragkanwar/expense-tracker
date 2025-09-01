@@ -4,7 +4,6 @@ import { db } from "./database.js";
 import { Redis } from "ioredis";
 const redis = new Redis();
 
-// Better Auth configuration using the existing db connection
 export const auth = betterAuth({
   database: drizzleAdapter(db, {
     provider: "sqlite",
@@ -17,14 +16,12 @@ export const auth = betterAuth({
       return await redis.get(key);
     },
     set: async (key, value, ttl) => {
-      if (ttl)
-        await redis.set(key, value, 'EX', ttl)
-      else
-        await redis.set(key, value);
+      if (ttl) await redis.set(key, value, "EX", ttl);
+      else await redis.set(key, value);
     },
     delete: async (key) => {
       await redis.del(key);
-    }
+    },
   },
   trustedOrigins: [
     "pocket-pixie://",
@@ -33,6 +30,3 @@ export const auth = betterAuth({
     "http://YOUR_COMPUTER_IP:3000", // Replace with your computer's IP
   ],
 });
-
-// Auth client will be created in the mobile app using the existing configuration
-// This is exported for API usage only
