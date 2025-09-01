@@ -1,5 +1,5 @@
 import { createSelectSchema, createInsertSchema } from "drizzle-zod";
-import { z } from "zod";
+import { z } from "@hono/zod-openapi";
 import { student } from "@/schemas/students";
 
 // ==========================================
@@ -7,7 +7,10 @@ import { student } from "@/schemas/students";
 // ==========================================
 
 // Base schemas auto-generated from studentTable
-export const studentSelectSchema = createSelectSchema(student);
+export const studentSelectSchema = createSelectSchema(student)
+  .openapi('Student', {
+    description: 'A Student object from the database',
+  });
 export const studentInsertSchema = createInsertSchema(student);
 
 // Enhanced schemas with API-specific validations

@@ -1,6 +1,8 @@
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { db } from "./database.js";
+import { Redis } from "ioredis";
+const redis = new Redis();
 
 // Better Auth configuration using the existing db connection
 export const auth = betterAuth({
@@ -9,6 +11,20 @@ export const auth = betterAuth({
   }),
   emailAndPassword: {
     enabled: true,
+  },
+  secondaryStorage: {
+    get: async (key) => {
+      return await redis.get(key);
+    },
+    set: async (key, value, ttl) => {
+      if (ttl)
+        await redis.set(key, value, 'EX', ttl)
+      else
+        await redis.set(key, value);
+    },
+    delete: async (key) => {
+      await redis.del(key);
+    }
   },
   trustedOrigins: [
     "pocket-pixie://",
