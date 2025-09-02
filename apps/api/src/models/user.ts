@@ -31,6 +31,14 @@ export const UserResponseSchema = createSelectSchema(user, {
     example: "https://exmaple-image",
     description: "user image url",
   }),
+  currency: z
+    .string()
+    .min(3, "Currency code required")
+    .max(3, "Invalid currency code")
+    .openapi({
+      example: "EUR",
+      description: "Currency code",
+    }),
   createdAt: z.string().openapi({
     example: "2025-09-01T12:00:00.000Z",
     description: "When the user was created",
