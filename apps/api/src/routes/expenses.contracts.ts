@@ -1,0 +1,242 @@
+import {
+  ExpenseResponseSchema,
+  ExpenseCreateSchema,
+  ExpenseUpdateSchema,
+} from "@/models/expense";
+import { ExpensePayerCreateSchema } from "@/models/expense-payer";
+import { ExpenseSplitCreateSchema } from "@/models/expense-split";
+import { createRoute, z } from "@hono/zod-openapi";
+
+// Complex schema for creating expense with payers and splits
+export const ExpenseCreateWithDetailsSchema = z
+  .object({
+    description: ExpenseCreateSchema.shape.description,
+    amount: ExpenseCreateSchema.shape.amount,
+    currency: ExpenseCreateSchema.shape.currency,
+    expenseDate: ExpenseCreateSchema.shape.expenseDate,
+    groupId: ExpenseCreateSchema.shape.groupId,
+    payers: z
+      .array(
+        ExpensePayerCreateSchema.omit({ expenseId: true }) // expenseId will be set after creation
+      )
+      .min(1, "At least one payer required")
+      .openapi({
+        description: "List of users who paid for the expense",
+      }),
+    splits: z
+      .array(
+        ExpenseSplitCreateSchema.omit({ expenseId: true }) // expenseId will be set after creation
+      )
+      .min(1, "At least one split required")
+      .openapi({
+        description: "How the expense is split among participants",
+      }),
+  })
+  .openapi("ExpenseCreateWithDetails");
+
+export const ExpenseUpdateWithDetailsSchema =
+  ExpenseCreateWithDetailsSchema.partial().openapi("ExpenseUpdateWithDetails");
+
+// Response schema for expense with details
+export const ExpenseWithDetailsResponseSchema = ExpenseResponseSchema.extend({
+  payers: z
+    .array(
+      z.object({
+        userId: z.string(),
+        amountPaid: z.number(),
+      })
+    )
+    .openapi({
+      description: "List of payers with amounts",
+    }),
+  splits: z
+    .array(
+      z.object({
+        userId: z.string(),
+        amountOwed: z.number(),
+        splitType: z.enum(["Equal", "Exact", "percentage", "share"]).nullable(),
+        metadata: z.any().nullable(),
+      })
+    )
+    .openapi({
+      description: "List of splits with details",
+    }),
+}).openapi("ExpenseWithDetailsResponse");
+
+// Pagination schema
+export const ExpenseListResponseSchema = z
+  .object({
+    expenses: z.array(ExpenseResponseSchema),
+    total: z.number().openapi({ example: 100 }),
+    page: z.number().openapi({ example: 1 }),
+    limit: z.number().openapi({ example: 10 }),
+  })
+  .openapi("ExpenseListResponse");
+
+export const createExpenseRoute = createRoute({
+  method: "post",
+  path: "/",
+  summary: "Create a new expense",
+  description:
+    "Creates a new expense with payers and split details. The request includes total amount, payer(s), and split object specifying the type and data for each participant.",
+  tags: ["Expenses"],
+  request: {
+    body: {
+      content: {
+        "application/json": {
+          schema: ExpenseCreateWithDetailsSchema.omit({ groupId: true }), // groupId optional or from context
+        },
+      },
+    },
+  },
+  responses: {
+    201: {
+      content: {
+        "application/json": {
+          schema: ExpenseWithDetailsResponseSchema,
+        },
+      },
+      description: "Expense created successfully",
+    },
+    400: { description: "Validation Error" },
+    401: { description: "Unauthorized" },
+  },
+});
+
+export const getExpenseRoute = createRoute({
+  method: "get",
+  path: "/{expenseId}",
+  summary: "Get expense details",
+  description:
+    "Retrieves the details of a single expense, including how it was split.",
+  tags: ["Expenses"],
+  request: {
+    params: z.object({
+      expenseId: z.string().openapi({
+        example: "exp_123",
+        description: "Expense ID",
+      }),
+    }),
+  },
+  responses: {
+    200: {
+      content: {
+        "application/json": {
+          schema: ExpenseWithDetailsResponseSchema,
+        },
+      },
+      description: "Expense details retrieved successfully",
+    },
+    401: { description: "Unauthorized" },
+    404: { description: "Expense not found" },
+  },
+});
+
+export const getGroupExpensesRoute = createRoute({
+  method: "get",
+  path: "/groups/{groupId}",
+  summary: "List group expenses",
+  description:
+    "Lists all expenses associated with a specific group, with support for pagination.",
+  tags: ["Expenses"],
+  request: {
+    params: z.object({
+      groupId: z.string().openapi({
+        example: "grp_123",
+        description: "Group ID",
+      }),
+    }),
+    query: z.object({
+      page: z.string().optional().openapi({
+        example: "1",
+        description: "Page number",
+      }),
+      limit: z.string().optional().openapi({
+        example: "10",
+        description: "Items per page",
+      }),
+    }),
+  },
+  responses: {
+    200: {
+      content: {
+        "application/json": {
+          schema: ExpenseListResponseSchema,
+        },
+      },
+      description: "Group expenses retrieved successfully",
+    },
+    401: { description: "Unauthorized" },
+    404: { description: "Group not found" },
+  },
+});
+
+export const updateExpenseRoute = createRoute({
+  method: "put",
+  path: "/{expenseId}",
+  summary: "Update expense",
+  description:
+    "Updates an existing expense. This action will trigger recalculation of balances.",
+  tags: ["Expenses"],
+  request: {
+    params: z.object({
+      expenseId: z.string().openapi({
+        example: "exp_123",
+        description: "Expense ID",
+      }),
+    }),
+    body: {
+      content: {
+        "application/json": {
+          schema: ExpenseUpdateWithDetailsSchema,
+        },
+      },
+    },
+  },
+  responses: {
+    200: {
+      content: {
+        "application/json": {
+          schema: ExpenseWithDetailsResponseSchema,
+        },
+      },
+      description: "Expense updated successfully",
+    },
+    400: { description: "Validation Error" },
+    401: { description: "Unauthorized" },
+    404: { description: "Expense not found" },
+  },
+});
+
+export const deleteExpenseRoute = createRoute({
+  method: "delete",
+  path: "/{expenseId}",
+  summary: "Delete expense",
+  description:
+    "Deletes an expense, which will also trigger a balance recalculation.",
+  tags: ["Expenses"],
+  request: {
+    params: z.object({
+      expenseId: z.string().openapi({
+        example: "exp_123",
+        description: "Expense ID",
+      }),
+    }),
+  },
+  responses: {
+    200: {
+      content: {
+        "application/json": {
+          schema: z.object({
+            message: z
+              .string()
+              .openapi({ example: "Expense deleted successfully" }),
+          }),
+        },
+      },
+      description: "Expense deleted successfully",
+    },
+    401: { description: "Unauthorized" },
+    404: { description: "Expense not found" },
+  },
+});

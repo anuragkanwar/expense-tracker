@@ -1,32 +1,19 @@
 import { OpenAPIHono } from "@hono/zod-openapi";
-import { signInRoute, signOutRoute, signUpRoute } from "./auth.contracts";
-import { SignIn, SignUp } from "@/models/auth";
-
-import { auth } from "@pocket-pixie/db"
+import { registerRoute, loginRoute, logoutRoute } from "./auth.contracts";
 
 export const authRoutes = new OpenAPIHono();
 
-authRoutes.openapi(signUpRoute, async (c) => {
-  try {
-    return auth.handler(c.req.raw);
-  } catch (error: any) {
-    return c.json({ error }, 500);
-  }
+authRoutes.openapi(registerRoute, async (c) => {
+  // TODO: Implement user registration
+  return c.json({ message: "Not implemented" }, 501);
 });
 
-authRoutes.openapi(signInRoute, async (c) => {
-  try {
-    return auth.handler(c.req.raw);
-  } catch (error: any) {
-    return c.json({ error }, 500);
-  }
+authRoutes.openapi(loginRoute, async (c) => {
+  // TODO: Implement user login
+  return c.json({ message: "Not implemented" }, 501);
 });
 
-
-authRoutes.openapi(signOutRoute, async (c) => {
-  try {
-    return auth.handler(c.req.raw);
-  } catch (error: any) {
-    return c.json({ error }, 500);
-  }
-})
+authRoutes.openapi(logoutRoute, async (c) => {
+  // TODO: Implement user logout
+  return c.json({ message: "Not implemented" }, 501);
+});

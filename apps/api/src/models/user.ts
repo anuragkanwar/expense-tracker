@@ -49,11 +49,11 @@ export const UserCreateSchema = z
       .max(100, "Name too long")
       .openapi({
         example: "John Doe",
-        description: "Student's full name",
+        description: "User's full name",
       }),
     email: z.email("Invalid email format").openapi({
       example: "john.doe@example.com",
-      description: "Student's email address",
+      description: "User's email address",
     }),
     password: z
       .string()
@@ -66,8 +66,36 @@ export const UserCreateSchema = z
   })
   .openapi("UserCreate");
 
+export const SignUpSchema = UserCreateSchema;
+
+export const SignInSchema = z
+  .object({
+    email: z.email("Invalid email format").openapi({
+      example: "john.doe@example.com",
+      description: "User's email address",
+    }),
+    password: z
+      .string()
+      .min(8, "Min 8 characters")
+      .max(150, "Password too long")
+      .openapi({
+        example: "password1234",
+        description: "Password",
+      }),
+  })
+  .openapi("SignIn");
+
 export const UserUpdateSchema =
   UserCreateSchema.partial().openapi("UserUpdate");
+
+export const AuthResponseSchema = z
+  .object({
+    user: UserResponseSchema.pick({ id: true, name: true, email: true }),
+    session: z.object({
+      token: z.string().openapi({ example: "jwt_token_here" }),
+    }),
+  })
+  .openapi("AuthResponse");
 
 // ==========================================
 // TYPE EXPORTS
@@ -75,3 +103,5 @@ export const UserUpdateSchema =
 export type UserResponse = z.infer<typeof UserResponseSchema>;
 export type UserCreate = z.infer<typeof UserCreateSchema>;
 export type UserUpdate = z.infer<typeof UserUpdateSchema>;
+export type SignIn = z.infer<typeof SignInSchema>;
+export type AuthResponse = z.infer<typeof AuthResponseSchema>;

@@ -5,9 +5,16 @@ import { logger } from "@/middleware/logger";
 import { dependencyInjector } from "@/middleware/di-middleware";
 import {
   authRoutes,
-  studentRoutes
+  userRoutes,
+  friendRoutes,
+  groupRoutes,
+  expenseRoutes,
+  passbookRoutes,
+  budgetRoutes,
+  connectionRoutes,
+  studentRoutes,
 } from "./routes";
-import { auth } from "@pocket-pixie/db";
+
 import { cors } from "hono/cors";
 // API setup
 const app = new OpenAPIHono();
@@ -17,7 +24,7 @@ app.use("*", logger());
 app.use("*", dependencyInjector);
 app.use("*", errorHandler());
 app.use(
-  "/api/auth/*", // or replace with "*" to enable cors for all routes
+  "/api/*", // Enable CORS for all API routes
   cors({
     origin: [
       "pocket-pixie://",
@@ -26,11 +33,11 @@ app.use(
       "http://YOUR_COMPUTER_IP:3000", // Replace with your computer's IP
     ], // replace with your origin
     allowHeaders: ["Content-Type", "Authorization"],
-    allowMethods: ["POST", "GET", "OPTIONS"],
+    allowMethods: ["POST", "GET", "PUT", "DELETE", "OPTIONS"],
     exposeHeaders: ["Content-Length"],
     maxAge: 600,
     credentials: true,
-  }),
+  })
 );
 // Health check endpoint
 app.get("/", (c) => {
@@ -41,6 +48,16 @@ app.get("/", (c) => {
     timestamp: new Date().toISOString(),
     environment: process.env.NODE_ENV || "development",
     docs: "http://localhost:3000/docs",
+    endpoints: {
+      auth: "/api/v1/auth",
+      users: "/api/v1/users",
+      friends: "/api/v1/friends",
+      groups: "/api/v1/groups",
+      expenses: "/api/v1/expenses",
+      passbook: "/api/v1/passbook",
+      budgets: "/api/v1/budgets",
+      connections: "/api/v1/connections",
+    },
   });
 });
 
@@ -54,14 +71,31 @@ app.get("/health", (c) => {
   });
 });
 
-// Mount auth routes
-// app.route("/api/auth", authRoutes);
+// Mount authentication routes
+app.route("/api/v1/auth", authRoutes);
 
-// app.on(["POST", "GET"], "/api/auth/*", (c) => {
-//   return auth.handler(c.req.raw);
-// });
+// Mount user management routes
+app.route("/api/v1/users", userRoutes);
 
-// Mount student routes
+// Mount social features routes
+app.route("/api/v1/friends", friendRoutes);
+
+// Mount group management routes
+app.route("/api/v1/groups", groupRoutes);
+
+// Mount expense management routes
+app.route("/api/v1/expenses", expenseRoutes);
+
+// Mount financial tracking routes
+app.route("/api/v1/passbook", passbookRoutes);
+
+// Mount budgeting routes
+app.route("/api/v1/budgets", budgetRoutes);
+
+// Mount external connections routes
+app.route("/api/v1/connections", connectionRoutes);
+
+// Mount student routes (legacy)
 app.route("/api/students", studentRoutes);
 
 // OpenAPI documentation - generated from Zod schemas
@@ -69,8 +103,9 @@ app.doc("/openapi.json", {
   openapi: "3.1.0",
   info: {
     version: "1.0.0",
-    title: "Student Management API",
-    description: "An API for managing student records.",
+    title: "Pocket Pixie API",
+    description:
+      "A comprehensive financial management API for expense tracking, budgeting, group expenses, and financial insights.",
   },
 });
 

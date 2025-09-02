@@ -1,9 +1,12 @@
-import { SignUpSchema, AuthResponseSchema, SignInScheme } from "@/models/auth";
+import { SignUpSchema, AuthResponseSchema, SignInSchema } from "@/models/user";
 import { createRoute, z } from "@hono/zod-openapi";
 
-export const signUpRoute = createRoute({
+export const registerRoute = createRoute({
   method: "post",
-  path: "/signup",
+  path: "/register",
+  summary: "Register a new user",
+  description: "Creates a new user account with the provided information.",
+  tags: ["Authentication"],
   request: {
     body: {
       content: {
@@ -20,22 +23,24 @@ export const signUpRoute = createRoute({
           schema: AuthResponseSchema,
         },
       },
-      description: "Student created successfully",
+      description: "User created successfully",
     },
     400: { description: "Validation Error" },
     409: { description: "Conflict (e.g., email already exists)" },
   },
 });
 
-
-export const signInRoute = createRoute({
+export const loginRoute = createRoute({
   method: "post",
-  path: "/signin",
+  path: "/login",
+  summary: "Authenticate user",
+  description: "Authenticates a user with credentials and returns a JWT token.",
+  tags: ["Authentication"],
   request: {
     body: {
       content: {
         "application/json": {
-          schema: SignInScheme,
+          schema: SignInSchema,
         },
       },
     },
@@ -47,25 +52,26 @@ export const signInRoute = createRoute({
           schema: AuthResponseSchema,
         },
       },
-      description: "Signed in successfully",
+      description: "Authentication successful",
     },
     400: { description: "Validation Error" },
     401: { description: "Unauthorized" },
   },
 });
 
-
-
-export const signOutRoute = createRoute({
+export const logoutRoute = createRoute({
   method: "post",
-  path: "/signout",
+  path: "/logout",
+  summary: "Logout user",
+  description: "Logs out the currently authenticated user.",
+  tags: ["Authentication"],
   responses: {
     200: {
-      description: "Successfully signed out",
+      description: "Successfully logged out",
       content: {
         "application/json": {
           schema: z.object({
-            message: z.string(),
+            message: z.string().openapi({ example: "Logged out successfully" }),
           }),
         },
       },
