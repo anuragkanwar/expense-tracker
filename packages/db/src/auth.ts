@@ -29,5 +29,13 @@ export const auth = betterAuth({
     "http://localhost:8081",
     "http://YOUR_COMPUTER_IP:3000", // Replace with your computer's IP
   ],
+  user: {
+    additionalFields: {
+      currency: {
+        type: "string",
+        required: false,
+        defaultValue: "INR",
+      },
+    },
+  },
 });
-

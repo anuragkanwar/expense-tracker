@@ -25,6 +25,10 @@
       "persistent": true,
       "dependsOn": ["^build"]
     },
+    "db:push": {
+      "cache": false,
+      "dependsOn": []
+    },
     "db:generate": {
       "cache": false,
       "dependsOn": []
@@ -32,14 +36,6 @@
     "db:migrate": {
       "cache": false,
       "dependsOn": ["db:generate"]
-    },
-    "auth:db:generate": {
-      "cache": false,
-      "dependsOn": []
-    },
-    "auth:db:migrate": {
-      "cache": false,
-      "dependsOn": ["auth:db:generate"]
     },
     "start": {
       "cache": false,

@@ -11,6 +11,7 @@
     "lint:fix": "turbo run lint -- --fix",
     "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md}\" --ignore-path .gitignore",
     "check-types": "turbo run check-types",
+    "db:push": "turbo run db:push --filter=@pocket-pixie/db",
     "db:generate": "turbo run db:generate --filter=@pocket-pixie/db",
     "db:migrate": "turbo run db:migrate --filter=@pocket-pixie/db",
     "clean": "turbo run clean 2>/dev/null || true && rm -rf node_modules/.cache",
