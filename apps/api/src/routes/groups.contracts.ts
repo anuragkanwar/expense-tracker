@@ -315,6 +315,80 @@ export const getSettlementPlanRoute = createRoute({
   },
 });
 
+export const deleteGroupRoute = createRoute({
+  method: "delete",
+  path: "/{groupId}",
+  summary: "Delete group",
+  description: "Deletes a group. Only the group creator can delete the group.",
+  tags: ["Groups"],
+  request: {
+    params: z.object({
+      groupId: z.string().openapi({
+        example: "grp_123",
+        description: "Group ID",
+      }),
+    }),
+  },
+  responses: {
+    200: {
+      content: {
+        "application/json": {
+          schema: z.object({
+            message: z
+              .string()
+              .openapi({ example: "Group deleted successfully" }),
+          }),
+        },
+      },
+      description: "Group deleted successfully",
+    },
+    401: { description: "Unauthorized" },
+    403: { description: "Forbidden - Only group creator can delete" },
+    404: { description: "Group not found" },
+  },
+});
+
+export const getGroupMembersRoute = createRoute({
+  method: "get",
+  path: "/{groupId}/members",
+  summary: "List group members",
+  description: "Lists all members of a specific group.",
+  tags: ["Groups"],
+  request: {
+    params: z.object({
+      groupId: z.string().openapi({
+        example: "grp_123",
+        description: "Group ID",
+      }),
+    }),
+  },
+  responses: {
+    200: {
+      content: {
+        "application/json": {
+          schema: z
+            .array(
+              z.object({
+                userId: z.string().openapi({ example: "user_123" }),
+                name: z.string().openapi({ example: "John Doe" }),
+                email: z.string().openapi({ example: "john@example.com" }),
+                joinedAt: z
+                  .string()
+                  .openapi({ example: "2025-09-01T12:00:00.000Z" }),
+              })
+            )
+            .openapi({
+              description: "List of group members",
+            }),
+        },
+      },
+      description: "Group members retrieved successfully",
+    },
+    401: { description: "Unauthorized" },
+    404: { description: "Group not found" },
+  },
+});
+
 export const createSettlementRoute = createRoute({
   method: "post",
   path: "/settlements",

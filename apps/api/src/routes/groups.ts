@@ -4,6 +4,8 @@ import {
   getGroupsRoute,
   getGroupRoute,
   updateGroupRoute,
+  deleteGroupRoute,
+  getGroupMembersRoute,
   addGroupMemberRoute,
   removeGroupMemberRoute,
   getGroupBalancesRoute,
@@ -30,6 +32,16 @@ groupRoutes.openapi(getGroupRoute, async (c) => {
 
 groupRoutes.openapi(updateGroupRoute, async (c) => {
   // TODO: Implement update group
+  return c.json({ message: "Not implemented" }, 501);
+});
+
+groupRoutes.openapi(deleteGroupRoute, async (c) => {
+  // TODO: Implement delete group
+  return c.json({ message: "Not implemented" }, 501);
+});
+
+groupRoutes.openapi(getGroupMembersRoute, async (c) => {
+  // TODO: Implement get group members
   return c.json({ message: "Not implemented" }, 501);
 });
 

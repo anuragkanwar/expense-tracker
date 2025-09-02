@@ -19,8 +19,17 @@ export * from "./passbook";
 // Budgeting routes
 export * from "./budgets";
 
+// Personal finance routes
+export * from "./personal-finance";
+
+// Balances and settlements routes
+export * from "./balances";
+
+// Dashboard routes
+export * from "./dashboard";
+
 // External connections routes
 export * from "./connections";
 
-// Student routes (existing)
+// Student routes (legacy)
 export * from "./students";

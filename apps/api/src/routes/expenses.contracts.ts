@@ -208,6 +208,95 @@ export const updateExpenseRoute = createRoute({
   },
 });
 
+export const getExpensesRoute = createRoute({
+  method: "get",
+  path: "/",
+  summary: "List user expenses",
+  description:
+    "Lists all expenses the current user is involved in (paginated).",
+  tags: ["Expenses"],
+  request: {
+    query: z.object({
+      page: z.string().optional().openapi({
+        example: "1",
+        description: "Page number",
+      }),
+      limit: z.string().optional().openapi({
+        example: "20",
+        description: "Items per page",
+      }),
+      type: z.string().optional().openapi({
+        example: "group",
+        description: "Filter by expense type (group, friend, personal)",
+      }),
+    }),
+  },
+  responses: {
+    200: {
+      content: {
+        "application/json": {
+          schema: z
+            .object({
+              expenses: z.array(ExpenseResponseSchema),
+              total: z.number().openapi({ example: 100 }),
+              page: z.number().openapi({ example: 1 }),
+              limit: z.number().openapi({ example: 20 }),
+            })
+            .openapi("ExpenseListResponse"),
+        },
+      },
+      description: "Expenses retrieved successfully",
+    },
+    401: { description: "Unauthorized" },
+  },
+});
+
+export const getFriendExpensesRoute = createRoute({
+  method: "get",
+  path: "/friends/{userId}",
+  summary: "List friend expenses",
+  description:
+    "Lists all non-group expenses between the current user and a friend.",
+  tags: ["Expenses"],
+  request: {
+    params: z.object({
+      userId: z.string().openapi({
+        example: "user_456",
+        description: "Friend's user ID",
+      }),
+    }),
+    query: z.object({
+      page: z.string().optional().openapi({
+        example: "1",
+        description: "Page number",
+      }),
+      limit: z.string().optional().openapi({
+        example: "20",
+        description: "Items per page",
+      }),
+    }),
+  },
+  responses: {
+    200: {
+      content: {
+        "application/json": {
+          schema: z
+            .object({
+              expenses: z.array(ExpenseResponseSchema),
+              total: z.number().openapi({ example: 25 }),
+              page: z.number().openapi({ example: 1 }),
+              limit: z.number().openapi({ example: 20 }),
+            })
+            .openapi("FriendExpenseListResponse"),
+        },
+      },
+      description: "Friend expenses retrieved successfully",
+    },
+    401: { description: "Unauthorized" },
+    404: { description: "Friend not found" },
+  },
+});
+
 export const deleteExpenseRoute = createRoute({
   method: "delete",
   path: "/{expenseId}",

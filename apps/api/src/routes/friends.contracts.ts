@@ -62,26 +62,27 @@ export const sendFriendRequestRoute = createRoute({
   },
 });
 
-export const updateFriendRequestRoute = createRoute({
+export const respondToFriendRequestRoute = createRoute({
   method: "put",
-  path: "/{friendshipId}",
+  path: "/requests/{userId}",
   summary: "Accept or reject friend request",
-  description: "Accepts or rejects a pending friend request.",
+  description:
+    "Accepts or rejects a pending friend request from a specific user.",
   tags: ["Friends"],
   request: {
     params: z.object({
-      friendshipId: z.string().openapi({
-        example: "frd_123",
-        description: "Friendship ID",
+      userId: z.string().openapi({
+        example: "user_456",
+        description: "ID of the user who sent the request",
       }),
     }),
     body: {
       content: {
         "application/json": {
           schema: z.object({
-            status: z.enum(["accepted", "rejected"]).openapi({
-              example: "accepted",
-              description: "New status for the friend request",
+            action: z.enum(["accept", "reject"]).openapi({
+              example: "accept",
+              description: "Action to take on the friend request",
             }),
           }),
         },
@@ -92,14 +93,96 @@ export const updateFriendRequestRoute = createRoute({
     200: {
       content: {
         "application/json": {
-          schema: FriendshipResponseSchema,
+          schema: z.object({
+            message: z.string().openapi({ example: "Friend request accepted" }),
+          }),
         },
       },
       description: "Friend request updated successfully",
     },
     400: { description: "Validation Error" },
     401: { description: "Unauthorized" },
-    404: { description: "Friendship not found" },
+    404: { description: "Friend request not found" },
+  },
+});
+
+export const getFriendRequestsRoute = createRoute({
+  method: "get",
+  path: "/requests",
+  summary: "List friend requests",
+  description: "Lists all pending friend requests for the current user.",
+  tags: ["Friends"],
+  responses: {
+    200: {
+      content: {
+        "application/json": {
+          schema: z
+            .array(
+              z.object({
+                id: z.string().openapi({ example: "frd_123" }),
+                fromUserId: z.string().openapi({ example: "user_456" }),
+                fromUserName: z.string().openapi({ example: "Jane Doe" }),
+                fromUserEmail: z
+                  .string()
+                  .openapi({ example: "jane@example.com" }),
+                status: z.string().openapi({ example: "pending" }),
+                createdAt: z
+                  .string()
+                  .openapi({ example: "2025-09-01T12:00:00.000Z" }),
+              })
+            )
+            .openapi({
+              description: "List of pending friend requests",
+            }),
+        },
+      },
+      description: "Friend requests retrieved successfully",
+    },
+    401: { description: "Unauthorized" },
+  },
+});
+
+export const updateFriendRequestRoute = createRoute({
+  method: "put",
+  path: "/requests/{userId}",
+  summary: "Accept or reject friend request",
+  description:
+    "Accepts or rejects a pending friend request from a specific user.",
+  tags: ["Friends"],
+  request: {
+    params: z.object({
+      userId: z.string().openapi({
+        example: "user_456",
+        description: "ID of the user who sent the request",
+      }),
+    }),
+    body: {
+      content: {
+        "application/json": {
+          schema: z.object({
+            action: z.enum(["accept", "reject"]).openapi({
+              example: "accept",
+              description: "Action to take on the friend request",
+            }),
+          }),
+        },
+      },
+    },
+  },
+  responses: {
+    200: {
+      content: {
+        "application/json": {
+          schema: z.object({
+            message: z.string().openapi({ example: "Friend request accepted" }),
+          }),
+        },
+      },
+      description: "Friend request updated successfully",
+    },
+    400: { description: "Validation Error" },
+    401: { description: "Unauthorized" },
+    404: { description: "Friend request not found" },
   },
 });
 

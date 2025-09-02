@@ -11,6 +11,9 @@ import {
   expenseRoutes,
   passbookRoutes,
   budgetRoutes,
+  personalFinanceRoutes,
+  balanceRoutes,
+  dashboardRoutes,
   connectionRoutes,
   studentRoutes,
 } from "./routes";
@@ -56,6 +59,9 @@ app.get("/", (c) => {
       expenses: "/api/v1/expenses",
       passbook: "/api/v1/passbook",
       budgets: "/api/v1/budgets",
+      accounts: "/api/v1/accounts",
+      balances: "/api/v1/balances",
+      dashboard: "/api/v1/dashboard",
       connections: "/api/v1/connections",
     },
   });
@@ -91,6 +97,15 @@ app.route("/api/v1/passbook", passbookRoutes);
 
 // Mount budgeting routes
 app.route("/api/v1/budgets", budgetRoutes);
+
+// Mount personal finance routes
+app.route("/api/v1/accounts", personalFinanceRoutes);
+
+// Mount balances and settlements routes
+app.route("/api/v1/balances", balanceRoutes);
+
+// Mount dashboard routes
+app.route("/api/v1/dashboard", dashboardRoutes);
 
 // Mount external connections routes
 app.route("/api/v1/connections", connectionRoutes);

@@ -2,7 +2,8 @@ import { OpenAPIHono } from "@hono/zod-openapi";
 import {
   getFriendsRoute,
   sendFriendRequestRoute,
-  updateFriendRequestRoute,
+  getFriendRequestsRoute,
+  respondToFriendRequestRoute,
   removeFriendRoute,
 } from "./friends.contracts";
 
@@ -18,8 +19,13 @@ friendRoutes.openapi(sendFriendRequestRoute, async (c) => {
   return c.json({ message: "Not implemented" }, 501);
 });
 
-friendRoutes.openapi(updateFriendRequestRoute, async (c) => {
-  // TODO: Implement accept/reject friend request
+friendRoutes.openapi(getFriendRequestsRoute, async (c) => {
+  // TODO: Implement get friend requests
+  return c.json({ message: "Not implemented" }, 501);
+});
+
+friendRoutes.openapi(respondToFriendRequestRoute, async (c) => {
+  // TODO: Implement respond to friend request
   return c.json({ message: "Not implemented" }, 501);
 });
 
