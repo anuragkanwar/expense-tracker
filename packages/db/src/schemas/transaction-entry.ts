@@ -1,0 +1,25 @@
+import { sqliteTable, text, integer, real } from "drizzle-orm/sqlite-core";
+import { transaction } from "./transaction";
+import { transactionAccount } from "./transaction-account";
+import { transactionCategory } from "./transaction-category";
+
+export const transactionEntry = sqliteTable("transaction_entry", {
+  id: text("id").primaryKey(),
+  transactionId: text("transaction_id")
+    .notNull()
+    .references(() => transaction.id, { onDelete: "cascade" }),
+  transactionAccountId: text("transaction_account_id")
+    .notNull()
+    .references(() => transactionAccount.id, { onDelete: "cascade" }),
+  amount: real("amount").notNull(),
+  direction: text("direction", { enum: ["DEBIT", "CREDIT"] }).notNull(),
+  categoryId: text("category_id")
+    .notNull()
+    .references(() => transactionCategory.id, { onDelete: "cascade" }),
+  createdAt: integer("created_at", { mode: "timestamp" })
+    .$defaultFn(() => /* @__PURE__ */ new Date())
+    .notNull(),
+  updatedAt: integer("updated_at", { mode: "timestamp" })
+    .$defaultFn(() => /* @__PURE__ */ new Date())
+    .notNull(),
+});
