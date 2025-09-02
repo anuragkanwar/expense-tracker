@@ -11,7 +11,9 @@ import {
   expenseRoutes,
   passbookRoutes,
   budgetRoutes,
-  personalFinanceRoutes,
+  accountRoutes,
+  categoryRoutes,
+  recurringItemRoutes,
   balanceRoutes,
   dashboardRoutes,
   connectionRoutes,
@@ -60,6 +62,8 @@ app.get("/", (c) => {
       passbook: "/api/v1/passbook",
       budgets: "/api/v1/budgets",
       accounts: "/api/v1/accounts",
+      categories: "/api/v1/categories",
+      "recurring-items": "/api/v1/recurring-items",
       balances: "/api/v1/balances",
       dashboard: "/api/v1/dashboard",
       connections: "/api/v1/connections",
@@ -99,7 +103,9 @@ app.route("/api/v1/passbook", passbookRoutes);
 app.route("/api/v1/budgets", budgetRoutes);
 
 // Mount personal finance routes
-app.route("/api/v1/accounts", personalFinanceRoutes);
+app.route("/api/v1/accounts", accountRoutes);
+app.route("/api/v1/categories", categoryRoutes);
+app.route("/api/v1/recurring-items", recurringItemRoutes);
 
 // Mount balances and settlements routes
 app.route("/api/v1/balances", balanceRoutes);

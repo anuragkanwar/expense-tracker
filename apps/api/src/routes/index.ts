@@ -20,7 +20,9 @@ export * from "./passbook";
 export * from "./budgets";
 
 // Personal finance routes
-export * from "./personal-finance";
+export * from "./accounts";
+export * from "./categories";
+export * from "./recurring-items";
 
 // Balances and settlements routes
 export * from "./balances";
