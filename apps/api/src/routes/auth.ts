@@ -1,40 +1,32 @@
-import { Hono } from "hono";
-import { auth } from "@pocket-pixie/auth";
+import { OpenAPIHono } from "@hono/zod-openapi";
+import { signInRoute, signOutRoute, signUpRoute } from "./auth.contracts";
+import { SignIn, SignUp } from "@/models/auth";
 
-const app = new Hono();
+import { auth } from "@pocket-pixie/db"
 
-/**
- * Authentication routes
- * Handles all auth-related endpoints using Better Auth
- */
+export const authRoutes = new OpenAPIHono();
 
-// Handle all auth requests
-app.on(["POST", "GET"], "/*", (c) => {
-  return auth.handler(c.req.raw);
-});
-
-// Auth callback endpoint for mobile deep linking
-app.get("/callback", (c) => {
-  const code = c.req.query("code");
-  const state = c.req.query("state");
-
-  if (!code) {
-    return c.json(
-      {
-        success: false,
-        error: {
-          code: "MISSING_CODE",
-          message: "Authorization code is required",
-        },
-      },
-      400
-    );
+authRoutes.openapi(signUpRoute, async (c) => {
+  try {
+    return auth.handler(c.req.raw);
+  } catch (error: any) {
+    return c.json({ error }, 500);
   }
-
-  // Redirect to mobile app with auth data
-  const redirectUrl = `pocket-pixie://auth/callback?code=${code}&state=${state || ""}`;
-
-  return c.redirect(redirectUrl);
 });
 
-export default app;
+authRoutes.openapi(signInRoute, async (c) => {
+  try {
+    return auth.handler(c.req.raw);
+  } catch (error: any) {
+    return c.json({ error }, 500);
+  }
+});
+
+
+authRoutes.openapi(signOutRoute, async (c) => {
+  try {
+    return auth.handler(c.req.raw);
+  } catch (error: any) {
+    return c.json({ error }, 500);
+  }
+})

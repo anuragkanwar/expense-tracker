@@ -22,11 +22,13 @@ The API will be available at `http://localhost:3000`
 
 This API server provides:
 
-- **Authentication endpoints** using Better Auth
-- **RESTful API** for mobile app communication
+- **RESTful API** for student management
 - **SQLite database** with Drizzle ORM
 - **Type-safe** request/response handling
-- **CORS configuration** for mobile app access
+- **Centralized error handling** with custom error classes
+- **Global logging** for development and debugging
+- **Input validation** with Zod schemas
+- **Clean architecture** with middleware system
 
 ## 🏗️ Architecture
 
@@ -35,15 +37,33 @@ This API server provides:
 - **Runtime:** Bun
 - **Framework:** Hono
 - **Database:** SQLite + Drizzle ORM
-- **Auth:** Better Auth
-- **Validation:** Zod (via validators package)
+- **Validation:** Zod
+- **Error Handling:** Custom error classes
+- **Logging:** Request/response logging
 - **Language:** TypeScript
 
 ### Dependencies
 
-- `@pocket-pixie/auth` - Authentication logic
-- `@pocket-pixie/db` - Database connection and schemas
-- `@pocket-pixie/validators` - Request/response validation
+- `@pocket-pixie/db` - Database schema, auto-generated Zod schemas, and types (single source of truth)
+- `drizzle-orm` - Type-safe database operations
+- `zod` - Runtime type validation and schema creation
+- `@hono/zod-openapi` - OpenAPI documentation generation
+- `hono` - Web framework for API routes
+- `tsc-alias` - Path alias resolution for builds
+- `vite` - Development server and testing configuration
+
+### Architecture Benefits
+
+- **Type Safety**: Database schema generates TypeScript types used throughout the API
+- **Single Source of Truth**: Drizzle schema → auto-generated Zod schemas → smart DTOs
+- **Auto-Generated Schemas**: Zod schemas automatically created from database tables
+- **Smart DTOs**: Field-level control over what gets sent to clients
+- **Clean Architecture**: Repository-Service-Route pattern with proper separation
+- **Middleware System**: Centralized error handling, logging, and validation
+- **Custom Error Classes**: Structured error responses with proper HTTP codes
+- **Path Aliases**: Clean `@/` imports resolved by tsc-alias
+- **Validation**: Zod schemas ensure data integrity at runtime
+- **Modern Development**: Hot reload, testing, and clean imports
 
 ## 🛠️ Development
 
@@ -63,21 +83,21 @@ This API server provides:
 2. **Database setup:**
 
    ```bash
-   # Generate TypeScript types and migrations for all databases
-   pnpm run db:generate:all
+    # Generate TypeScript types and migrations
+    pnpm run db:generate
 
-   # Run migrations for all databases
-   pnpm run db:migrate:all
+    # Run database migrations
+    pnpm run db:migrate
    ```
 
 3. **Environment variables:**
    The API uses environment variables from the root `.env` file:
+
    ```bash
-   BETTER_AUTH_SECRET=your-secret-key-here
-   BETTER_AUTH_URL=http://localhost:3000
    DATABASE_URL=./packages/db/local.db
-   AUTH_DATABASE_URL=./packages/auth/auth.db
    ```
+
+   **Note:** Authentication is handled by the `@pocket-pixie/db` package.
 
 ### Development Commands
 
@@ -104,44 +124,191 @@ pnpm run test
 pnpm run clean
 ```
 
-## 🔌 API Endpoints
+## 🔌 API Endpoints (Full CRUD)
 
-### Public Endpoints
+### Health & Status
 
-- `GET /` - Basic API information
-- `GET /health` - Health check with system status
-- `GET /health/detailed` - Detailed health check with database status
-- `GET /health/ready` - Readiness check for load balancers
+- `GET /` - API health check and status
 
-### Authentication Endpoints
+### Student CRUD Operations
 
-All auth endpoints are handled by Better Auth at `/api/auth/*`:
+- `GET /students` - Get all students (with pagination support)
+- `GET /students/:id` - Get student by ID
+- `POST /students` - Create new student
+- `PUT /students/:id` - Update existing student
+- `DELETE /students/:id` - Delete student
 
-- `POST /api/auth/sign-in` - Sign in with email/password
-- `POST /api/auth/sign-up` - Sign up with email/password
-- `POST /api/auth/sign-out` - Sign out
-- `GET /api/auth/session` - Get current session
-- `GET /api/auth/callback` - OAuth callback handler
+### Request/Response Format
 
-### Protected API Endpoints (Require Authentication)
+All API responses follow a consistent format:
 
-All `/api/*` endpoints except auth require a valid session:
+#### Success Response
 
-#### User Management
+```json
+{
+  "success": true,
+  "data": { ... },
+  "message": "Operation completed successfully"
+}
+```
 
-- `GET /api/user/profile` - Get current user profile
-- `PUT /api/user/profile` - Update user profile
+#### Error Response
 
-#### Data Endpoints
+```json
+{
+  "success": false,
+  "error": {
+    "code": "ERROR_CODE",
+    "message": "Human readable message"
+  }
+}
+```
 
-- `GET /api/data` - Get user-specific data
-- `POST /api/items` - Create new item
-- `GET /api/items` - Get user's items
-- `DELETE /api/items/:id` - Delete specific item
+### Data Validation
 
-#### Admin Endpoints
+The API uses Zod schemas for comprehensive input validation:
 
-- `GET /api/admin/users` - Admin-only endpoint (requires admin role)
+- **Required fields**: name, email
+- **Email format validation**
+- **Age range validation** (1-150)
+- **String length limits**
+- **Email uniqueness checking**
+
+### Architecture
+
+The API follows a clean layered architecture:
+
+#### Folder Structure
+
+```
+src/
+├── middleware/      # Request/response middleware
+│   ├── error-handler.ts    # Centralized error handling
+│   ├── logger.ts          # Request logging
+│   └── validation.ts      # Input validation helpers
+├── errors/          # Custom error classes
+│   ├── base-error.ts      # Base error classes
+│   └── student-errors.ts  # Student-specific errors
+├── models/          # TypeScript interfaces from database schema
+├── dtos/            # Zod validation schemas
+├── repositories/    # Data access layer
+├── services/        # Business logic layer
+├── routes/          # HTTP route handlers
+├── index.ts         # Main application setup
+└── index.test.ts    # API tests
+```
+
+#### Layer Responsibilities
+
+- **Middleware**: Request/response processing, error handling, logging, validation
+- **Routes**: HTTP request handling and response formatting
+- **Services**: Business logic, validation, and error handling
+- **Repositories**: Database operations and data transformation
+- **Models**: TypeScript interfaces derived from database schema
+- **DTOs**: Request/response validation using Zod schemas
+- **Errors**: Custom error classes for structured error responses
+
+#### Path Aliases
+
+The API uses path aliases for clean imports:
+
+```typescript
+// Clean imports with path aliases
+import { StudentService } from "@/services/student-service";
+import { createStudentSchema } from "@/dtos/student";
+import type { Student } from "@/models/student";
+
+// Resolved to relative paths in production
+import { StudentService } from "../services/student-service";
+import { createStudentSchema } from "../dtos/student";
+```
+
+**✅ Benefits:**
+
+- **Clean Code**: No complex relative paths
+- **Maintainable**: Easy to refactor file locations
+- **Type-Safe**: Full IntelliSense and auto-completion
+- **Build-Safe**: tsc-alias resolves aliases correctly
+
+## 🛡️ Middleware System
+
+The API includes a comprehensive middleware system for request processing, error handling, and logging.
+
+### Error Handler Middleware
+
+Centralized error handling with proper HTTP status codes:
+
+```typescript
+// Automatic error handling for all routes
+app.use("*", errorHandler());
+
+// Custom errors are automatically formatted
+throw new StudentNotFoundError("123");
+// Returns: { success: false, error: { code: "NOT_FOUND", message: "..." } }
+```
+
+### Logger Middleware
+
+Request/response logging for development:
+
+```typescript
+// Automatic logging in development
+app.use("*", logger());
+
+// Output:
+// [2025-08-29T18:59:11.522Z] GET /students - Start
+// [2025-08-29T18:59:11.531Z] GET /students - 200 - 9ms
+```
+
+### Validation Middleware
+
+Reusable validation helpers:
+
+```typescript
+// Validate request body
+app.post("/students", validateBody(createStudentSchema), handler);
+
+// Validate query parameters
+app.get("/students", validateQuery(paginationSchema), handler);
+```
+
+## 🚨 Error Handling
+
+### Custom Error Classes
+
+Structured error responses with proper HTTP codes:
+
+```typescript
+// Base errors
+throw new ValidationError("Invalid input", validationErrors);
+throw new NotFoundError("Student", "123");
+throw new ConflictError("Email already exists");
+
+// Student-specific errors
+throw new StudentNotFoundError("123");
+throw new StudentEmailConflictError("john@example.com");
+```
+
+### Error Response Format
+
+All errors follow a consistent structure:
+
+```json
+{
+  "success": false,
+  "error": {
+    "code": "NOT_FOUND",
+    "message": "Student with identifier '123' not found"
+  }
+}
+```
+
+### Error Types
+
+- `VALIDATION_ERROR` (400) - Invalid input data
+- `NOT_FOUND` (404) - Resource not found
+- `CONFLICT` (409) - Resource conflict (e.g., duplicate email)
+- `INTERNAL_ERROR` (500) - Server errors
 
 ## 📊 Response Format
 
@@ -241,32 +408,44 @@ For production:
 
 The database schema is defined in `@pocket-pixie/db` package:
 
-- **Users** - User accounts
+- **Students** - Student records with CRUD operations
+- **Users** - User authentication and profiles
 - **Sessions** - Authentication sessions
 - **Accounts** - OAuth account connections
 - **Verification** - Email verification tokens
 
-### Database Commands
+```typescript
+// Student table schema
+export const studentTable = sqliteTable("student", {
+  id: text("id").primaryKey(),
+  name: text("name").notNull(),
+  email: text("email").notNull().unique(),
+  age: integer("age"),
+  createdAt: integer("created_at", { mode: "timestamp" })
+    .$defaultFn(() => new Date())
+    .notNull(),
+});
+```
 
-The API uses two separate databases:
-
-- **Main Database** (`packages/db/local.db`) - For business logic data
-- **Auth Database** (`packages/auth/auth.db`) - For authentication data
+### Database Setup
 
 ```bash
-# Generate and migrate all databases
-pnpm run db:generate:all
-pnpm run db:migrate:all
+# Generate TypeScript types and migrations
+pnpm run db:generate
 
-# Individual database commands
-pnpm run db:generate          # Main database types
-pnpm run db:migrate           # Main database migrations
-pnpm run auth:db:generate     # Auth database types
-pnpm run auth:db:migrate      # Auth database migrations
+# Run database migrations
+pnpm run db:migrate
 
-# Reset databases
-rm packages/db/local.db packages/auth/auth.db && pnpm run db:migrate:all
+# Reset database (clean slate)
+rm packages/db/local.db && pnpm run db:migrate
 ```
+
+**✅ Features:**
+
+- SQLite database with Drizzle ORM
+- Type-safe database operations
+- Automatic migrations
+- Clean, minimal schema focused on student management
 
 ## 🧪 Testing
 
@@ -286,10 +465,13 @@ pnpm run test:coverage
 ### Build Process
 
 ```bash
-# Build the application
+# Build the application with path alias resolution
 pnpm run build
 
-# The built files will be in ./dist/
+# Build process:
+# 1. TypeScript compilation (creates .js with @/ aliases)
+# 2. tsc-alias resolution (converts @/ to relative paths)
+# 3. Final .js files with correct import paths
 ```
 
 ### Production Server
@@ -302,6 +484,13 @@ pnpm run start
 bun dist/index.js
 ```
 
+**✅ Build Features:**
+
+- **Path Aliases**: `@/` imports resolved to relative paths
+- **Type Safety**: Full TypeScript compilation with strict checks
+- **Clean Output**: No build artifacts in source directories
+- **Runtime Ready**: All imports work correctly in production
+
 ### Environment Variables for Production
 
 ```bash
@@ -313,11 +502,35 @@ NODE_ENV=production
 
 ## 📊 Monitoring & Logging
 
-The API includes:
+The API includes comprehensive monitoring and logging:
 
-- **Request logging** via Hono logger middleware
-- **Error handling** with proper HTTP status codes
-- **CORS headers** for cross-origin requests
+### Request Logging
+
+- **Development Mode**: Detailed request/response logging
+- **Production Mode**: Minimal logging for performance
+- **Performance Tracking**: Request duration and status codes
+
+```bash
+# Development logs
+[2025-08-29T18:59:11.522Z] GET /students - Start
+[2025-08-29T18:59:11.531Z] GET /students - 200 - 9ms
+
+# Production logs (minimal)
+[2025-08-29T18:59:11.531Z] GET /students - 200
+```
+
+### Error Handling
+
+- **Centralized Error Processing**: All errors handled consistently
+- **Structured Error Responses**: Consistent JSON error format
+- **Environment-Aware**: Detailed errors in dev, generic in production
+- **Custom Error Classes**: Type-safe error handling
+
+### Health Monitoring
+
+- **Health Endpoint**: `/health` for monitoring systems
+- **Database Connection**: Automatic health checks
+- **Uptime Tracking**: Server uptime information
 
 ## 🔧 Configuration
 
@@ -333,13 +546,47 @@ The API includes:
 - **ES Modules:** Modern ES module syntax
 - **Source Maps:** Enabled for debugging
 
+## 🚀 Recent Improvements
+
+### v1.0.0 Updates
+
+- **Middleware System**: Centralized error handling, logging, and validation
+- **Custom Error Classes**: Structured error responses with proper HTTP codes
+- **Enhanced Logging**: Environment-aware request/response logging
+- **Clean Architecture**: Improved separation of concerns
+- **TypeScript Fixes**: Resolved all type safety issues
+- **Production Ready**: Optimized for both development and production
+
+### Key Features
+
+- **Error Handling**: Comprehensive error management with custom classes
+- **Request Logging**: Detailed logging in development, minimal in production
+- **Input Validation**: Zod-based validation with automatic error formatting
+- **Health Monitoring**: Built-in health checks and uptime tracking
+- **Clean Code**: Path aliases, proper imports, and maintainable structure
+
 ## 📚 Related Documentation
 
-- [Root README](../README.md) - Main project documentation
-- [Build Process](../../BUILD_PROCESS.md) - Turborepo build pipeline
-- [Database Package](../../packages/db/README.md) - Database setup
-- [Auth Package](../../packages/auth/README.md) - Authentication
-- [Mobile App](../mobile/README.md) - Frontend application
+### Project Overview
+
+- [Root README](../../README.md) - Main project documentation and architecture
+- [Build Process](../../BUILD_PROCESS.md) - Turborepo build pipeline and commands
+
+### Core Packages
+
+- [Database Package](../../packages/db/README.md) - Turso + Drizzle ORM + Better Auth setup
+- [Validators Package](../../packages/validators/README.md) - Zod validation schemas
+
+### Applications
+
+- [Mobile App](../mobile/README.md) - React Native + Expo frontend
+- [Mobile Environments](../mobile/README_ENVIRONMENTS.md) - Environment configuration
+
+### Development Tools
+
+- [ESLint Config](../../packages/config-eslint/README.md) - Code linting rules
+- [Prettier Config](../../packages/config-prettier/README.md) - Code formatting
+- [TypeScript Config](../../packages/config-typescript/README.md) - TypeScript setup
 
 ## 🆘 Troubleshooting
 

@@ -1,36 +1,89 @@
-import { Hono } from "hono";
-import { corsMiddleware } from "./middleware/cors";
-import { errorHandler } from "./middleware/error";
-import { requestLogger } from "./middleware/logger";
-import { rateLimit } from "./middleware/rate-limit";
-import authRoutes from "./routes/auth";
-import healthRoutes from "./routes/health";
-import apiRoutes from "./routes/api";
+import { OpenAPIHono } from "@hono/zod-openapi";
+import { Scalar } from "@scalar/hono-api-reference";
+import { errorHandler } from "@/middleware/error-handler";
+import { logger } from "@/middleware/logger";
+import { dependencyInjector } from "@/middleware/di-middleware";
+import {
+  authRoutes,
+  studentRoutes
+} from "./routes";
+import { auth } from "@pocket-pixie/db";
+import { cors } from "hono/cors";
+// API setup
+const app = new OpenAPIHono();
 
-const app = new Hono();
+// Global middlewares
+app.use("*", logger());
+app.use("*", dependencyInjector);
+app.use("*", errorHandler());
+app.use(
+  "/api/auth/*", // or replace with "*" to enable cors for all routes
+  cors({
+    origin: [
+      "pocket-pixie://",
+      "http://localhost:3000",
+      "http://localhost:8081",
+      "http://YOUR_COMPUTER_IP:3000", // Replace with your computer's IP
+    ], // replace with your origin
+    allowHeaders: ["Content-Type", "Authorization"],
+    allowMethods: ["POST", "GET", "OPTIONS"],
+    exposeHeaders: ["Content-Length"],
+    maxAge: 600,
+    credentials: true,
+  }),
+);
+// Health check endpoint
+app.get("/", (c) => {
+  return c.json({
+    success: true,
+    message: "Pocket Pixie API is running!",
+    version: "1.0.0",
+    timestamp: new Date().toISOString(),
+    environment: process.env.NODE_ENV || "development",
+    docs: "http://localhost:3000/docs",
+  });
+});
 
-// Global error handler (must be first)
-app.use("*", errorHandler);
+// API info endpoint
+app.get("/health", (c) => {
+  return c.json({
+    success: true,
+    status: "healthy",
+    timestamp: new Date().toISOString(),
+    uptime: process.uptime(),
+  });
+});
 
-// Global CORS middleware
-app.use("*", corsMiddleware);
+// Mount auth routes
+// app.route("/api/auth", authRoutes);
 
-// Request logging
-app.use("*", requestLogger);
+// app.on(["POST", "GET"], "/api/auth/*", (c) => {
+//   return auth.handler(c.req.raw);
+// });
 
-// Rate limiting for API routes
-app.use("/api/*", rateLimit);
+// Mount student routes
+app.route("/api/students", studentRoutes);
 
-// Health check (no auth required)
-app.route("/", healthRoutes);
+// OpenAPI documentation - generated from Zod schemas
+app.doc("/openapi.json", {
+  openapi: "3.1.0",
+  info: {
+    version: "1.0.0",
+    title: "Student Management API",
+    description: "An API for managing student records.",
+  },
+});
 
-// Authentication routes
-app.route("/api/auth", authRoutes);
+// Scalar API Reference UI
+app.get(
+  "/docs",
+  Scalar({
+    url: "/openapi.json",
+    pageTitle: "Pocket Pixie API",
+  })
+);
 
-// Protected API routes
-app.route("/api", apiRoutes);
-
-// 404 handler
+// 404 handler (handled by error middleware)
 app.notFound((c) => {
   return c.json(
     {
@@ -40,7 +93,7 @@ app.notFound((c) => {
         message: "Endpoint not found",
       },
     },
-    404
+    404 as any
   );
 });
 

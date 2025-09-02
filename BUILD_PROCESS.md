@@ -26,13 +26,56 @@ config-* (no dependencies)
     ↓
 validators (uses config-typescript)
     ↓
-db (uses config-typescript)
+db (uses config-typescript, drizzle-zod)
     ↓
 auth (uses db, config-typescript)
     ↓
-api (uses auth, db, validators)
+api (uses auth, db, validators, auto-generated schemas)
 mobile (uses auth)
 ```
+
+## Architecture Flow
+
+```
+🎯 Drizzle Schema (Single Source of Truth)
+    ↓
+🔄 drizzle-zod (Auto-Generated Schemas)
+    ↓
+📋 Smart DTOs (Field Control)
+    ↓
+🛠️ Clean API Routes
+    ↓
+📚 OpenAPI Documentation
+```
+
+config-\* (no dependencies)
+↓
+validators (uses config-typescript)
+↓
+db (uses config-typescript, drizzle-zod, auto-generates Zod schemas)
+↓
+auth (uses db, config-typescript)
+↓
+api (uses auth, db, validators, smart DTOs)
+mobile (uses auth)
+
+```
+
+## Architecture Flow
+
+```
+
+🎯 Drizzle Schema (Single Source of Truth)
+↓
+🔄 Auto-Generated Zod Schemas
+↓
+📋 Smart DTOs (Field Control)
+↓
+🛠️ Clean API Routes
+↓
+📚 OpenAPI Documentation
+
+````
 
 ## Available Commands
 
@@ -42,18 +85,23 @@ mobile (uses auth)
 # Start all dev servers
 pnpm run dev
 
+# Start API + Database together (recommended for development)
+pnpm run dev:server       # API + Database + Drizzle Studio
+
 # Start specific services
-pnpm run dev:api          # API server only
-pnpm run dev:mobile       # Mobile app only
+cd apps/api && pnpm run dev    # API server only
+cd packages/db && pnpm run dev # Database + Drizzle Studio only
 
 # Database operations
-pnpm run db:generate:all  # Generate all database schemas
-pnpm run db:migrate:all   # Run all database migrations
-pnpm run db:generate      # Generate main db schema
-pnpm run db:migrate       # Run main db migrations
-pnpm run auth:db:generate # Generate auth db schema
-pnpm run auth:db:migrate  # Run auth db migrations
-```
+pnpm run db:generate      # Generate database schema from types
+pnpm run db:migrate       # Run database migrations
+
+# API-specific commands
+cd apps/api
+pnpm run test            # Run API tests with path alias support
+pnpm run build           # Build with tsc-alias path resolution
+pnpm run dev             # Start development server with hot reload
+````
 
 ### Building
 
@@ -63,9 +111,18 @@ pnpm run build
 
 # Build specific parts
 pnpm run build:packages   # Build all packages
-pnpm run build:api        # Build API only
+pnpm run build:api        # Build API with tsc-alias path resolution
 pnpm run build:mobile     # Build mobile app
 ```
+
+### Build Features
+
+**✅ API Package Special Features:**
+
+- **TypeScript Compilation**: Standard .ts to .js conversion
+- **tsc-alias Integration**: Resolves `@/` path aliases to relative paths
+- **Clean Output**: Production-ready JavaScript with correct imports
+- **Path Alias Support**: Clean imports in development, resolved paths in production
 
 ### Code Quality
 
@@ -108,10 +165,11 @@ pnpm run clean:all
 
 ### 3. **DB Package**
 
-- **Purpose**: Database connection and schemas
+- **Purpose**: Database connection, schemas, and auto-generated Zod schemas
 - **Build**: TypeScript compilation
-- **Dependencies**: `config-typescript`
+- **Dependencies**: `config-typescript`, `zod`, `drizzle-zod`
 - **Special commands**:
+  - `dev`: Start database server + Drizzle Studio concurrently
   - `db:generate`: Generate Drizzle types from schema
   - `db:migrate`: Run database migrations
 - **Used by**: `auth`, `api`
@@ -125,10 +183,11 @@ pnpm run clean:all
 
 ### 5. **API App**
 
-- **Purpose**: Backend server
+- **Purpose**: Backend server with auto-generated schemas and smart DTOs
 - **Build**: TypeScript compilation
 - **Dependencies**: `auth`, `db`, `validators`
 - **Dev server**: `bun --watch --port 3000`
+- **Features**: Uses auto-generated Zod schemas from Drizzle, smart DTOs for field control, auto-generated OpenAPI docs
 
 ### 6. **Mobile App**
 
@@ -152,17 +211,19 @@ pnpm run clean:all
 
 ## Development Workflow
 
-### First Time Setup
+### First Time Setup (Simplified)
 
 ```bash
 # Install all dependencies
 pnpm install
 
-# Generate database types for all databases
-pnpm run db:generate:all
+# Generate database types
+pnpm run db:generate
 
-# Run database migrations for all databases
-pnpm run db:migrate:all
+# Run database migrations
+pnpm run db:migrate
+
+# 🎉 Zod schemas are auto-generated from Drizzle - no extra steps!
 ```
 
 ### Daily Development
@@ -171,10 +232,51 @@ pnpm run db:migrate:all
 # Start all services
 pnpm run dev
 
+# Start API + Database together (recommended)
+pnpm run dev:server   # API + Database + Drizzle Studio
+
 # Or start individually
-pnpm run dev:api      # Terminal 1
-pnpm run dev:mobile   # Terminal 2
+cd apps/api && pnpm run dev    # API server
+cd packages/db && pnpm run dev # Database + Drizzle Studio
 ```
+
+### Development Features
+
+**✅ API Package:**
+
+- **Hot Reload**: Bun's watch mode for instant updates
+- **Path Aliases**: Clean `@/` imports with full IntelliSense
+- **Type Safety**: Full TypeScript support with schema validation
+- **Testing**: Vitest with path alias resolution
+- **Clean Architecture**: Repository-Service-Route pattern
+- **Single Source of Truth**: Drizzle schema drives everything
+- **Auto-Generated Schemas**: Zod schemas auto-generated from Drizzle using `drizzle-zod`
+- **Smart DTOs**: Field-level control over client data
+- **Auto OpenAPI Docs**: Scalar UI with full API documentation
+
+### Architecture Benefits
+
+**✅ Clean Separation of Concerns:**
+
+- **Routes**: HTTP handling and response formatting
+- **Services**: Business logic and validation
+- **Repositories**: Data access and transformation
+- **Models**: TypeScript interfaces from database schema
+- **DTOs**: Request/response validation schemas
+
+**✅ Type Safety Throughout:**
+
+- Database schema generates TypeScript types
+- Models use database-generated types
+- DTOs extend schema types with validation
+- All layers maintain type consistency
+
+**✅ Developer Experience:**
+
+- Path aliases for clean imports
+- Hot reload for instant feedback
+- Comprehensive testing setup
+- Full IntelliSense support
 
 ### Building for Production
 
@@ -182,12 +284,38 @@ pnpm run dev:mobile   # Terminal 2
 # Build all packages
 pnpm run build
 
+# Build API with path alias resolution
+pnpm run build:api
+# Includes: TypeScript compilation + tsc-alias resolution
+
 # Build mobile app for staging
 cd apps/mobile
 pnpm run build:staging
 
 # Build mobile app for production
 pnpm run build:production
+```
+
+### Path Alias Resolution
+
+The API package uses **tsc-alias** for path alias resolution:
+
+```bash
+# Build process with alias resolution
+pnpm run build:api
+# 1. TypeScript: Compiles .ts to .js (with @/ aliases)
+# 2. tsc-alias: Resolves @/ to relative paths
+# 3. Result: Production-ready .js with correct imports
+```
+
+**Example:**
+
+```typescript
+// Source: @/services/student-service
+import { StudentRepository } from "@/repositories/student-repository";
+
+// After tsc-alias: ../services/student-service
+import { StudentRepository } from "../repositories/student-repository";
 ```
 
 ## Turborepo Features Used
@@ -228,6 +356,17 @@ pnpm run clean:all
 pnpm install
 ```
 
+### API Build Issues (Recently Resolved)
+
+The API package previously had build configuration issues that have been fixed:
+
+- ✅ **RESOLVED**: Removed `"noEmit": true` from API tsconfig.json
+- ✅ **RESOLVED**: Added explicit `.js` extensions for NodeNext compatibility
+- ✅ **RESOLVED**: Clean build process with no artifacts in source directories
+- ✅ **RESOLVED**: Proper TypeScript compilation to `apps/api/dist/`
+
+If you encounter API build issues, the configuration is now correct and should work out of the box.
+
 ### Build Order Issues
 
 Turborepo handles build order automatically, but if you need to force rebuild:
@@ -240,19 +379,14 @@ pnpm run clean
 pnpm run build --force
 ```
 
-### Database Issues
+### Database Issues (Simplified)
 
 ```bash
 # Regenerate types after schema changes
-pnpm run db:generate:all
+pnpm run db:generate
 
-# Reset all databases
-rm packages/db/local.db packages/auth/auth.db
-pnpm run db:migrate:all
-
-# Reset individual databases
+# Reset database
 rm packages/db/local.db && pnpm run db:migrate
-rm packages/auth/auth.db && pnpm run auth:db:migrate
 ```
 
 ## Performance Tips
@@ -262,9 +396,22 @@ rm packages/auth/auth.db && pnpm run auth:db:migrate
 3. **Filter when possible**: Use `--filter` to run only what you need
 4. **Clean regularly**: Use `pnpm run clean` to remove stale cache
 
-## Next Steps
+## 📚 Related Documentation
 
-- [ ] Set up CI/CD pipeline
-- [ ] Configure production deployments
-- [ ] Add testing scripts
-- [ ] Set up monitoring and logging
+- [Root README](../README.md) - Main project documentation
+- [API Documentation](../apps/api/README.md) - Backend API
+- [Mobile App](../apps/mobile/README.md) - React Native application
+- [Database Package](../packages/db/README.md) - Database setup
+- [Auth Package](../packages/auth/README.md) - Authentication
+- [Environment Setup](../apps/mobile/README_ENVIRONMENTS.md) - Mobile app environments
+
+## 🤝 Contributing
+
+1. Follow the existing architectural patterns
+2. Test changes across all affected packages
+3. Update documentation for any process changes
+4. Ensure build compatibility across platforms
+
+## 📄 License
+
+This project is licensed under the MIT License.

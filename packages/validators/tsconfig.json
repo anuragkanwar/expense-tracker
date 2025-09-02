@@ -1,9 +1,0 @@
-{
-  "extends": "@pocket-pixie/typescript-config/base.json",
-  "include": ["src/**/*.ts"],
-  "exclude": ["node_modules"],
-  "compilerOptions": {
-    "outDir": "./dist",
-    "rootDir": "./src"
-  }
-}

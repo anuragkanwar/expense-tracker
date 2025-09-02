@@ -1,8 +1,8 @@
-import { drizzle } from "drizzle-orm/better-sqlite3";
-import Database from "better-sqlite3";
-import * as schema from "./schema.js";
+// Import database connection
+export { db } from "./database";
 
-const sqlite = new Database(process.env.DATABASE_URL ?? "./local.db");
+// Export all schema types and utilities
+export * from "./schemas";
 
-export const db = drizzle(sqlite, { schema });
-export * from "./schema.js";
+// Export auth instance
+export { auth } from "./auth";
