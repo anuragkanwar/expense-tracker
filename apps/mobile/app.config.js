@@ -1,9 +1,22 @@
+const { withAndroidManifest } = require("@expo/config-plugins");
 export default ({ config }) => {
   const profile = process.env.EXPO_PROFILE || "default";
 
   // Base configuration
   const baseConfig = {
     ...config,
+    plugins: [
+      ...(config.plugins || []),
+      [
+        withAndroidManifest,
+        (config) => {
+          config.modResults.manifest.application[0].$[
+            "android:usesCleartextTraffic"
+          ] = "true";
+          return config;
+        },
+      ],
+    ],
     extra: {
       ...config.extra,
       profile,

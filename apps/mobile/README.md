@@ -70,6 +70,7 @@ This mobile app provides:
 
 3. **API URL configuration:**
    Update `lib/auth-client.ts` with your API URL:
+
    ```typescript
    baseURL: "http://localhost:3000", // For development
    // or
