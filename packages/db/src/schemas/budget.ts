@@ -1,6 +1,7 @@
 import { sqliteTable, text, integer, real } from "drizzle-orm/sqlite-core";
 import { user } from "./user";
 import { transactionCategory } from "./transaction-category";
+import { TIME_PERIOD } from "@/constants";
 
 export const budget = sqliteTable("budget", {
   id: text("id").primaryKey(),
@@ -11,7 +12,16 @@ export const budget = sqliteTable("budget", {
     .notNull()
     .references(() => transactionCategory.id, { onDelete: "cascade" }),
   amount: real("amount").notNull(),
-  period: text("period", { enum: ["monthly", "weekly", "yearly"] }).notNull(),
+  period: text("period", {
+    enum: [
+      TIME_PERIOD.BIWEEKLY,
+      TIME_PERIOD.HALF_YEARLY,
+      TIME_PERIOD.MONTHLY,
+      TIME_PERIOD.QUATERLY,
+      TIME_PERIOD.WEEKLY,
+      TIME_PERIOD.YEARLY,
+    ],
+  }).notNull(),
   startDate: integer("start_date", { mode: "timestamp" })
     .$defaultFn(() => /* @__PURE__ */ new Date())
     .notNull(),

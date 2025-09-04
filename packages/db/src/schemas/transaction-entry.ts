@@ -2,6 +2,7 @@ import { sqliteTable, text, integer, real } from "drizzle-orm/sqlite-core";
 import { transaction } from "./transaction";
 import { transactionAccount } from "./transaction-account";
 import { transactionCategory } from "./transaction-category";
+import { EXPENSE_TYPE } from "@/constants";
 
 export const transactionEntry = sqliteTable("transaction_entry", {
   id: text("id").primaryKey(),
@@ -12,7 +13,15 @@ export const transactionEntry = sqliteTable("transaction_entry", {
     .notNull()
     .references(() => transactionAccount.id, { onDelete: "cascade" }),
   amount: real("amount").notNull(),
-  direction: text("direction", { enum: ["DEBIT", "CREDIT"] }).notNull(),
+  type: text("type", {
+    enum: [
+      EXPENSE_TYPE.EXPENSE,
+      EXPENSE_TYPE.INCOME,
+      EXPENSE_TYPE.INVESTMENT,
+      EXPENSE_TYPE.LOAN_GIVEN,
+      EXPENSE_TYPE.LOAN_TAKEN,
+    ],
+  }).notNull(),
   categoryId: text("category_id")
     .notNull()
     .references(() => transactionCategory.id, { onDelete: "cascade" }),

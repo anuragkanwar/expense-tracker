@@ -12,27 +12,57 @@ export const ExpenseCreateWithDetailsSchema = z
   .object({
     description: ExpenseCreateSchema.shape.description,
     amount: ExpenseCreateSchema.shape.amount,
-    currency: ExpenseCreateSchema.shape.currency,
-    expenseDate: ExpenseCreateSchema.shape.expenseDate,
     groupId: ExpenseCreateSchema.shape.groupId,
-    payers: z
-      .array(
-        ExpensePayerCreateSchema.omit({ expenseId: true }) // expenseId will be set after creation
-      )
-      .min(1, "At least one payer required")
-      .openapi({
-        description: "List of users who paid for the expense",
-      }),
+    expenseDate: ExpenseCreateSchema.shape.expenseDate,
+    payer: z.string().openapi({
+      description: "user who paid for the expense",
+    }),
+    sharedWith: z.enum(["None", "Group", "Friends"]).openapi({
+      description: "is expense shared with other parties",
+    }),
+    splitType: z.enum(["Equal", "Exact", "percentage"]).optional().openapi({
+      example: "percentage",
+      description: "Split type",
+    }),
     splits: z
       .array(
-        ExpenseSplitCreateSchema.omit({ expenseId: true }) // expenseId will be set after creation
+        ExpenseSplitCreateSchema.omit({
+          expenseId: true,
+          splitType: true,
+          metadata: true,
+        }) // expenseId will be set after creation
       )
-      .min(1, "At least one split required")
+      .optional()
       .openapi({
         description: "How the expense is split among participants",
       }),
   })
   .openapi("ExpenseCreateWithDetails");
+
+// Schema for creating expense with AI prompt
+export const ExpenseCreateWithAIPromptSchema = z
+  .object({
+    userPrompt: z.string().min(1, "User prompt is required").openapi({
+      example:
+        "paid 4000 for dinner with #some-splitwise-group and also @some-people1, @some-people2",
+      description: "Natural language description of the expense",
+    }),
+    groupIds: z
+      .array(z.string())
+      .optional()
+      .openapi({
+        example: ["grp_123"],
+        description: "Optional list of group IDs mentioned in the prompt",
+      }),
+    userIds: z
+      .array(z.string())
+      .optional()
+      .openapi({
+        example: ["user_456", "user_789"],
+        description: "Optional list of user IDs mentioned in the prompt",
+      }),
+  })
+  .openapi("ExpenseCreateWithAIPrompt");
 
 export const ExpenseUpdateWithDetailsSchema =
   ExpenseCreateWithDetailsSchema.partial().openapi("ExpenseUpdateWithDetails");
@@ -327,5 +357,35 @@ export const deleteExpenseRoute = createRoute({
     },
     401: { description: "Unauthorized" },
     404: { description: "Expense not found" },
+  },
+});
+
+export const createExpenseWithAIRoute = createRoute({
+  method: "post",
+  path: "/ai",
+  summary: "Create expense with AI prompt",
+  description:
+    "Creates a new expense using natural language input. The AI will parse the prompt to extract expense details, payers, and splits.",
+  tags: ["Expenses"],
+  request: {
+    body: {
+      content: {
+        "application/json": {
+          schema: ExpenseCreateWithAIPromptSchema,
+        },
+      },
+    },
+  },
+  responses: {
+    201: {
+      content: {
+        "application/json": {
+          schema: ExpenseWithDetailsResponseSchema,
+        },
+      },
+      description: "Expense created successfully via AI",
+    },
+    400: { description: "Validation Error or AI parsing failed" },
+    401: { description: "Unauthorized" },
   },
 });

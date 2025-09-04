@@ -1,6 +1,6 @@
 import { createSelectSchema, createInsertSchema } from "drizzle-zod";
 import { z } from "@hono/zod-openapi";
-import { transactionEntry } from "@pocket-pixie/db";
+import { transactionEntry, TXN_TYPE } from "@pocket-pixie/db";
 
 // ==========================================================
 // TRANSACTION ENTRY SCHEMAS
@@ -52,8 +52,8 @@ export const TransactionEntryCreateSchema = createInsertSchema(
       example: 25.5,
       description: "Entry amount",
     }),
-    direction: z.enum(["DEBIT", "CREDIT"]).openapi({
-      example: "DEBIT",
+    type: z.enum(TXN_TYPE).openapi({
+      example: "Expense, Income, Loan Taken",
       description: "Entry direction",
     }),
     transactionId: z.string().openapi({

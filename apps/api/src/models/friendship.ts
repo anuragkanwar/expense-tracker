@@ -1,6 +1,6 @@
 import { createSelectSchema, createInsertSchema } from "drizzle-zod";
 import { z } from "@hono/zod-openapi";
-import { friendship } from "@pocket-pixie/db";
+import { FRIEND_STATUS, friendship } from "@pocket-pixie/db";
 
 // ==========================================================
 // FRIENDSHIP SCHEMAS
@@ -20,7 +20,7 @@ export const FriendshipResponseSchema = createSelectSchema(friendship)
       example: "user_456",
       description: "Second user ID",
     }),
-    status: z.enum(["pending", "accepted", "blocked"]).openapi({
+    status: z.enum(FRIEND_STATUS).openapi({
       example: "accepted",
       description: "Friendship status",
     }),
@@ -44,7 +44,7 @@ export const FriendshipCreateSchema = createInsertSchema(friendship, {
     example: "user_456",
     description: "Second user ID",
   }),
-  status: z.enum(["pending", "accepted", "blocked"]).optional().openapi({
+  status: z.enum(FRIEND_STATUS).optional().openapi({
     example: "pending",
     description: "Friendship status",
   }),

@@ -7,6 +7,7 @@ import {
 } from "drizzle-orm/sqlite-core";
 import { expense } from "./expense";
 import { user } from "./user";
+import { SPLIT_TYPE } from "@/constants";
 
 export const expenseSplit = sqliteTable("expense_split", {
   id: text("id").primaryKey(),
@@ -18,7 +19,7 @@ export const expenseSplit = sqliteTable("expense_split", {
     .references(() => user.id, { onDelete: "cascade" }),
   amountOwed: real("amount_owed").notNull(),
   splitType: text("split_type", {
-    enum: ["Equal", "Exact", "percentage", "share"],
+    enum: [SPLIT_TYPE.EQUAL, SPLIT_TYPE.PERCENTAGE, SPLIT_TYPE.SHARE],
   }),
   metadata: blob("metadata", { mode: "json" }),
   createdAt: integer("created_at", { mode: "timestamp" })

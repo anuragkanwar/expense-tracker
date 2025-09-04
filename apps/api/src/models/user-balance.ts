@@ -29,7 +29,7 @@ export const UserBalanceResponseSchema = createSelectSchema(userBalance)
       description: "Balance amount",
     }),
     currency: z.string().openapi({
-      example: "USD",
+      example: "INR",
       description: "Currency code",
     }),
     createdAt: z.string().openapi({
@@ -53,7 +53,7 @@ export const UserBalanceCreateSchema = createInsertSchema(userBalance, {
     .min(3, "Currency code required")
     .max(3, "Invalid currency code")
     .openapi({
-      example: "USD",
+      example: "INR",
       description: "Currency code",
     }),
   ownerId: z.string().openapi({

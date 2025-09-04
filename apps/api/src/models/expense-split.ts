@@ -1,6 +1,6 @@
 import { createSelectSchema, createInsertSchema } from "drizzle-zod";
 import { z } from "@hono/zod-openapi";
-import { expenseSplit } from "@pocket-pixie/db";
+import { expenseSplit, SPLIT_TYPE } from "@pocket-pixie/db";
 
 // ==========================================================
 // EXPENSE SPLIT SCHEMAS
@@ -24,13 +24,10 @@ export const ExpenseSplitResponseSchema = createSelectSchema(expenseSplit)
       example: 25.0,
       description: "Amount owed",
     }),
-    splitType: z
-      .enum(["Equal", "Exact", "percentage", "share"])
-      .nullable()
-      .openapi({
-        example: "Equal",
-        description: "Split type",
-      }),
+    splitType: z.enum(SPLIT_TYPE).nullable().openapi({
+      example: "Equal",
+      description: "Split type",
+    }),
     metadata: z
       .any()
       .nullable()
@@ -54,13 +51,10 @@ export const ExpenseSplitCreateSchema = createInsertSchema(expenseSplit, {
     example: 30.0,
     description: "Amount owed",
   }),
-  splitType: z
-    .enum(["Equal", "Exact", "percentage", "share"])
-    .optional()
-    .openapi({
-      example: "percentage",
-      description: "Split type",
-    }),
+  splitType: z.enum(SPLIT_TYPE).optional().openapi({
+    example: "percentage",
+    description: "Split type",
+  }),
   metadata: z
     .any()
     .optional()

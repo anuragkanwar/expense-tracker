@@ -1,6 +1,6 @@
 import { createSelectSchema, createInsertSchema } from "drizzle-zod";
 import { z } from "@hono/zod-openapi";
-import { recurring } from "@pocket-pixie/db";
+import { RECURRENCE_TYPE, recurring } from "@pocket-pixie/db";
 
 // ==========================================================
 // RECURRING SCHEMAS
@@ -36,7 +36,7 @@ export const RecurringResponseSchema = createSelectSchema(recurring)
       example: "monthly",
       description: "Recurring period",
     }),
-    type: z.enum(["CREDIT", "DEBIT"]).openapi({
+    type: z.enum(RECURRENCE_TYPE).openapi({
       example: "DEBIT",
       description: "Recurring type",
     }),

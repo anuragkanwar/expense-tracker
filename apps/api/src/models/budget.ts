@@ -1,7 +1,6 @@
 import { createSelectSchema, createInsertSchema } from "drizzle-zod";
 import { z } from "@hono/zod-openapi";
-import { budget } from "@pocket-pixie/db";
-
+import { budget, TIME_PERIOD } from "@pocket-pixie/db";
 // ==========================================================
 // BUDGET SCHEMAS
 // ==========================================================
@@ -24,7 +23,7 @@ export const BudgetResponseSchema = createSelectSchema(budget)
       example: 500.0,
       description: "Budget amount",
     }),
-    period: z.enum(["monthly", "weekly", "yearly"]).openapi({
+    period: z.enum(TIME_PERIOD).openapi({
       example: "monthly",
       description: "Budget period",
     }),
@@ -48,7 +47,7 @@ export const BudgetCreateSchema = createInsertSchema(budget, {
     example: 300.0,
     description: "Budget amount",
   }),
-  period: z.enum(["monthly", "weekly", "yearly"]).openapi({
+  period: z.enum(TIME_PERIOD).openapi({
     example: "monthly",
     description: "Budget period",
   }),

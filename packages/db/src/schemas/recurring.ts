@@ -1,6 +1,7 @@
 import { sqliteTable, text, integer, real } from "drizzle-orm/sqlite-core";
 import { user } from "./user";
 import { transactionAccount } from "./transaction-account";
+import { RECURRENCE_TYPE, TIME_PERIOD } from "@/constants";
 
 export const recurring = sqliteTable("recurring", {
   id: text("id").primaryKey(),
@@ -15,8 +16,19 @@ export const recurring = sqliteTable("recurring", {
     .references(() => transactionAccount.id, { onDelete: "cascade" }),
   description: text("description").notNull(),
   amount: real("amount").notNull(),
-  period: text("period", { enum: ["monthly", "weekly", "yearly"] }).notNull(),
-  type: text("type", { enum: ["CREDIT", "DEBIT"] }).notNull(),
+  period: text("period", {
+    enum: [
+      TIME_PERIOD.BIWEEKLY,
+      TIME_PERIOD.HALF_YEARLY,
+      TIME_PERIOD.MONTHLY,
+      TIME_PERIOD.QUATERLY,
+      TIME_PERIOD.WEEKLY,
+      TIME_PERIOD.YEARLY,
+    ],
+  }).notNull(),
+  type: text("type", {
+    enum: [RECURRENCE_TYPE.CREDIT, RECURRENCE_TYPE.DEBIT],
+  }).notNull(),
   nextDate: integer("next_date", { mode: "timestamp" })
     .$defaultFn(() => /* @__PURE__ */ new Date())
     .notNull(),
