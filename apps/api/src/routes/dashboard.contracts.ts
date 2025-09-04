@@ -137,6 +137,78 @@ export const NetWorthTrendResponseSchema = z
   )
   .openapi("NetWorthTrendResponse");
 
+// Spending analytics response schema
+export const SpendingAnalyticsResponseSchema = z
+  .object({
+    totalSpending: z.number().openapi({
+      example: 3200.0,
+      description: "Total spending for the month",
+    }),
+    categories: z
+      .array(
+        z.object({
+          categoryId: z.string().openapi({
+            example: "cat_123",
+            description: "Category ID",
+          }),
+          categoryName: z.string().openapi({
+            example: "Food & Dining",
+            description: "Category name",
+          }),
+          amount: z.number().openapi({
+            example: 450.0,
+            description: "Total spent in this category",
+          }),
+          percentage: z.number().openapi({
+            example: 14.1,
+            description: "Percentage of total expenses",
+          }),
+          transactionCount: z.number().openapi({
+            example: 12,
+            description: "Number of transactions in this category",
+          }),
+          trend: z.enum(["up", "down", "stable"]).openapi({
+            example: "up",
+            description: "Spending trend compared to last month",
+          }),
+        })
+      )
+      .openapi("CategorySpending"),
+    analytics: z
+      .object({
+        numberOfCategories: z.number().openapi({
+          example: 8,
+          description: "Number of categories with spending",
+        }),
+        averageSpendingPerCategory: z.number().openapi({
+          example: 400.0,
+          description: "Average spending per category",
+        }),
+        minSpending: z.number().openapi({
+          example: 50.0,
+          description: "Minimum spending in any category",
+        }),
+        maxSpending: z.number().openapi({
+          example: 800.0,
+          description: "Maximum spending in any category",
+        }),
+        totalTransactions: z.number().openapi({
+          example: 120,
+          description: "Total number of transactions across all categories",
+        }),
+        sumOfPercentages: z.number().openapi({
+          example: 100.0,
+          description: "Sum of all category percentages (should equal 100)",
+        }),
+        standardDeviation: z.number().openapi({
+          example: 150.0,
+          description: "Standard deviation of category spendings",
+        }),
+      })
+      .openapi("SpendingAnalytics"),
+  })
+  .openapi("SpendingAnalyticsResponse");
+
 export const getMonthlySummaryRoute = createRoute({
   method: "get",
   path: "/monthly-summary",
@@ -227,6 +299,26 @@ export const getNetWorthTrendRoute = createRoute({
         },
       },
       description: "Net worth trend retrieved successfully",
+    },
+    401: { description: "Unauthorized" },
+  },
+});
+
+export const getSpendingAnalyticsRoute = createRoute({
+  method: "get",
+  path: "/spending-analytics",
+  summary: "Get spending analytics",
+  description:
+    "Retrieves detailed spending analytics by category for the current month, with categories sorted by spending amount in descending order.",
+  tags: ["Dashboard"],
+  responses: {
+    200: {
+      content: {
+        "application/json": {
+          schema: SpendingAnalyticsResponseSchema,
+        },
+      },
+      description: "Spending analytics retrieved successfully",
     },
     401: { description: "Unauthorized" },
   },

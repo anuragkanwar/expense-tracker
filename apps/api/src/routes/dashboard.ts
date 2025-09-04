@@ -4,6 +4,7 @@ import {
   getSpendingByCategoryRoute,
   getUpcomingBillsRoute,
   getNetWorthTrendRoute,
+  getSpendingAnalyticsRoute,
 } from "./dashboard.contracts";
 
 export const dashboardRoutes = new OpenAPIHono();
@@ -25,5 +26,10 @@ dashboardRoutes.openapi(getUpcomingBillsRoute, async (c) => {
 
 dashboardRoutes.openapi(getNetWorthTrendRoute, async (c) => {
   // TODO: Implement get net worth trend
+  return c.json({ message: "Not implemented" }, 501);
+});
+
+dashboardRoutes.openapi(getSpendingAnalyticsRoute, async (c) => {
+  // TODO: Implement get spending analytics
   return c.json({ message: "Not implemented" }, 501);
 });

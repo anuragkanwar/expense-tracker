@@ -71,7 +71,7 @@ export const logoutRoute = createRoute({
       content: {
         "application/json": {
           schema: z.object({
-            message: z.string().openapi({ example: "Logged out successfully" }),
+            success: z.string().openapi({ example: "Logged out successfully" }),
           }),
         },
       },

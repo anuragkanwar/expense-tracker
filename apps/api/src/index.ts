@@ -21,6 +21,7 @@ import {
 } from "./routes";
 
 import { cors } from "hono/cors";
+import { auth } from "@pocket-pixie/db";
 // API setup
 const app = new OpenAPIHono();
 
@@ -82,7 +83,9 @@ app.get("/health", (c) => {
 });
 
 // Mount authentication routes
-app.route("/api/v1/auth", authRoutes);
+app.on(["POST", "GET"], "/api/auth/*", (c) => {
+  return auth.handler(c.req.raw);
+});
 
 // Mount user management routes
 app.route("/api/v1/users", userRoutes);

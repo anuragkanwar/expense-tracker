@@ -3,7 +3,9 @@ export default ({ config }) => {
   const profile = process.env.EXPO_PROFILE || "default";
 
   // Base configuration
-  const baseConfig = {
+  // const baseConfig = {
+
+  return {
     ...config,
     plugins: [
       ...(config.plugins || []),
@@ -24,41 +26,41 @@ export default ({ config }) => {
   };
 
   // Profile-specific configurations
-  switch (profile) {
-    case "staging":
-      return {
-        ...baseConfig,
-        name: "Pocket Pixie (Staging)",
-        slug: "pocket-pixie-staging",
-        scheme: "pocket-pixie-staging",
-        extra: {
-          ...baseConfig.extra,
-          environment: "staging",
-        },
-      };
-
-    case "production":
-      return {
-        ...baseConfig,
-        name: "Pocket Pixie",
-        slug: "pocket-pixie",
-        scheme: "pocket-pixie",
-        extra: {
-          ...baseConfig.extra,
-          environment: "production",
-        },
-      };
-
-    default:
-      return {
-        ...baseConfig,
-        name: "Pocket Pixie (Dev)",
-        slug: "pocket-pixie-dev",
-        scheme: "pocket-pixie-dev",
-        extra: {
-          ...baseConfig.extra,
-          environment: "development",
-        },
-      };
-  }
+  // switch (profile) {
+  //   case "staging":
+  //     return {
+  //       ...baseConfig,
+  //       name: "Pocket Pixie (Staging)",
+  //       slug: "pocket-pixie",
+  //       scheme: "pocket-pixie",
+  //       extra: {
+  //         ...baseConfig.extra,
+  //         environment: "staging",
+  //       },
+  //     };
+  //
+  //   case "production":
+  //     return {
+  //       ...baseConfig,
+  //       name: "Pocket Pixie",
+  //       slug: "pocket-pixie",
+  //       scheme: "pocket-pixie",
+  //       extra: {
+  //         ...baseConfig.extra,
+  //         environment: "production",
+  //       },
+  //     };
+  //
+  //   default:
+  //     return {
+  //       ...baseConfig,
+  //       name: "Pocket Pixie (Dev)",
+  //       slug: "pocket-pixie",
+  //       scheme: "pocket-pixie",
+  //       extra: {
+  //         ...baseConfig.extra,
+  //         environment: "development",
+  //       },
+  //     };
+  // }
 };
