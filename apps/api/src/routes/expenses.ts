@@ -17,7 +17,7 @@ expenseRoutes.openapi(createExpenseRoute, async (c) => {
   try {
     const data = c.req.valid("json");
     const { expenseService } = c.get("services");
-    expenseService;
+    expenseService.createExpense(data);
   } catch (error: any) {
     return c.json({ message: error }, 400);
   }

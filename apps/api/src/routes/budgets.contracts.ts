@@ -1,21 +1,6 @@
 import { BudgetResponseSchema, BudgetCreateSchema } from "@/models/budget";
 import { createRoute, z } from "@hono/zod-openapi";
-
-// Budget status response schema (extends basic budget with spending info)
-export const BudgetWithStatusResponseSchema = BudgetResponseSchema.extend({
-  spent: z.number().openapi({
-    example: 450.0,
-    description: "Amount spent in this budget period",
-  }),
-  remaining: z.number().openapi({
-    example: 50.0,
-    description: "Amount remaining in budget",
-  }),
-  percentage: z.number().openapi({
-    example: 90.0,
-    description: "Percentage of budget used",
-  }),
-}).openapi("BudgetWithStatusResponse");
+import { BudgetWithStatusResponseSchema } from "@/dto/budgets.dto";
 
 export const getBudgetsRoute = createRoute({
   method: "get",

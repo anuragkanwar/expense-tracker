@@ -1,17 +1,5 @@
-import { TransactionEntryResponseSchema } from "@/models/transaction-entry";
 import { createRoute, z } from "@hono/zod-openapi";
-
-// Passbook list response with pagination
-export const PassbookResponseSchema = z
-  .object({
-    entries: z.array(TransactionEntryResponseSchema).openapi({
-      description: "List of transaction entries",
-    }),
-    total: z.number().openapi({ example: 100 }),
-    page: z.number().openapi({ example: 1 }),
-    limit: z.number().openapi({ example: 20 }),
-  })
-  .openapi("PassbookResponse");
+import { PassbookResponseSchema } from "@/dto/passbook.dto";
 
 export const getPassbookRoute = createRoute({
   method: "get",

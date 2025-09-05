@@ -7,7 +7,7 @@ export class ExpenseService {
     this.expenseRepository = expenseRepository;
   }
 
-  async createExpense() {}
+  async createExpense(data: any) {}
 
   // TODO: Implement expense service methods
 }
