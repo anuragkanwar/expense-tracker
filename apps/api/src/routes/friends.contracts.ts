@@ -38,8 +38,8 @@ export const sendFriendRequestRoute = createRoute({
       content: {
         "application/json": {
           schema: z.object({
-            friendId: z.string().openapi({
-              example: "user_456",
+            friendId: z.number().openapi({
+              example: 456,
               description: "ID of the user to send friend request to",
             }),
           }),
@@ -71,8 +71,8 @@ export const respondToFriendRequestRoute = createRoute({
   tags: ["Friends"],
   request: {
     params: z.object({
-      userId: z.string().openapi({
-        example: "user_456",
+      userId: z.number().openapi({
+        example: 456,
         description: "ID of the user who sent the request",
       }),
     }),
@@ -119,8 +119,8 @@ export const getFriendRequestsRoute = createRoute({
           schema: z
             .array(
               z.object({
-                id: z.string().openapi({ example: "frd_123" }),
-                fromUserId: z.string().openapi({ example: "user_456" }),
+                id: z.number().openapi({ example: 123 }),
+                fromUserId: z.number().openapi({ example: 456 }),
                 fromUserName: z.string().openapi({ example: "Jane Doe" }),
                 fromUserEmail: z
                   .string()
@@ -151,8 +151,8 @@ export const updateFriendRequestRoute = createRoute({
   tags: ["Friends"],
   request: {
     params: z.object({
-      userId: z.string().openapi({
-        example: "user_456",
+      userId: z.number().openapi({
+        example: 456,
         description: "ID of the user who sent the request",
       }),
     }),
@@ -194,8 +194,8 @@ export const removeFriendRoute = createRoute({
   tags: ["Friends"],
   request: {
     params: z.object({
-      userId: z.string().openapi({
-        example: "user_456",
+      userId: z.number().openapi({
+        example: 456,
         description: "ID of the friend to remove",
       }),
     }),

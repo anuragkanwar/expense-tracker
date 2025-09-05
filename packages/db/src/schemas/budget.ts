@@ -4,11 +4,11 @@ import { transactionCategory } from "./transaction-category";
 import { TIME_PERIOD } from "@/constants";
 
 export const budget = sqliteTable("budget", {
-  id: text("id").primaryKey(),
-  userId: text("user_id")
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  userId: integer("user_id")
     .notNull()
     .references(() => user.id, { onDelete: "cascade" }),
-  categoryId: text("category_id")
+  categoryId: integer("category_id")
     .notNull()
     .references(() => transactionCategory.id, { onDelete: "cascade" }),
   amount: real("amount").notNull(),

@@ -31,7 +31,12 @@ export class CategoryService {
       throw new BadRequestError("Invalid category ID");
     }
 
-    return this.categoryRepository.findById(id);
+    const numericId = parseInt(id, 10);
+    if (isNaN(numericId)) {
+      throw new BadRequestError("Invalid category ID format");
+    }
+
+    return this.categoryRepository.findById(numericId);
   }
 
   async createCategory(
@@ -48,12 +53,17 @@ export class CategoryService {
       throw new BadRequestError("Invalid category ID");
     }
 
-    const existingCategory = await this.categoryRepository.findById(id);
+    const numericId = parseInt(id, 10);
+    if (isNaN(numericId)) {
+      throw new BadRequestError("Invalid category ID format");
+    }
+
+    const existingCategory = await this.categoryRepository.findById(numericId);
     if (!existingCategory) {
       return null;
     }
 
-    return this.categoryRepository.update(id, data);
+    return this.categoryRepository.update(numericId, data);
   }
 
   async deleteCategory(id: string): Promise<boolean> {
@@ -61,11 +71,16 @@ export class CategoryService {
       throw new BadRequestError("Invalid category ID");
     }
 
-    const existingCategory = await this.categoryRepository.findById(id);
+    const numericId = parseInt(id, 10);
+    if (isNaN(numericId)) {
+      throw new BadRequestError("Invalid category ID format");
+    }
+
+    const existingCategory = await this.categoryRepository.findById(numericId);
     if (!existingCategory) {
       throw new BadRequestError("Category not found");
     }
 
-    return this.categoryRepository.delete(id);
+    return this.categoryRepository.delete(numericId);
   }
 }

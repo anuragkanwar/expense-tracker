@@ -12,8 +12,8 @@ import { createRoute, z } from "@hono/zod-openapi";
 export const GroupBalancesResponseSchema = z
   .array(
     z.object({
-      userId: z.string().openapi({
-        example: "user_123",
+      userId: z.number().openapi({
+        example: 123,
         description: "User ID",
       }),
       name: z.string().openapi({
@@ -37,16 +37,16 @@ export const GroupBalancesResponseSchema = z
 export const SettlementPlanResponseSchema = z
   .array(
     z.object({
-      fromUserId: z.string().openapi({
-        example: "user_123",
+      fromUserId: z.number().openapi({
+        example: 123,
         description: "User who should pay",
       }),
       fromUserName: z.string().openapi({
         example: "John Doe",
         description: "Name of user who should pay",
       }),
-      toUserId: z.string().openapi({
-        example: "user_456",
+      toUserId: z.number().openapi({
+        example: 456,
         description: "User who should receive payment",
       }),
       toUserName: z.string().openapi({
@@ -123,8 +123,8 @@ export const getGroupRoute = createRoute({
   tags: ["Groups"],
   request: {
     params: z.object({
-      groupId: z.string().openapi({
-        example: "grp_123",
+      groupId: z.number().openapi({
+        example: 123,
         description: "Group ID",
       }),
     }),
@@ -152,8 +152,8 @@ export const updateGroupRoute = createRoute({
   tags: ["Groups"],
   request: {
     params: z.object({
-      groupId: z.string().openapi({
-        example: "grp_123",
+      groupId: z.number().openapi({
+        example: 123,
         description: "Group ID",
       }),
     }),
@@ -188,8 +188,8 @@ export const addGroupMemberRoute = createRoute({
   tags: ["Groups"],
   request: {
     params: z.object({
-      groupId: z.string().openapi({
-        example: "grp_123",
+      groupId: z.number().openapi({
+        example: 123,
         description: "Group ID",
       }),
     }),
@@ -229,12 +229,12 @@ export const removeGroupMemberRoute = createRoute({
   tags: ["Groups"],
   request: {
     params: z.object({
-      groupId: z.string().openapi({
-        example: "grp_123",
+      groupId: z.number().openapi({
+        example: 123,
         description: "Group ID",
       }),
-      userId: z.string().openapi({
-        example: "user_456",
+      userId: z.number().openapi({
+        example: 456,
         description: "User ID to remove",
       }),
     }),
@@ -266,8 +266,8 @@ export const getGroupBalancesRoute = createRoute({
   tags: ["Groups"],
   request: {
     params: z.object({
-      groupId: z.string().openapi({
-        example: "grp_123",
+      groupId: z.number().openapi({
+        example: 123,
         description: "Group ID",
       }),
     }),
@@ -295,8 +295,8 @@ export const getSettlementPlanRoute = createRoute({
   tags: ["Groups"],
   request: {
     params: z.object({
-      groupId: z.string().openapi({
-        example: "grp_123",
+      groupId: z.number().openapi({
+        example: 123,
         description: "Group ID",
       }),
     }),
@@ -323,8 +323,8 @@ export const deleteGroupRoute = createRoute({
   tags: ["Groups"],
   request: {
     params: z.object({
-      groupId: z.string().openapi({
-        example: "grp_123",
+      groupId: z.number().openapi({
+        example: 123,
         description: "Group ID",
       }),
     }),
@@ -356,8 +356,8 @@ export const getGroupMembersRoute = createRoute({
   tags: ["Groups"],
   request: {
     params: z.object({
-      groupId: z.string().openapi({
-        example: "grp_123",
+      groupId: z.number().openapi({
+        example: 123,
         description: "Group ID",
       }),
     }),
@@ -369,7 +369,7 @@ export const getGroupMembersRoute = createRoute({
           schema: z
             .array(
               z.object({
-                userId: z.string().openapi({ example: "user_123" }),
+                userId: z.number().openapi({ example: 123 }),
                 name: z.string().openapi({ example: "John Doe" }),
                 email: z.string().openapi({ example: "john@example.com" }),
                 joinedAt: z

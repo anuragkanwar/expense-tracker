@@ -10,16 +10,16 @@ export const TransactionEntryResponseSchema = createSelectSchema(
   transactionEntry
 )
   .extend({
-    id: z.string().openapi({
-      example: "entry_123",
+    id: z.number().openapi({
+      example: 123,
       description: "Unique entry identifier",
     }),
-    transactionId: z.string().openapi({
-      example: "txn_123",
+    transactionId: z.number().openapi({
+      example: 123,
       description: "Transaction ID",
     }),
-    transactionAccountId: z.string().openapi({
-      example: "acc_123",
+    transactionAccountId: z.number().openapi({
+      example: 123,
       description: "Account ID",
     }),
     amount: z.number().openapi({
@@ -30,8 +30,8 @@ export const TransactionEntryResponseSchema = createSelectSchema(
       example: "DEBIT",
       description: "Entry direction",
     }),
-    categoryId: z.string().openapi({
-      example: "cat_123",
+    categoryId: z.number().openapi({
+      example: 123,
       description: "Category ID",
     }),
     createdAt: z.string().openapi({
@@ -56,16 +56,16 @@ export const TransactionEntryCreateSchema = createInsertSchema(
       example: "Expense, Income, Loan Taken",
       description: "Entry direction",
     }),
-    transactionId: z.string().openapi({
-      example: "txn_123",
+    transactionId: z.number().openapi({
+      example: 123,
       description: "Transaction ID",
     }),
-    transactionAccountId: z.string().openapi({
-      example: "acc_123",
+    transactionAccountId: z.number().openapi({
+      example: 123,
       description: "Account ID",
     }),
-    categoryId: z.string().openapi({
-      example: "cat_123",
+    categoryId: z.number().openapi({
+      example: 123,
       description: "Category ID",
     }),
   }

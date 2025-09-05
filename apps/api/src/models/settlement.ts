@@ -8,20 +8,20 @@ import { settlement } from "@pocket-pixie/db";
 
 export const SettlementResponseSchema = createSelectSchema(settlement)
   .extend({
-    id: z.string().openapi({
-      example: "set_123",
+    id: z.number().openapi({
+      example: 123,
       description: "Unique settlement identifier",
     }),
-    groupId: z.string().nullable().openapi({
-      example: "grp_123",
+    groupId: z.number().nullable().openapi({
+      example: 123,
       description: "Group ID",
     }),
-    payerId: z.string().openapi({
-      example: "user_123",
+    payerId: z.number().openapi({
+      example: 123,
       description: "Payer user ID",
     }),
-    payeeId: z.string().openapi({
-      example: "user_456",
+    payeeId: z.number().openapi({
+      example: 456,
       description: "Payee user ID",
     }),
     amount: z.number().openapi({
@@ -64,16 +64,16 @@ export const SettlementCreateSchema = createInsertSchema(settlement, {
     example: "2025-09-01T12:00:00.000Z",
     description: "Settlement date",
   }),
-  groupId: z.string().optional().openapi({
-    example: "grp_123",
+  groupId: z.number().optional().openapi({
+    example: 123,
     description: "Group ID",
   }),
-  payerId: z.string().openapi({
-    example: "user_123",
+  payerId: z.number().openapi({
+    example: 123,
     description: "Payer user ID",
   }),
-  payeeId: z.string().openapi({
-    example: "user_456",
+  payeeId: z.number().openapi({
+    example: 456,
     description: "Payee user ID",
   }),
 })

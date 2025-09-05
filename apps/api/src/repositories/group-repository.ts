@@ -25,7 +25,7 @@ export class GroupRepository {
     })) as GroupResponse[];
   }
 
-  async findById(id: string): Promise<GroupResponse | null> {
+  async findById(id: number): Promise<GroupResponse | null> {
     const result = await this.db
       .select()
       .from(group)
@@ -47,16 +47,20 @@ export class GroupRepository {
   }
 
   async create(data: GroupCreate): Promise<GroupResponse> {
-    const id = crypto.randomUUID();
+    const result = await this.db
+      .insert(group)
+      .values({
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        ...data,
+      })
+      .returning({ id: group.id });
 
-    await this.db.insert(group).values({
-      id,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-      ...data,
-    });
+    if (result.length === 0 || !result[0]) {
+      throw new Error("Failed to create group");
+    }
 
-    const created = await this.findById(id);
+    const created = await this.findById(result[0].id);
     if (!created) {
       throw new Error("Failed to create group");
     }
@@ -64,13 +68,13 @@ export class GroupRepository {
     return created;
   }
 
-  async update(id: string, data: GroupUpdate): Promise<GroupResponse | null> {
+  async update(id: number, data: GroupUpdate): Promise<GroupResponse | null> {
     await this.db.update(group).set(data).where(eq(group.id, id));
 
     return this.findById(id);
   }
 
-  async delete(id: string): Promise<boolean> {
+  async delete(id: number): Promise<boolean> {
     const result = await this.db.delete(group).where(eq(group.id, id));
 
     return result.rowsAffected > 0;

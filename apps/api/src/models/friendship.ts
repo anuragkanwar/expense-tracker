@@ -8,16 +8,16 @@ import { FRIEND_STATUS, friendship } from "@pocket-pixie/db";
 
 export const FriendshipResponseSchema = createSelectSchema(friendship)
   .extend({
-    id: z.string().openapi({
-      example: "frd_123",
+    id: z.number().openapi({
+      example: 123,
       description: "Unique friendship identifier",
     }),
-    userId1: z.string().openapi({
-      example: "user_123",
+    userId1: z.number().openapi({
+      example: 123,
       description: "First user ID",
     }),
-    userId2: z.string().openapi({
-      example: "user_456",
+    userId2: z.number().openapi({
+      example: 456,
       description: "Second user ID",
     }),
     status: z.enum(FRIEND_STATUS).openapi({
@@ -36,12 +36,12 @@ export const FriendshipResponseSchema = createSelectSchema(friendship)
   .openapi("FriendshipResponse");
 
 export const FriendshipCreateSchema = createInsertSchema(friendship, {
-  userId1: z.string().openapi({
-    example: "user_123",
+  userId1: z.number().openapi({
+    example: 123,
     description: "First user ID",
   }),
-  userId2: z.string().openapi({
-    example: "user_456",
+  userId2: z.number().openapi({
+    example: 456,
     description: "Second user ID",
   }),
   status: z.enum(FRIEND_STATUS).optional().openapi({

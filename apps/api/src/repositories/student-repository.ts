@@ -28,7 +28,7 @@ export class StudentRepository {
     });
   }
 
-  async findById(id: string): Promise<StudentResponse | null> {
+  async findById(id: number): Promise<StudentResponse | null> {
     const result = await this.db
       .select()
       .from(student)
@@ -71,16 +71,19 @@ export class StudentRepository {
   }
 
   async create(data: StudentCreate): Promise<StudentResponse> {
-    const id = crypto.randomUUID();
-
-    await this.db.insert(student).values({
-      id,
+    const result = await this.db.insert(student).values({
       name: data.name,
       email: data.email,
       age: data.age,
     });
 
-    const created = await this.findById(id);
+    // Get the last inserted ID
+    const lastInsertRowId = result.lastInsertRowid;
+    if (!lastInsertRowId) {
+      throw new Error("Failed to create student");
+    }
+
+    const created = await this.findById(Number(lastInsertRowId));
     if (!created) {
       throw new Error("Failed to create student");
     }
@@ -89,7 +92,7 @@ export class StudentRepository {
   }
 
   async update(
-    id: string,
+    id: number,
     data: StudentUpdate
   ): Promise<StudentResponse | null> {
     const updateData: any = {};
@@ -109,7 +112,7 @@ export class StudentRepository {
     return this.findById(id);
   }
 
-  async delete(id: string): Promise<boolean> {
+  async delete(id: number): Promise<boolean> {
     const result = await this.db.delete(student).where(eq(student.id, id));
 
     return result.rowsAffected > 0;
@@ -121,7 +124,7 @@ export class StudentRepository {
     return result.length;
   }
 
-  async emailExists(email: string, excludeId?: string): Promise<boolean> {
+  async emailExists(email: string, excludeId?: number): Promise<boolean> {
     const result = await this.db
       .select()
       .from(student)

@@ -6,12 +6,12 @@ export const TransactionAccountResponseSchema = createSelectSchema(
   transactionAccount
 )
   .extend({
-    id: z.string().openapi({
-      example: "acc_123",
+    id: z.number().openapi({
+      example: 123,
       description: "Unique account identifier",
     }),
-    userId: z.string().openapi({
-      example: "user_123",
+    userId: z.number().openapi({
+      example: 123,
       description: "User ID owning this account",
     }),
     name: z.string().openapi({
@@ -68,8 +68,8 @@ export const TransactionAccountCreateSchema = createInsertSchema(
         example: "USD",
         description: "Currency code",
       }),
-    userId: z.string().openapi({
-      example: "user_123",
+    userId: z.number().openapi({
+      example: 123,
       description: "User ID",
     }),
   }

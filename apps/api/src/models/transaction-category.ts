@@ -6,20 +6,20 @@ export const TransactionCategoryResponseSchema = createSelectSchema(
   transactionCategory
 )
   .extend({
-    id: z.string().openapi({
-      example: "cat_123",
+    id: z.number().openapi({
+      example: 123,
       description: "Unique category identifier",
     }),
-    userId: z.string().openapi({
-      example: "user_123",
+    userId: z.number().openapi({
+      example: 123,
       description: "User ID",
     }),
     name: z.string().openapi({
       example: "Food",
       description: "Category name",
     }),
-    parentCategoryId: z.string().nullable().openapi({
-      example: "cat_456",
+    parentCategoryId: z.number().nullable().openapi({
+      example: 456,
       description: "Parent category ID",
     }),
     createdAt: z.string().openapi({
@@ -44,12 +44,12 @@ export const TransactionCategoryCreateSchema = createInsertSchema(
         example: "Groceries",
         description: "Category name",
       }),
-    parentCategoryId: z.string().optional().openapi({
-      example: "cat_456",
+    parentCategoryId: z.number().optional().openapi({
+      example: 456,
       description: "Parent category ID",
     }),
-    userId: z.string().openapi({
-      example: "user_123",
+    userId: z.number().openapi({
+      example: 123,
       description: "User ID",
     }),
   }

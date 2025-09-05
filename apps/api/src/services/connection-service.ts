@@ -29,7 +29,12 @@ export class ConnectionService {
       throw new BadRequestError("Invalid connection ID");
     }
 
-    return this.connectionRepository.findById(id);
+    const numericId = parseInt(id, 10);
+    if (isNaN(numericId)) {
+      throw new BadRequestError("Invalid connection ID format");
+    }
+
+    return this.connectionRepository.findById(numericId);
   }
 
   async createConnection(data: FriendshipCreate): Promise<FriendshipResponse> {
@@ -44,12 +49,18 @@ export class ConnectionService {
       throw new BadRequestError("Invalid connection ID");
     }
 
-    const existingConnection = await this.connectionRepository.findById(id);
+    const numericId = parseInt(id, 10);
+    if (isNaN(numericId)) {
+      throw new BadRequestError("Invalid connection ID format");
+    }
+
+    const existingConnection =
+      await this.connectionRepository.findById(numericId);
     if (!existingConnection) {
       return null;
     }
 
-    return this.connectionRepository.update(id, data);
+    return this.connectionRepository.update(numericId, data);
   }
 
   async deleteConnection(id: string): Promise<boolean> {
@@ -57,11 +68,17 @@ export class ConnectionService {
       throw new BadRequestError("Invalid connection ID");
     }
 
-    const existingConnection = await this.connectionRepository.findById(id);
+    const numericId = parseInt(id, 10);
+    if (isNaN(numericId)) {
+      throw new BadRequestError("Invalid connection ID format");
+    }
+
+    const existingConnection =
+      await this.connectionRepository.findById(numericId);
     if (!existingConnection) {
       throw new BadRequestError("Connection not found");
     }
 
-    return this.connectionRepository.delete(id);
+    return this.connectionRepository.delete(numericId);
   }
 }

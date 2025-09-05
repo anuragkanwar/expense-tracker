@@ -4,14 +4,14 @@ import { transactionAccount } from "./transaction-account";
 import { RECURRENCE_TYPE, TIME_PERIOD } from "@/constants";
 
 export const recurring = sqliteTable("recurring", {
-  id: text("id").primaryKey(),
-  userId: text("user_id")
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  userId: integer("user_id")
     .notNull()
     .references(() => user.id, { onDelete: "cascade" }),
-  sourcetransactionAccountID: text("source_transaction_account_id")
+  sourcetransactionAccountID: integer("source_transaction_account_id")
     .notNull()
     .references(() => transactionAccount.id, { onDelete: "cascade" }),
-  targettransactionAccountID: text("target_transaction_account_id")
+  targettransactionAccountID: integer("target_transaction_account_id")
     .notNull()
     .references(() => transactionAccount.id, { onDelete: "cascade" }),
   description: text("description").notNull(),

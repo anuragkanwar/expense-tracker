@@ -29,7 +29,7 @@ export class CategoryRepository {
     })) as TransactionCategoryResponse[];
   }
 
-  async findById(id: string): Promise<TransactionCategoryResponse | null> {
+  async findById(id: number): Promise<TransactionCategoryResponse | null> {
     const result = await this.db
       .select()
       .from(transactionCategory)
@@ -53,16 +53,20 @@ export class CategoryRepository {
   async create(
     data: TransactionCategoryCreate
   ): Promise<TransactionCategoryResponse> {
-    const id = crypto.randomUUID();
+    const result = await this.db
+      .insert(transactionCategory)
+      .values({
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        ...data,
+      })
+      .returning({ id: transactionCategory.id });
 
-    await this.db.insert(transactionCategory).values({
-      id,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-      ...data,
-    });
+    if (result.length === 0 || !result[0]) {
+      throw new Error("Failed to create category");
+    }
 
-    const created = await this.findById(id);
+    const created = await this.findById(result[0].id);
     if (!created) {
       throw new Error("Failed to create category");
     }
@@ -71,7 +75,7 @@ export class CategoryRepository {
   }
 
   async update(
-    id: string,
+    id: number,
     data: TransactionCategoryUpdate
   ): Promise<TransactionCategoryResponse | null> {
     await this.db
@@ -82,7 +86,7 @@ export class CategoryRepository {
     return this.findById(id);
   }
 
-  async delete(id: string): Promise<boolean> {
+  async delete(id: number): Promise<boolean> {
     const result = await this.db
       .delete(transactionCategory)
       .where(eq(transactionCategory.id, id));

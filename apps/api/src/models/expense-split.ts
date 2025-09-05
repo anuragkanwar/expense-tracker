@@ -8,16 +8,16 @@ import { expenseSplit, SPLIT_TYPE } from "@pocket-pixie/db";
 
 export const ExpenseSplitResponseSchema = createSelectSchema(expenseSplit)
   .extend({
-    id: z.string().openapi({
-      example: "spl_123",
+    id: z.number().openapi({
+      example: 123,
       description: "Unique split identifier",
     }),
-    expenseId: z.string().openapi({
-      example: "exp_123",
+    expenseId: z.number().openapi({
+      example: 123,
       description: "Expense ID",
     }),
-    userId: z.string().openapi({
-      example: "user_123",
+    userId: z.number().openapi({
+      example: 123,
       description: "User ID who owes",
     }),
     amountOwed: z.number().openapi({
@@ -62,12 +62,12 @@ export const ExpenseSplitCreateSchema = createInsertSchema(expenseSplit, {
       example: { percentage: 30 },
       description: "Additional split metadata",
     }),
-  expenseId: z.string().openapi({
-    example: "exp_123",
+  expenseId: z.number().openapi({
+    example: 123,
     description: "Expense ID",
   }),
-  userId: z.string().openapi({
-    example: "user_123",
+  userId: z.number().openapi({
+    example: 123,
     description: "User ID who owes",
   }),
 })

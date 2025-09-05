@@ -3,11 +3,11 @@ import { user } from "./user";
 import { FRIEND_STATUS } from "@/constants";
 
 export const friendship = sqliteTable("friendship", {
-  id: text("id").primaryKey(),
-  userId1: text("user_id_1")
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  userId1: integer("user_id_1")
     .notNull()
     .references(() => user.id, { onDelete: "cascade" }),
-  userId2: text("user_id_2")
+  userId2: integer("user_id_2")
     .notNull()
     .references(() => user.id, { onDelete: "cascade" }),
   status: text({

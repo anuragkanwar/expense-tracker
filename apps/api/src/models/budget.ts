@@ -7,16 +7,16 @@ import { budget, TIME_PERIOD } from "@pocket-pixie/db";
 
 export const BudgetResponseSchema = createSelectSchema(budget)
   .extend({
-    id: z.string().openapi({
-      example: "bud_123",
+    id: z.number().openapi({
+      example: 123,
       description: "Unique budget identifier",
     }),
-    userId: z.string().openapi({
-      example: "user_123",
+    userId: z.number().openapi({
+      example: 123,
       description: "User ID",
     }),
-    categoryId: z.string().openapi({
-      example: "cat_123",
+    categoryId: z.number().openapi({
+      example: 123,
       description: "Category ID",
     }),
     amount: z.number().openapi({
@@ -55,12 +55,12 @@ export const BudgetCreateSchema = createInsertSchema(budget, {
     example: "2025-09-01T00:00:00.000Z",
     description: "Budget start date",
   }),
-  userId: z.string().openapi({
-    example: "user_123",
+  userId: z.number().openapi({
+    example: 123,
     description: "User ID",
   }),
-  categoryId: z.string().openapi({
-    example: "cat_123",
+  categoryId: z.number().openapi({
+    example: 123,
     description: "Category ID",
   }),
 })

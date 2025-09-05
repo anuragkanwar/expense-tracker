@@ -5,11 +5,11 @@ import { transactionCategory } from "./transaction-category";
 import { TXN_TYPE } from "@/constants";
 
 export const transactionEntry = sqliteTable("transaction_entry", {
-  id: text("id").primaryKey(),
-  transactionId: text("transaction_id")
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  transactionId: integer("transaction_id")
     .notNull()
     .references(() => transaction.id, { onDelete: "cascade" }),
-  transactionAccountId: text("transaction_account_id")
+  transactionAccountId: integer("transaction_account_id")
     .notNull()
     .references(() => transactionAccount.id, { onDelete: "cascade" }),
   amount: real("amount").notNull(),
@@ -22,7 +22,7 @@ export const transactionEntry = sqliteTable("transaction_entry", {
       TXN_TYPE.LOAN_TAKEN,
     ],
   }).notNull(),
-  categoryId: text("category_id")
+  categoryId: integer("category_id")
     .notNull()
     .references(() => transactionCategory.id, { onDelete: "cascade" }),
   createdAt: integer("created_at", { mode: "timestamp" })

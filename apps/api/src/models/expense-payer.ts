@@ -8,16 +8,16 @@ import { expensePayer } from "@pocket-pixie/db";
 
 export const ExpensePayerResponseSchema = createSelectSchema(expensePayer)
   .extend({
-    id: z.string().openapi({
-      example: "pay_123",
+    id: z.number().openapi({
+      example: 123,
       description: "Unique payer identifier",
     }),
-    expenseId: z.string().openapi({
-      example: "exp_123",
+    expenseId: z.number().openapi({
+      example: 123,
       description: "Expense ID",
     }),
-    userId: z.string().openapi({
-      example: "user_123",
+    userId: z.number().openapi({
+      example: 123,
       description: "User ID who paid",
     }),
     amountPaid: z.number().openapi({
@@ -40,12 +40,12 @@ export const ExpensePayerCreateSchema = createInsertSchema(expensePayer, {
     example: 50.0,
     description: "Amount paid",
   }),
-  expenseId: z.string().openapi({
-    example: "exp_123",
+  expenseId: z.number().openapi({
+    example: 123,
     description: "Expense ID",
   }),
-  userId: z.string().openapi({
-    example: "user_123",
+  userId: z.number().openapi({
+    example: 123,
     description: "User ID who paid",
   }),
 })

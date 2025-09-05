@@ -25,7 +25,12 @@ export class BalanceService {
       throw new BadRequestError("Invalid balance ID");
     }
 
-    return this.balanceRepository.findById(id);
+    const numericId = parseInt(id, 10);
+    if (isNaN(numericId)) {
+      throw new BadRequestError("Invalid balance ID format");
+    }
+
+    return this.balanceRepository.findById(numericId);
   }
 
   async createBalance(data: UserBalanceCreate): Promise<UserBalanceResponse> {
@@ -40,12 +45,17 @@ export class BalanceService {
       throw new BadRequestError("Invalid balance ID");
     }
 
-    const existingBalance = await this.balanceRepository.findById(id);
+    const numericId = parseInt(id, 10);
+    if (isNaN(numericId)) {
+      throw new BadRequestError("Invalid balance ID format");
+    }
+
+    const existingBalance = await this.balanceRepository.findById(numericId);
     if (!existingBalance) {
       return null;
     }
 
-    return this.balanceRepository.update(id, data);
+    return this.balanceRepository.update(numericId, data);
   }
 
   async deleteBalance(id: string): Promise<boolean> {
@@ -53,11 +63,16 @@ export class BalanceService {
       throw new BadRequestError("Invalid balance ID");
     }
 
-    const existingBalance = await this.balanceRepository.findById(id);
+    const numericId = parseInt(id, 10);
+    if (isNaN(numericId)) {
+      throw new BadRequestError("Invalid balance ID format");
+    }
+
+    const existingBalance = await this.balanceRepository.findById(numericId);
     if (!existingBalance) {
       throw new BadRequestError("Balance not found");
     }
 
-    return this.balanceRepository.delete(id);
+    return this.balanceRepository.delete(numericId);
   }
 }

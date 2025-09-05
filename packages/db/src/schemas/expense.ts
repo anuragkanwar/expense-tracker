@@ -3,12 +3,14 @@ import { group } from "./group";
 import { user } from "./user";
 
 export const expense = sqliteTable("expense", {
-  id: text("id").primaryKey(),
-  groupId: text("group_id").references(() => group.id, { onDelete: "cascade" }),
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  groupId: integer("group_id").references(() => group.id, {
+    onDelete: "cascade",
+  }),
   description: text("description").notNull(),
   amount: real("amount").notNull(),
   currency: text("currency").notNull(),
-  createdBy: text("created_by")
+  createdBy: integer("created_by")
     .notNull()
     .references(() => user.id, { onDelete: "cascade" }),
   expenseDate: integer("expense_date", { mode: "timestamp" })

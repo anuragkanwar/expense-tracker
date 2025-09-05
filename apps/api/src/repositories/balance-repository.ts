@@ -29,7 +29,7 @@ export class BalanceRepository {
     })) as UserBalanceResponse[];
   }
 
-  async findById(id: string): Promise<UserBalanceResponse | null> {
+  async findById(id: number): Promise<UserBalanceResponse | null> {
     const result = await this.db
       .select()
       .from(userBalance)
@@ -51,16 +51,20 @@ export class BalanceRepository {
   }
 
   async create(data: UserBalanceCreate): Promise<UserBalanceResponse> {
-    const id = crypto.randomUUID();
+    const result = await this.db
+      .insert(userBalance)
+      .values({
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        ...data,
+      })
+      .returning({ id: userBalance.id });
 
-    await this.db.insert(userBalance).values({
-      id,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-      ...data,
-    });
+    if (result.length === 0 || !result[0]) {
+      throw new Error("Failed to create balance");
+    }
 
-    const created = await this.findById(id);
+    const created = await this.findById(result[0].id);
     if (!created) {
       throw new Error("Failed to create balance");
     }
@@ -69,7 +73,7 @@ export class BalanceRepository {
   }
 
   async update(
-    id: string,
+    id: number,
     data: UserBalanceUpdate
   ): Promise<UserBalanceResponse | null> {
     await this.db.update(userBalance).set(data).where(eq(userBalance.id, id));
@@ -77,7 +81,7 @@ export class BalanceRepository {
     return this.findById(id);
   }
 
-  async delete(id: string): Promise<boolean> {
+  async delete(id: number): Promise<boolean> {
     const result = await this.db
       .delete(userBalance)
       .where(eq(userBalance.id, id));

@@ -4,12 +4,12 @@ import { transaction } from "@pocket-pixie/db";
 
 export const TransactionResponseSchema = createSelectSchema(transaction)
   .extend({
-    id: z.string().openapi({
-      example: "txn_123",
+    id: z.number().openapi({
+      example: 123,
       description: "Unique transaction identifier",
     }),
-    userId: z.string().openapi({
-      example: "user_123",
+    userId: z.number().openapi({
+      example: 123,
       description: "User ID",
     }),
     description: z.string().openapi({
@@ -44,8 +44,8 @@ export const TransactionCreateSchema = createInsertSchema(transaction, {
     example: "2025-09-01T12:00:00.000Z",
     description: "Transaction date",
   }),
-  userId: z.string().openapi({
-    example: "user_123",
+  userId: z.number().openapi({
+    example: 123,
     description: "User ID",
   }),
 })

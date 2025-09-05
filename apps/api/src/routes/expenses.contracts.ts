@@ -48,17 +48,17 @@ export const ExpenseCreateWithAIPromptSchema = z
       description: "Natural language description of the expense",
     }),
     groupIds: z
-      .array(z.string())
+      .array(z.number())
       .optional()
       .openapi({
-        example: ["grp_123"],
+        example: [123],
         description: "Optional list of group IDs mentioned in the prompt",
       }),
     userIds: z
-      .array(z.string())
+      .array(z.number())
       .optional()
       .openapi({
-        example: ["user_456", "user_789"],
+        example: [456, 789],
         description: "Optional list of user IDs mentioned in the prompt",
       }),
   })
@@ -72,7 +72,7 @@ export const ExpenseWithDetailsResponseSchema = ExpenseResponseSchema.extend({
   payers: z
     .array(
       z.object({
-        userId: z.string(),
+        userId: z.number(),
         amountPaid: z.number(),
       })
     )
@@ -82,7 +82,7 @@ export const ExpenseWithDetailsResponseSchema = ExpenseResponseSchema.extend({
   splits: z
     .array(
       z.object({
-        userId: z.string(),
+        userId: z.number(),
         amountOwed: z.number(),
         splitType: z.enum(["Equal", "Exact", "percentage", "share"]).nullable(),
         metadata: z.any().nullable(),
@@ -142,8 +142,8 @@ export const getExpenseRoute = createRoute({
   tags: ["Expenses"],
   request: {
     params: z.object({
-      expenseId: z.string().openapi({
-        example: "exp_123",
+      expenseId: z.number().openapi({
+        example: 123,
         description: "Expense ID",
       }),
     }),
@@ -171,8 +171,8 @@ export const getGroupExpensesRoute = createRoute({
   tags: ["Expenses"],
   request: {
     params: z.object({
-      groupId: z.string().openapi({
-        example: "grp_123",
+      groupId: z.number().openapi({
+        example: 123,
         description: "Group ID",
       }),
     }),
@@ -210,8 +210,8 @@ export const updateExpenseRoute = createRoute({
   tags: ["Expenses"],
   request: {
     params: z.object({
-      expenseId: z.string().openapi({
-        example: "exp_123",
+      expenseId: z.number().openapi({
+        example: 123,
         description: "Expense ID",
       }),
     }),
@@ -290,8 +290,8 @@ export const getFriendExpensesRoute = createRoute({
   tags: ["Expenses"],
   request: {
     params: z.object({
-      userId: z.string().openapi({
-        example: "user_456",
+      userId: z.number().openapi({
+        example: 456,
         description: "Friend's user ID",
       }),
     }),
@@ -336,8 +336,8 @@ export const deleteExpenseRoute = createRoute({
   tags: ["Expenses"],
   request: {
     params: z.object({
-      expenseId: z.string().openapi({
-        example: "exp_123",
+      expenseId: z.number().openapi({
+        example: 123,
         description: "Expense ID",
       }),
     }),

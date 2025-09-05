@@ -26,7 +26,7 @@ export class BudgetRepository {
     })) as BudgetResponse[];
   }
 
-  async findById(id: string): Promise<BudgetResponse | null> {
+  async findById(id: number): Promise<BudgetResponse | null> {
     const result = await this.db
       .select()
       .from(budget)
@@ -49,17 +49,21 @@ export class BudgetRepository {
   }
 
   async create(data: BudgetCreate): Promise<BudgetResponse> {
-    const id = crypto.randomUUID();
+    const result = await this.db
+      .insert(budget)
+      .values({
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        ...data,
+        startDate: data.startDate ? new Date(data.startDate) : undefined,
+      })
+      .returning({ id: budget.id });
 
-    await this.db.insert(budget).values({
-      id,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-      ...data,
-      startDate: data.startDate ? new Date(data.startDate) : undefined,
-    });
+    if (result.length === 0 || !result[0]) {
+      throw new Error("Failed to create budget");
+    }
 
-    const created = await this.findById(id);
+    const created = await this.findById(result[0].id);
     if (!created) {
       throw new Error("Failed to create budget");
     }
@@ -67,7 +71,7 @@ export class BudgetRepository {
     return created;
   }
 
-  async update(id: string, data: BudgetUpdate): Promise<BudgetResponse | null> {
+  async update(id: number, data: BudgetUpdate): Promise<BudgetResponse | null> {
     await this.db
       .update(budget)
       .set({
@@ -79,7 +83,7 @@ export class BudgetRepository {
     return this.findById(id);
   }
 
-  async delete(id: string): Promise<boolean> {
+  async delete(id: number): Promise<boolean> {
     const result = await this.db.delete(budget).where(eq(budget.id, id));
 
     return result.rowsAffected > 0;

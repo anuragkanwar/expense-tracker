@@ -7,8 +7,8 @@ import { user } from "@pocket-pixie/db";
 // ==========================================================
 
 export const UserResponseSchema = createSelectSchema(user, {
-  id: z.string().openapi({
-    example: "user_1234",
+  id: z.number().openapi({
+    example: 1234,
     description: "User's Id",
   }),
   name: z

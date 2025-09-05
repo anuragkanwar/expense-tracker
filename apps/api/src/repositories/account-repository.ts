@@ -25,7 +25,7 @@ export class AccountRepository {
     return result as AccountResponse[];
   }
 
-  async findById(id: string): Promise<AccountResponse | null> {
+  async findById(id: number): Promise<AccountResponse | null> {
     const result = await this.db
       .select()
       .from(account)
@@ -39,25 +39,24 @@ export class AccountRepository {
   }
 
   async create(data: AccountCreate): Promise<AccountResponse> {
-    const id = crypto.randomUUID();
+    const result = await this.db
+      .insert(account)
+      .values({
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        ...data,
+      })
+      .returning();
 
-    await this.db.insert(account).values({
-      id,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-      ...data,
-    });
-
-    const created = await this.findById(id);
-    if (!created) {
+    if (result.length === 0) {
       throw new Error("Failed to create account");
     }
 
-    return created;
+    return result[0] as AccountResponse;
   }
 
   async update(
-    id: string,
+    id: number,
     data: AccountUpdate
   ): Promise<AccountResponse | null> {
     await this.db.update(account).set(data).where(eq(account.id, id));
@@ -65,7 +64,7 @@ export class AccountRepository {
     return this.findById(id);
   }
 
-  async delete(id: string): Promise<boolean> {
+  async delete(id: number): Promise<boolean> {
     const result = await this.db.delete(account).where(eq(account.id, id));
 
     return result.rowsAffected > 0;

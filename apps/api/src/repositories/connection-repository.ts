@@ -29,7 +29,7 @@ export class ConnectionRepository {
     })) as FriendshipResponse[];
   }
 
-  async findById(id: string): Promise<FriendshipResponse | null> {
+  async findById(id: number): Promise<FriendshipResponse | null> {
     const result = await this.db
       .select()
       .from(friendship)
@@ -51,17 +51,21 @@ export class ConnectionRepository {
   }
 
   async create(data: FriendshipCreate): Promise<FriendshipResponse> {
-    const id = crypto.randomUUID();
+    const result = await this.db
+      .insert(friendship)
+      .values({
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        ...data,
+        status: data.status,
+      })
+      .returning({ id: friendship.id });
 
-    await this.db.insert(friendship).values({
-      id,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-      ...data,
-      status: data.status,
-    });
+    if (result.length === 0 || !result[0]) {
+      throw new Error("Failed to create connection");
+    }
 
-    const created = await this.findById(id);
+    const created = await this.findById(result[0].id);
     if (!created) {
       throw new Error("Failed to create connection");
     }
@@ -70,7 +74,7 @@ export class ConnectionRepository {
   }
 
   async update(
-    id: string,
+    id: number,
     data: FriendshipUpdate
   ): Promise<FriendshipResponse | null> {
     await this.db
@@ -84,7 +88,7 @@ export class ConnectionRepository {
     return this.findById(id);
   }
 
-  async delete(id: string): Promise<boolean> {
+  async delete(id: number): Promise<boolean> {
     const result = await this.db
       .delete(friendship)
       .where(eq(friendship.id, id));

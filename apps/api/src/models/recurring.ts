@@ -8,20 +8,20 @@ import { RECURRENCE_TYPE, recurring } from "@pocket-pixie/db";
 
 export const RecurringResponseSchema = createSelectSchema(recurring)
   .extend({
-    id: z.string().openapi({
-      example: "rec_123",
+    id: z.number().openapi({
+      example: 123,
       description: "Unique recurring identifier",
     }),
-    userId: z.string().openapi({
-      example: "user_123",
+    userId: z.number().openapi({
+      example: 123,
       description: "User ID",
     }),
-    sourcetransactionAccountID: z.string().openapi({
-      example: "acc_123",
+    sourcetransactionAccountID: z.number().openapi({
+      example: 123,
       description: "Source account ID",
     }),
-    targettransactionAccountID: z.string().openapi({
-      example: "acc_456",
+    targettransactionAccountID: z.number().openapi({
+      example: 456,
       description: "Target account ID",
     }),
     description: z.string().openapi({
@@ -80,16 +80,16 @@ export const RecurringCreateSchema = createInsertSchema(recurring, {
     example: "2025-10-01T00:00:00.000Z",
     description: "Next occurrence date",
   }),
-  userId: z.string().openapi({
-    example: "user_123",
+  userId: z.number().openapi({
+    example: 123,
     description: "User ID",
   }),
-  sourcetransactionAccountID: z.string().openapi({
-    example: "acc_123",
+  sourcetransactionAccountID: z.number().openapi({
+    example: 123,
     description: "Source account ID",
   }),
-  targettransactionAccountID: z.string().openapi({
-    example: "acc_456",
+  targettransactionAccountID: z.number().openapi({
+    example: 456,
     description: "Target account ID",
   }),
 })

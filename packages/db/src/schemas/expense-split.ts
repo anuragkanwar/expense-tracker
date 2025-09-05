@@ -10,11 +10,11 @@ import { user } from "./user";
 import { SPLIT_TYPE } from "@/constants";
 
 export const expenseSplit = sqliteTable("expense_split", {
-  id: text("id").primaryKey(),
-  expenseId: text("expense_id")
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  expenseId: integer("expense_id")
     .notNull()
     .references(() => expense.id, { onDelete: "cascade" }),
-  userId: text("user_id")
+  userId: integer("user_id")
     .notNull()
     .references(() => user.id, { onDelete: "cascade" }),
   amountOwed: real("amount_owed").notNull(),

@@ -8,16 +8,16 @@ import { groupMember } from "@pocket-pixie/db";
 
 export const GroupMemberResponseSchema = createSelectSchema(groupMember)
   .extend({
-    id: z.string().openapi({
-      example: "mem_123",
+    id: z.number().openapi({
+      example: 123,
       description: "Unique member identifier",
     }),
-    groupId: z.string().openapi({
-      example: "grp_123",
+    groupId: z.number().openapi({
+      example: 123,
       description: "Group ID",
     }),
-    userId: z.string().openapi({
-      example: "user_123",
+    userId: z.number().openapi({
+      example: 123,
       description: "User ID",
     }),
     createdAt: z.string().openapi({
@@ -32,12 +32,12 @@ export const GroupMemberResponseSchema = createSelectSchema(groupMember)
   .openapi("GroupMemberResponse");
 
 export const GroupMemberCreateSchema = createInsertSchema(groupMember, {
-  groupId: z.string().openapi({
-    example: "grp_123",
+  groupId: z.number().openapi({
+    example: 123,
     description: "Group ID",
   }),
-  userId: z.string().openapi({
-    example: "user_123",
+  userId: z.number().openapi({
+    example: 123,
     description: "User ID",
   }),
 })

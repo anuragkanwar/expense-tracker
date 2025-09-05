@@ -8,20 +8,20 @@ import { userBalance } from "@pocket-pixie/db";
 
 export const UserBalanceResponseSchema = createSelectSchema(userBalance)
   .extend({
-    id: z.string().openapi({
-      example: "bal_123",
+    id: z.number().openapi({
+      example: 123,
       description: "Unique balance identifier",
     }),
-    ownerId: z.string().openapi({
-      example: "user_123",
+    ownerId: z.number().openapi({
+      example: 123,
       description: "Owner user ID",
     }),
-    counterPartyId: z.string().openapi({
-      example: "exp_123",
+    counterPartyId: z.number().openapi({
+      example: 123,
       description: "Counterparty ID (expense or user)",
     }),
-    groupId: z.string().nullable().openapi({
-      example: "grp_123",
+    groupId: z.number().nullable().openapi({
+      example: 123,
       description: "Group ID",
     }),
     amount: z.number().openapi({
@@ -56,16 +56,16 @@ export const UserBalanceCreateSchema = createInsertSchema(userBalance, {
       example: "INR",
       description: "Currency code",
     }),
-  ownerId: z.string().openapi({
-    example: "user_123",
+  ownerId: z.number().openapi({
+    example: 123,
     description: "Owner user ID",
   }),
-  counterPartyId: z.string().openapi({
-    example: "exp_123",
+  counterPartyId: z.number().openapi({
+    example: 123,
     description: "Counterparty ID",
   }),
-  groupId: z.string().optional().openapi({
-    example: "grp_123",
+  groupId: z.number().optional().openapi({
+    example: 123,
     description: "Group ID",
   }),
 })

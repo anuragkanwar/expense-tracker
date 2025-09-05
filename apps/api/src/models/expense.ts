@@ -8,12 +8,12 @@ import { expense } from "@pocket-pixie/db";
 
 export const ExpenseResponseSchema = createSelectSchema(expense)
   .extend({
-    id: z.string().openapi({
-      example: "exp_123",
+    id: z.number().openapi({
+      example: 123,
       description: "Unique expense identifier",
     }),
-    groupId: z.string().nullable().openapi({
-      example: "grp_123",
+    groupId: z.number().nullable().openapi({
+      example: 123,
       description: "Group ID",
     }),
     description: z.string().openapi({
@@ -28,8 +28,8 @@ export const ExpenseResponseSchema = createSelectSchema(expense)
       example: "USD",
       description: "Currency code",
     }),
-    createdBy: z.string().openapi({
-      example: "user_123",
+    createdBy: z.number().openapi({
+      example: 123,
       description: "User ID who created the expense",
     }),
     expenseDate: z.string().openapi({
@@ -72,12 +72,12 @@ export const ExpenseCreateSchema = createInsertSchema(expense, {
     example: "2025-09-01T12:00:00.000Z",
     description: "Expense date",
   }),
-  groupId: z.string().optional().openapi({
-    example: "grp_123",
+  groupId: z.number().optional().openapi({
+    example: 123,
     description: "Group ID",
   }),
-  createdBy: z.string().openapi({
-    example: "user_123",
+  createdBy: z.number().openapi({
+    example: 123,
     description: "User ID who created the expense",
   }),
 })

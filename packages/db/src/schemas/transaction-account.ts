@@ -3,8 +3,8 @@ import { user } from "./user";
 import { TXN_CATEGORY } from "@/constants";
 
 export const transactionAccount = sqliteTable("transaction_account", {
-  id: text("id").primaryKey(),
-  userId: text("user_id")
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  userId: integer("user_id")
     .notNull()
     .references(() => user.id, { onDelete: "cascade" }),
   name: text("name").notNull(),

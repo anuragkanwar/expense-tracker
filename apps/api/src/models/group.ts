@@ -8,8 +8,8 @@ import { group } from "@pocket-pixie/db";
 
 export const GroupResponseSchema = createSelectSchema(group)
   .extend({
-    id: z.string().openapi({
-      example: "grp_123",
+    id: z.number().openapi({
+      example: 123,
       description: "Unique group identifier",
     }),
     name: z.string().openapi({
@@ -20,8 +20,8 @@ export const GroupResponseSchema = createSelectSchema(group)
       example: "https://example.com/photo.jpg",
       description: "Group cover photo URL",
     }),
-    createdBy: z.string().openapi({
-      example: "user_123",
+    createdBy: z.number().openapi({
+      example: 123,
       description: "User ID who created the group",
     }),
     createdAt: z.string().openapi({
@@ -48,8 +48,8 @@ export const GroupCreateSchema = createInsertSchema(group, {
     example: "https://example.com/photo.jpg",
     description: "Group cover photo URL",
   }),
-  createdBy: z.string().openapi({
-    example: "user_123",
+  createdBy: z.number().openapi({
+    example: 123,
     description: "User ID who created the group",
   }),
 })

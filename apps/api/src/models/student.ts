@@ -25,8 +25,8 @@ export const StudentResponseSchema = createSelectSchema(student, {
       example: "2025-09-01T12:00:00.000Z",
       description: "When the student was created",
     }),
-    id: z.string().openapi({
-      example: "stu_2N3a9b...",
+    id: z.number().openapi({
+      example: 123,
       description: "Unique student identifier",
     }),
     name: z.string().openapi({
@@ -111,6 +111,7 @@ export function transformStudentForApi(
 ): StudentResponse {
   return {
     ..._student,
+    id: Number(_student.id), // Convert ID to number
     age: _student.age ?? null, // Ensure age is null if not present
     createdAt: _student.createdAt.toISOString(), // Date → String
   };

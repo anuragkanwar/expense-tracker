@@ -2,10 +2,10 @@ import { sqliteTable, text, integer } from "drizzle-orm/sqlite-core";
 import { user } from "./user";
 
 export const account = sqliteTable("account", {
-  id: text("id").primaryKey(),
+  id: integer("id").primaryKey({ autoIncrement: true }),
   accountId: text("account_id").notNull(),
   providerId: text("provider_id").notNull(),
-  userId: text("user_id")
+  userId: integer("user_id")
     .notNull()
     .references(() => user.id, { onDelete: "cascade" }),
   accessToken: text("access_token"),

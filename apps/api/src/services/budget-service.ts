@@ -25,7 +25,12 @@ export class BudgetService {
       throw new BadRequestError("Invalid budget ID");
     }
 
-    return this.budgetRepository.findById(id);
+    const numericId = parseInt(id, 10);
+    if (isNaN(numericId)) {
+      throw new BadRequestError("Invalid budget ID format");
+    }
+
+    return this.budgetRepository.findById(numericId);
   }
 
   async createBudget(data: BudgetCreate): Promise<BudgetResponse> {
@@ -40,12 +45,17 @@ export class BudgetService {
       throw new BadRequestError("Invalid budget ID");
     }
 
-    const existingBudget = await this.budgetRepository.findById(id);
+    const numericId = parseInt(id, 10);
+    if (isNaN(numericId)) {
+      throw new BadRequestError("Invalid budget ID format");
+    }
+
+    const existingBudget = await this.budgetRepository.findById(numericId);
     if (!existingBudget) {
       return null;
     }
 
-    return this.budgetRepository.update(id, data);
+    return this.budgetRepository.update(numericId, data);
   }
 
   async deleteBudget(id: string): Promise<boolean> {
@@ -53,11 +63,16 @@ export class BudgetService {
       throw new BadRequestError("Invalid budget ID");
     }
 
-    const existingBudget = await this.budgetRepository.findById(id);
+    const numericId = parseInt(id, 10);
+    if (isNaN(numericId)) {
+      throw new BadRequestError("Invalid budget ID format");
+    }
+
+    const existingBudget = await this.budgetRepository.findById(numericId);
     if (!existingBudget) {
       throw new BadRequestError("Budget not found");
     }
 
-    return this.budgetRepository.delete(id);
+    return this.budgetRepository.delete(numericId);
   }
 }

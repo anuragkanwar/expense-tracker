@@ -25,7 +25,12 @@ export class AccountService {
       throw new BadRequestError("Invalid account ID");
     }
 
-    return this.accountRepository.findById(id);
+    const numericId = parseInt(id, 10);
+    if (isNaN(numericId)) {
+      throw new BadRequestError("Invalid account ID format");
+    }
+
+    return this.accountRepository.findById(numericId);
   }
 
   async createAccount(data: AccountCreate): Promise<AccountResponse> {
@@ -40,12 +45,17 @@ export class AccountService {
       throw new BadRequestError("Invalid account ID");
     }
 
-    const existingAccount = await this.accountRepository.findById(id);
+    const numericId = parseInt(id, 10);
+    if (isNaN(numericId)) {
+      throw new BadRequestError("Invalid account ID format");
+    }
+
+    const existingAccount = await this.accountRepository.findById(numericId);
     if (!existingAccount) {
       return null;
     }
 
-    return this.accountRepository.update(id, data);
+    return this.accountRepository.update(numericId, data);
   }
 
   async deleteAccount(id: string): Promise<boolean> {
@@ -53,11 +63,16 @@ export class AccountService {
       throw new BadRequestError("Invalid account ID");
     }
 
-    const existingAccount = await this.accountRepository.findById(id);
+    const numericId = parseInt(id, 10);
+    if (isNaN(numericId)) {
+      throw new BadRequestError("Invalid account ID format");
+    }
+
+    const existingAccount = await this.accountRepository.findById(numericId);
     if (!existingAccount) {
       throw new BadRequestError("Account not found");
     }
 
-    return this.accountRepository.delete(id);
+    return this.accountRepository.delete(numericId);
   }
 }
