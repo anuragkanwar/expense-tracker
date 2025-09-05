@@ -42,6 +42,10 @@
       "cache": false,
       "dependsOn": ["db:generate"]
     },
+    "db:seed": {
+      "cache": false,
+      "dependsOn": []
+    },
     "start": {
       "cache": false,
       "persistent": true,

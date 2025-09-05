@@ -7,11 +7,16 @@ import {
   CategoryRepository,
   ConnectionRepository,
   DashboardRepository,
+  ExpensePayerRepository,
+  ExpenseSplitRepository,
   ExpenseRepository,
   FriendRepository,
   GroupRepository,
   PassbookRepository,
   RecurringRepository,
+  TransactionAccountRepository,
+  TransactionEntryRepository,
+  TransactionRepository,
   UserRepository,
 } from "./repositories";
 import {
@@ -52,6 +57,12 @@ container.register({
   dashboardRepository: asClass(DashboardRepository, {
     lifetime: Lifetime.SCOPED,
   }),
+  expensePayerRepository: asClass(ExpensePayerRepository, {
+    lifetime: Lifetime.SCOPED,
+  }),
+  expenseSplitRepository: asClass(ExpenseSplitRepository, {
+    lifetime: Lifetime.SCOPED,
+  }),
   expenseRepository: asClass(ExpenseRepository, { lifetime: Lifetime.SCOPED }),
   friendRepository: asClass(FriendRepository, { lifetime: Lifetime.SCOPED }),
   groupRepository: asClass(GroupRepository, { lifetime: Lifetime.SCOPED }),
@@ -59,6 +70,16 @@ container.register({
     lifetime: Lifetime.SCOPED,
   }),
   recurringRepository: asClass(RecurringRepository, {
+    lifetime: Lifetime.SCOPED,
+  }),
+
+  transactionAccountRepository: asClass(TransactionAccountRepository, {
+    lifetime: Lifetime.SCOPED,
+  }),
+  transactionEntryRepository: asClass(TransactionEntryRepository, {
+    lifetime: Lifetime.SCOPED,
+  }),
+  transactionRepository: asClass(TransactionRepository, {
     lifetime: Lifetime.SCOPED,
   }),
   userRepository: asClass(UserRepository, { lifetime: Lifetime.SCOPED }),

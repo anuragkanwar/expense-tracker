@@ -1,5 +1,5 @@
-import { transactionCategory } from "@pocket-pixie/db";
-import { eq } from "drizzle-orm";
+import { transactionCategory, TXN_CATEGORY, TXN_TYPE } from "@pocket-pixie/db";
+import { eq, and, or, isNull } from "drizzle-orm";
 import {
   TransactionCategoryResponse,
   TransactionCategoryCreate,
@@ -27,6 +27,38 @@ export class CategoryRepository {
       createdAt: row.createdAt.toISOString(),
       updatedAt: row.updatedAt.toISOString(),
     })) as TransactionCategoryResponse[];
+  }
+
+  async findByUserIdAndName(
+    userId: number,
+    categryName: TXN_CATEGORY
+  ): Promise<TransactionCategoryResponse | null> {
+    const result = await this.db
+      .select()
+      .from(transactionCategory)
+      .where(
+        and(
+          or(
+            isNull(transactionCategory.userId),
+            eq(transactionCategory.userId, userId)
+          ),
+          eq(transactionCategory.name, categryName)
+        )
+      )
+      .limit(1);
+
+    if (result.length === 0) {
+      return null;
+    }
+    const row = result[0];
+    if (!row) {
+      return null;
+    }
+    return {
+      ...row,
+      createdAt: row.createdAt.toISOString(),
+      updatedAt: row.updatedAt.toISOString(),
+    } as TransactionCategoryResponse;
   }
 
   async findById(id: number): Promise<TransactionCategoryResponse | null> {

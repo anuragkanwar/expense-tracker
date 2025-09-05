@@ -13,6 +13,7 @@
     "db:migrate": "drizzle-kit migrate",
     "db:push": "drizzle-kit push",
     "db:studio": "drizzle-kit studio",
+    "db:seed": "tsx seed.ts",
     "lint": "eslint src --ext .ts,.tsx",
     "clean": "rm -rf dist migrations/*.sql"
   },
@@ -31,6 +32,7 @@
     "@types/node": "^24.3.0",
     "concurrently": "^9.2.1",
     "drizzle-kit": "^0.31.4",
+    "tsx": "^4.7.0",
     "typescript": "^5.9.2"
   }
 }

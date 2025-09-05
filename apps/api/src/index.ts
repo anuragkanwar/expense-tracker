@@ -3,6 +3,7 @@ import { Scalar } from "@scalar/hono-api-reference";
 import { errorHandler } from "@/middleware/error-handler";
 import { logger } from "@/middleware/logger";
 import { dependencyInjector } from "@/middleware/di-middleware";
+import { authMiddeware } from "./middleware/auth-middleware";
 import {
   authRoutes,
   userRoutes,
@@ -29,6 +30,7 @@ const app = new OpenAPIHono();
 app.use("*", logger());
 app.use("*", dependencyInjector);
 app.use("*", errorHandler());
+app.use("*", authMiddeware());
 app.use(
   "/api/*", // Enable CORS for all API routes
   cors({

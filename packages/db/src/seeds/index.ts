@@ -1,1 +1,1 @@
-export { seedCategories } from "./categories";
+export { seedCategories, seedStandardCategories } from "./categories";

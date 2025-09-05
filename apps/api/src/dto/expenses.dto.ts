@@ -1,6 +1,12 @@
 import { z } from "@hono/zod-openapi";
 import { ExpenseResponseSchema, ExpenseCreateSchema } from "@/models/expense";
 import { ExpenseSplitCreateSchema } from "@/models/expense-split";
+import {
+  SHARE_TYPE,
+  SPLIT_TYPE,
+  TXN_CATEGORY,
+  TXN_TYPE,
+} from "@pocket-pixie/db";
 
 // Complex schema for creating expense with payers and splits
 export const ExpenseCreateWithDetailsSchema = z
@@ -9,15 +15,23 @@ export const ExpenseCreateWithDetailsSchema = z
     amount: ExpenseCreateSchema.shape.amount,
     groupId: ExpenseCreateSchema.shape.groupId,
     expenseDate: ExpenseCreateSchema.shape.expenseDate,
-    payer: z.string().openapi({
-      description: "user who paid for the expense",
+    payer: z.string().optional().openapi({
+      description: "user who paid for the transaction",
     }),
-    sharedWith: z.enum(["None", "Group", "Friends"]).openapi({
-      description: "is expense shared with other parties",
+    sharedWith: z.enum(SHARE_TYPE).openapi({
+      description: "is transaction shared with other parties",
     }),
-    splitType: z.enum(["Equal", "Exact", "percentage"]).optional().openapi({
+    splitType: z.enum(SPLIT_TYPE).optional().openapi({
       example: "percentage",
       description: "Split type",
+    }),
+    category: z.enum(TXN_CATEGORY).openapi({
+      example: "RENT",
+      description: "category of transaction",
+    }),
+    type: z.enum(TXN_TYPE).openapi({
+      example: "EXPENSE",
+      description: "type of transaction",
     }),
     splits: z
       .array(
@@ -29,7 +43,7 @@ export const ExpenseCreateWithDetailsSchema = z
       )
       .optional()
       .openapi({
-        description: "How the expense is split among participants",
+        description: "How the transaction is split among participants",
       }),
   })
   .openapi("ExpenseCreateWithDetails");
@@ -116,9 +130,7 @@ export const ExpenseWithDetailsResponseSchema = z
         z.object({
           userId: z.number(),
           amountOwed: z.number(),
-          splitType: z
-            .enum(["Equal", "Exact", "percentage", "share"])
-            .nullable(),
+          splitType: z.enum(SPLIT_TYPE).nullable(),
           metadata: z.any().nullable(),
         })
       )

@@ -15,6 +15,7 @@
     "db:push": "turbo run db:push --filter=@pocket-pixie/db",
     "db:generate": "turbo run db:generate --filter=@pocket-pixie/db",
     "db:migrate": "turbo run db:migrate --filter=@pocket-pixie/db",
+    "db:seed": "turbo run db:seed --filter=@pocket-pixie/db",
     "clean": "turbo run clean 2>/dev/null || true && rm -rf node_modules/.cache",
     "clean:all": "pnpm -r exec rm -rf dist node_modules/.cache .expo .expo-shared .metro && rm -rf node_modules/.cache"
   },

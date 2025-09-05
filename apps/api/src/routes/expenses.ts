@@ -10,18 +10,24 @@ import {
   createExpenseWithAIRoute,
 } from "./expenses.contracts";
 
+import { ExpenseCreateWithDetails } from "@/dto/expenses.dto";
+
 export const expenseRoutes = new OpenAPIHono();
 
 expenseRoutes.openapi(createExpenseRoute, async (c) => {
   // TODO: Implement create expense
   try {
-    const data = c.req.valid("json");
+    const data = c.req.valid("json") as ExpenseCreateWithDetails;
     const { expenseService } = c.get("services");
-    expenseService.createExpense(data);
+    const user = c.get("user");
+    if (!user) {
+      return c.json({ message: "Not Authenticated" }, 401);
+    }
+    expenseService.createExpense(data, user);
   } catch (error: any) {
     return c.json({ message: error }, 400);
   }
-  return c.json({ message: "Not implemented" }, 501);
+  return c.json({ message: "success" }, 200);
 });
 
 expenseRoutes.openapi(getExpensesRoute, async (c) => {

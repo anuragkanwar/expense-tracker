@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-import { seedCategories } from "./src/seeds/index.js";
+import { seedCategories, seedStandardCategories } from "./src/seeds/index.js";
 
 async function main() {
   const userId = process.argv[2];
@@ -8,6 +8,8 @@ async function main() {
   try {
     if (userId) {
       await seedCategories(parseInt(userId));
+    } else {
+      await seedStandardCategories();
     }
     console.log("Seeding completed successfully");
   } catch (error) {

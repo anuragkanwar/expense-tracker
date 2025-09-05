@@ -1,5 +1,5 @@
-import { transactionAccount } from "@pocket-pixie/db";
-import { eq } from "drizzle-orm";
+import { transactionAccount, TXN_CATEGORY } from "@pocket-pixie/db";
+import { and, eq } from "drizzle-orm";
 import {
   TransactionAccountResponse,
   TransactionAccountCreate,
@@ -39,6 +39,103 @@ export class TransactionAccountRepository {
     if (result.length === 0) {
       return null;
     }
+    const item = result[0]!;
+    return {
+      ...item,
+      createdAt: item.createdAt.toISOString(),
+      updatedAt: item.updatedAt.toISOString(),
+    } as TransactionAccountResponse;
+  }
+
+  async findMainAccountByUser(
+    userId: number
+  ): Promise<TransactionAccountResponse | null> {
+    let result = await this.db
+      .select()
+      .from(transactionAccount)
+      .where(
+        and(
+          eq(transactionAccount.userId, userId),
+          eq(transactionAccount.category, "MAIN")
+        )
+      )
+      .limit(1);
+
+    if (result.length === 0) {
+      result = await this.db
+        .insert(transactionAccount)
+        .values({
+          category: "MAIN",
+          currency: "INR",
+          name: "MAIN",
+          userId: userId,
+          balance: 0,
+        })
+        .returning();
+    }
+
+    const item = result[0]!;
+    return {
+      ...item,
+      createdAt: item.createdAt.toISOString(),
+      updatedAt: item.updatedAt.toISOString(),
+    } as TransactionAccountResponse;
+  }
+
+  async findExternalAccountByUser(
+    userId: number
+  ): Promise<TransactionAccountResponse | null> {
+    let result = await this.db
+      .select()
+      .from(transactionAccount)
+      .where(
+        and(
+          eq(transactionAccount.userId, userId),
+          eq(transactionAccount.category, "EXTERNAL")
+        )
+      )
+      .limit(1);
+
+    if (result.length === 0) {
+      result = await this.db
+        .insert(transactionAccount)
+        .values({
+          category: "EXTERNAL",
+          currency: "INR",
+          name: "EXTERNAL",
+          userId: userId,
+          balance: 0,
+        })
+        .returning();
+    }
+
+    const item = result[0]!;
+    return {
+      ...item,
+      createdAt: item.createdAt.toISOString(),
+      updatedAt: item.updatedAt.toISOString(),
+    } as TransactionAccountResponse;
+  }
+
+  async findByUserIdAndCategoryName(
+    userId: number,
+    categoryName: TXN_CATEGORY
+  ): Promise<TransactionAccountResponse | null> {
+    const result = await this.db
+      .select()
+      .from(transactionAccount)
+      .where(
+        and(
+          eq(transactionAccount.userId, userId),
+          eq(transactionAccount.category, categoryName)
+        )
+      )
+      .limit(1);
+
+    if (result.length === 0) {
+      return null;
+    }
+
     const item = result[0]!;
     return {
       ...item,
