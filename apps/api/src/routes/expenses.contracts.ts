@@ -68,31 +68,70 @@ export const ExpenseUpdateWithDetailsSchema =
   ExpenseCreateWithDetailsSchema.partial().openapi("ExpenseUpdateWithDetails");
 
 // Response schema for expense with details
-export const ExpenseWithDetailsResponseSchema = ExpenseResponseSchema.extend({
-  payers: z
-    .array(
-      z.object({
-        userId: z.number(),
-        amountPaid: z.number(),
-      })
-    )
-    .openapi({
-      description: "List of payers with amounts",
+export const ExpenseWithDetailsResponseSchema = z
+  .object({
+    id: z.number().openapi({
+      example: 123,
+      description: "Unique expense identifier",
     }),
-  splits: z
-    .array(
-      z.object({
-        userId: z.number(),
-        amountOwed: z.number(),
-        splitType: z.enum(["Equal", "Exact", "percentage", "share"]).nullable(),
-        metadata: z.any().nullable(),
-      })
-    )
-    .openapi({
-      description: "List of splits with details",
+    groupId: z.number().nullable().openapi({
+      example: 123,
+      description: "Group ID",
     }),
-}).openapi("ExpenseWithDetailsResponse");
-
+    description: z.string().openapi({
+      example: "Dinner at restaurant",
+      description: "Expense description",
+    }),
+    amount: z.number().openapi({
+      example: 150.0,
+      description: "Expense amount",
+    }),
+    currency: z.string().openapi({
+      example: "USD",
+      description: "Currency code",
+    }),
+    createdBy: z.number().openapi({
+      example: 123,
+      description: "User ID who created the expense",
+    }),
+    expenseDate: z.string().openapi({
+      example: "2025-09-01T12:00:00.000Z",
+      description: "Date of expense",
+    }),
+    createdAt: z.string().openapi({
+      example: "2025-09-01T12:00:00.000Z",
+      description: "When the expense was created",
+    }),
+    updatedAt: z.string().openapi({
+      example: "2025-09-01T12:00:00.000Z",
+      description: "When the expense was updated",
+    }),
+    payers: z
+      .array(
+        z.object({
+          userId: z.number(),
+          amountPaid: z.number(),
+        })
+      )
+      .openapi({
+        description: "List of payers with amounts",
+      }),
+    splits: z
+      .array(
+        z.object({
+          userId: z.number(),
+          amountOwed: z.number(),
+          splitType: z
+            .enum(["Equal", "Exact", "percentage", "share"])
+            .nullable(),
+          metadata: z.any().nullable(),
+        })
+      )
+      .openapi({
+        description: "List of splits with details",
+      }),
+  })
+  .openapi("ExpenseWithDetailsResponse");
 // Pagination schema
 export const ExpenseListResponseSchema = z
   .object({
