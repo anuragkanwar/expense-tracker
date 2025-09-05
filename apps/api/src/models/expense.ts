@@ -7,44 +7,12 @@ import { expense } from "@pocket-pixie/db";
 // ==========================================================
 
 export const ExpenseResponseSchema = createSelectSchema(expense)
-  .extend({
-    id: z.number().openapi({
-      example: 123,
-      description: "Unique expense identifier",
-    }),
-    groupId: z.number().nullable().openapi({
-      example: 123,
-      description: "Group ID",
-    }),
-    description: z.string().openapi({
-      example: "Dinner at restaurant",
-      description: "Expense description",
-    }),
-    amount: z.number().openapi({
-      example: 150.0,
-      description: "Expense amount",
-    }),
-    currency: z.string().openapi({
-      example: "USD",
-      description: "Currency code",
-    }),
-    createdBy: z.number().openapi({
-      example: 123,
-      description: "User ID who created the expense",
-    }),
-    expenseDate: z.string().openapi({
-      example: "2025-09-01T12:00:00.000Z",
-      description: "Date of expense",
-    }),
-    createdAt: z.string().openapi({
-      example: "2025-09-01T12:00:00.000Z",
-      description: "When the expense was created",
-    }),
-    updatedAt: z.string().openapi({
-      example: "2025-09-01T12:00:00.000Z",
-      description: "When the expense was updated",
-    }),
-  })
+  .transform((data) => ({
+    ...data,
+    expenseDate: data.expenseDate?.toISOString(),
+    createdAt: data.createdAt.toISOString(),
+    updatedAt: data.updatedAt.toISOString(),
+  }))
   .openapi("ExpenseResponse");
 
 export const ExpenseCreateSchema = createInsertSchema(expense, {

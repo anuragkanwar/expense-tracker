@@ -52,8 +52,6 @@ export class BudgetRepository {
     const result = await this.db
       .insert(budget)
       .values({
-        createdAt: new Date(),
-        updatedAt: new Date(),
         ...data,
         startDate: data.startDate ? new Date(data.startDate) : undefined,
       })

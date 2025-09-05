@@ -7,43 +7,11 @@ import { expenseSplit, SPLIT_TYPE } from "@pocket-pixie/db";
 // ==========================================================
 
 export const ExpenseSplitResponseSchema = createSelectSchema(expenseSplit)
-  .extend({
-    id: z.number().openapi({
-      example: 123,
-      description: "Unique split identifier",
-    }),
-    expenseId: z.number().openapi({
-      example: 123,
-      description: "Expense ID",
-    }),
-    userId: z.number().openapi({
-      example: 123,
-      description: "User ID who owes",
-    }),
-    amountOwed: z.number().openapi({
-      example: 25.0,
-      description: "Amount owed",
-    }),
-    splitType: z.enum(SPLIT_TYPE).nullable().openapi({
-      example: "Equal",
-      description: "Split type",
-    }),
-    metadata: z
-      .any()
-      .nullable()
-      .openapi({
-        example: { percentage: 50 },
-        description: "Additional split metadata",
-      }),
-    createdAt: z.string().openapi({
-      example: "2025-09-01T12:00:00.000Z",
-      description: "When the split was created",
-    }),
-    updatedAt: z.string().openapi({
-      example: "2025-09-01T12:00:00.000Z",
-      description: "When the split was updated",
-    }),
-  })
+  .transform((data) => ({
+    ...data,
+    createdAt: data.createdAt.toISOString(),
+    updatedAt: data.updatedAt.toISOString(),
+  }))
   .openapi("ExpenseSplitResponse");
 
 export const ExpenseSplitCreateSchema = createInsertSchema(expenseSplit, {

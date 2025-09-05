@@ -7,32 +7,11 @@ import { expensePayer } from "@pocket-pixie/db";
 // ==========================================================
 
 export const ExpensePayerResponseSchema = createSelectSchema(expensePayer)
-  .extend({
-    id: z.number().openapi({
-      example: 123,
-      description: "Unique payer identifier",
-    }),
-    expenseId: z.number().openapi({
-      example: 123,
-      description: "Expense ID",
-    }),
-    userId: z.number().openapi({
-      example: 123,
-      description: "User ID who paid",
-    }),
-    amountPaid: z.number().openapi({
-      example: 75.0,
-      description: "Amount paid",
-    }),
-    createdAt: z.string().openapi({
-      example: "2025-09-01T12:00:00.000Z",
-      description: "When the payer was added",
-    }),
-    updatedAt: z.string().openapi({
-      example: "2025-09-01T12:00:00.000Z",
-      description: "When the payer was updated",
-    }),
-  })
+  .transform((data) => ({
+    ...data,
+    createdAt: data.createdAt.toISOString(),
+    updatedAt: data.updatedAt.toISOString(),
+  }))
   .openapi("ExpensePayerResponse");
 
 export const ExpensePayerCreateSchema = createInsertSchema(expensePayer, {

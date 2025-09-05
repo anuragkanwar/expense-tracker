@@ -5,40 +5,11 @@ import { transactionAccount, TXN_CATEGORY } from "@pocket-pixie/db";
 export const TransactionAccountResponseSchema = createSelectSchema(
   transactionAccount
 )
-  .extend({
-    id: z.number().openapi({
-      example: 123,
-      description: "Unique account identifier",
-    }),
-    userId: z.number().openapi({
-      example: 123,
-      description: "User ID owning this account",
-    }),
-    name: z.string().openapi({
-      example: "Main Wallet",
-      description: "Account name",
-    }),
-    type: z.enum(["loan", "budget", "investment"]).openapi({
-      example: "budget",
-      description: "Account type",
-    }),
-    balance: z.number().openapi({
-      example: 1000.5,
-      description: "Current balance",
-    }),
-    currency: z.string().openapi({
-      example: "USD",
-      description: "Currency code",
-    }),
-    createdAt: z.string().openapi({
-      example: "2025-09-01T12:00:00.000Z",
-      description: "When the account was created",
-    }),
-    updatedAt: z.string().openapi({
-      example: "2025-09-01T12:00:00.000Z",
-      description: "When the account was updated",
-    }),
-  })
+  .transform((data) => ({
+    ...data,
+    createdAt: data.createdAt.toISOString(),
+    updatedAt: data.updatedAt.toISOString(),
+  }))
   .openapi("TransactionAccountResponse");
 
 export const TransactionAccountCreateSchema = createInsertSchema(

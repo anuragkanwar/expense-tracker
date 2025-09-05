@@ -3,32 +3,12 @@ import { z } from "@hono/zod-openapi";
 import { transaction } from "@pocket-pixie/db";
 
 export const TransactionResponseSchema = createSelectSchema(transaction)
-  .extend({
-    id: z.number().openapi({
-      example: 123,
-      description: "Unique transaction identifier",
-    }),
-    userId: z.number().openapi({
-      example: 123,
-      description: "User ID",
-    }),
-    description: z.string().openapi({
-      example: "Grocery shopping",
-      description: "Transaction description",
-    }),
-    transactionDate: z.string().openapi({
-      example: "2025-09-01T12:00:00.000Z",
-      description: "Date of transaction",
-    }),
-    createdAt: z.string().openapi({
-      example: "2025-09-01T12:00:00.000Z",
-      description: "When the transaction was created",
-    }),
-    updatedAt: z.string().openapi({
-      example: "2025-09-01T12:00:00.000Z",
-      description: "When the transaction was updated",
-    }),
-  })
+  .transform((data) => ({
+    ...data,
+    transactionDate: data.transactionDate?.toISOString(),
+    createdAt: data.createdAt.toISOString(),
+    updatedAt: data.updatedAt.toISOString(),
+  }))
   .openapi("TransactionResponse");
 
 export const TransactionCreateSchema = createInsertSchema(transaction, {
