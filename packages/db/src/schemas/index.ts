@@ -8,7 +8,6 @@ export { friendship } from "./friendship";
 // Personal finance schemas
 export { transactionAccount } from "./transaction-account";
 export { transaction } from "./transaction";
-export { transactionCategory } from "./transaction-category";
 export { transactionEntry } from "./transaction-entry";
 export { budget } from "./budget";
 export { recurring } from "./recurring";

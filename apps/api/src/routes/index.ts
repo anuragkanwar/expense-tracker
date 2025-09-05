@@ -21,7 +21,6 @@ export * from "./budgets";
 
 // Personal finance routes
 export * from "./accounts";
-export * from "./categories";
 export * from "./recurring-items";
 
 // Balances and settlements routes

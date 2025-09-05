@@ -4,7 +4,6 @@ import {
   AccountRepository,
   BalanceRepository,
   BudgetRepository,
-  CategoryRepository,
   ConnectionRepository,
   DashboardRepository,
   ExpensePayerRepository,
@@ -24,7 +23,6 @@ import {
   AccountService,
   BalanceService,
   BudgetService,
-  CategoryService,
   ConnectionService,
   DashboardService,
   ExpenseService,
@@ -48,9 +46,6 @@ container.register({
   accountRepository: asClass(AccountRepository, { lifetime: Lifetime.SCOPED }),
   balanceRepository: asClass(BalanceRepository, { lifetime: Lifetime.SCOPED }),
   budgetRepository: asClass(BudgetRepository, { lifetime: Lifetime.SCOPED }),
-  categoryRepository: asClass(CategoryRepository, {
-    lifetime: Lifetime.SCOPED,
-  }),
   connectionRepository: asClass(ConnectionRepository, {
     lifetime: Lifetime.SCOPED,
   }),
@@ -89,7 +84,6 @@ container.register({
   accountService: asClass(AccountService, { lifetime: Lifetime.SCOPED }),
   balanceService: asClass(BalanceService, { lifetime: Lifetime.SCOPED }),
   budgetService: asClass(BudgetService, { lifetime: Lifetime.SCOPED }),
-  categoryService: asClass(CategoryService, { lifetime: Lifetime.SCOPED }),
   connectionService: asClass(ConnectionService, { lifetime: Lifetime.SCOPED }),
   dashboardService: asClass(DashboardService, { lifetime: Lifetime.SCOPED }),
   expenseService: asClass(ExpenseService, { lifetime: Lifetime.SCOPED }),

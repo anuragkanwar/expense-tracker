@@ -1,6 +1,6 @@
 import { sqliteTable, text, integer } from "drizzle-orm/sqlite-core";
 import { user } from "./user";
-import { FRIEND_STATUS } from "@/constants";
+import { FRIEND_STATUS } from "../constants";
 
 export const friendship = sqliteTable("friendship", {
   id: integer("id").primaryKey({ autoIncrement: true }),

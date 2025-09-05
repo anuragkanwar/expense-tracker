@@ -1,17 +1,17 @@
 import { sqliteTable, text, integer, real } from "drizzle-orm/sqlite-core";
 import { user } from "./user";
 import { transactionAccount } from "./transaction-account";
-import { RECURRENCE_TYPE, TIME_PERIOD } from "@/constants";
+import { RECURRENCE_TYPE, TIME_PERIOD } from "../constants";
 
 export const recurring = sqliteTable("recurring", {
   id: integer("id").primaryKey({ autoIncrement: true }),
   userId: integer("user_id")
     .notNull()
     .references(() => user.id, { onDelete: "cascade" }),
-  sourcetransactionAccountID: integer("source_transaction_account_id")
+  sourceTransactionAccountID: integer("source_transaction_account_id")
     .notNull()
     .references(() => transactionAccount.id, { onDelete: "cascade" }),
-  targettransactionAccountID: integer("target_transaction_account_id")
+  targetTransactionAccountID: integer("target_transaction_account_id")
     .notNull()
     .references(() => transactionAccount.id, { onDelete: "cascade" }),
   description: text("description").notNull(),

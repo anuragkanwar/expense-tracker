@@ -15,9 +15,9 @@ export const BudgetResponseSchema = createSelectSchema(budget)
       example: 123,
       description: "User ID",
     }),
-    categoryId: z.number().openapi({
+    transactionAccountId: z.number().openapi({
       example: 123,
-      description: "Category ID",
+      description: "Transaction Account ID",
     }),
     amount: z.number().openapi({
       example: 500.0,
@@ -59,9 +59,9 @@ export const BudgetCreateSchema = createInsertSchema(budget, {
     example: 123,
     description: "User ID",
   }),
-  categoryId: z.number().openapi({
+  transactionAccountId: z.number().openapi({
     example: 123,
-    description: "Category ID",
+    description: "Transaction Account ID",
   }),
 })
   .omit({

@@ -2,7 +2,6 @@ export * from "./student-repository";
 export * from "./account-repository";
 export * from "./balance-repository";
 export * from "./budget-repository";
-export * from "./category-repository";
 export * from "./connection-repository";
 export * from "./dashboard-repository";
 export * from "./expense-repository";

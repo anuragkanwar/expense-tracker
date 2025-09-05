@@ -15,6 +15,7 @@ export const ExpenseCreateWithDetailsSchema = z
     amount: ExpenseCreateSchema.shape.amount,
     groupId: ExpenseCreateSchema.shape.groupId,
     expenseDate: ExpenseCreateSchema.shape.expenseDate,
+    type: z.enum(TXN_TYPE),
     payer: z.string().optional().openapi({
       description: "user who paid for the transaction",
     }),
@@ -25,13 +26,13 @@ export const ExpenseCreateWithDetailsSchema = z
       example: "percentage",
       description: "Split type",
     }),
-    category: z.enum(TXN_CATEGORY).openapi({
-      example: "RENT",
-      description: "category of transaction",
+    sourceTransactionAccountID: z.number().openapi({
+      example: 123,
+      description: "Source account ID",
     }),
-    type: z.enum(TXN_TYPE).openapi({
-      example: "EXPENSE",
-      description: "type of transaction",
+    targetTransactionAccountID: z.number().openapi({
+      example: 456,
+      description: "Target account ID",
     }),
     splits: z
       .array(

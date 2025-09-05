@@ -1,6 +1,6 @@
 import { createSelectSchema, createInsertSchema } from "drizzle-zod";
 import { z } from "@hono/zod-openapi";
-import { transactionAccount, TXN_CATEGORY } from "@pocket-pixie/db";
+import { ACCOUNT_TYPE, transactionAccount, TXN_TYPE } from "@pocket-pixie/db";
 
 export const TransactionAccountResponseSchema = createSelectSchema(
   transactionAccount
@@ -23,10 +23,6 @@ export const TransactionAccountCreateSchema = createInsertSchema(
         example: "Chase Checking",
         description: "Account name",
       }),
-    category: z.enum(TXN_CATEGORY).openapi({
-      example: "bank, food, car, rent, etc...",
-      description: "Account type",
-    }),
     balance: z.number().min(0, "Balance cannot be negative").openapi({
       example: 0.0,
       description: "Initial balance",
@@ -42,6 +38,14 @@ export const TransactionAccountCreateSchema = createInsertSchema(
     userId: z.number().openapi({
       example: 123,
       description: "User ID",
+    }),
+    type: z.enum(ACCOUNT_TYPE).openapi({
+      example: "EXPENSE",
+      description: "Account Basic Type",
+    }),
+    isPaymentSource: z.boolean().openapi({
+      example: "false",
+      description: "can account make payments",
     }),
   }
 )

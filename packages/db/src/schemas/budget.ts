@@ -1,16 +1,16 @@
 import { sqliteTable, text, integer, real } from "drizzle-orm/sqlite-core";
 import { user } from "./user";
-import { transactionCategory } from "./transaction-category";
-import { TIME_PERIOD } from "@/constants";
+import { TIME_PERIOD } from "../constants";
+import { transactionAccount } from "./transaction-account";
 
 export const budget = sqliteTable("budget", {
   id: integer("id").primaryKey({ autoIncrement: true }),
   userId: integer("user_id")
     .notNull()
     .references(() => user.id, { onDelete: "cascade" }),
-  categoryId: integer("category_id")
+  transactionAccountId: integer("transasction_account_id")
     .notNull()
-    .references(() => transactionCategory.id, { onDelete: "cascade" }),
+    .references(() => transactionAccount.id, { onDelete: "cascade" }),
   amount: real("amount").notNull(),
   period: text("period", {
     enum: [

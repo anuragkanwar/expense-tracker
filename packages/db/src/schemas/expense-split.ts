@@ -7,7 +7,7 @@ import {
 } from "drizzle-orm/sqlite-core";
 import { expense } from "./expense";
 import { user } from "./user";
-import { SPLIT_TYPE } from "@/constants";
+import { SPLIT_TYPE } from "../constants";
 
 export const expenseSplit = sqliteTable("expense_split", {
   id: integer("id").primaryKey({ autoIncrement: true }),

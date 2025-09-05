@@ -16,11 +16,11 @@ export const RecurringResponseSchema = createSelectSchema(recurring)
       example: 123,
       description: "User ID",
     }),
-    sourcetransactionAccountID: z.number().openapi({
+    sourceTransactionAccountID: z.number().openapi({
       example: 123,
       description: "Source account ID",
     }),
-    targettransactionAccountID: z.number().openapi({
+    targetTransactionAccountID: z.number().openapi({
       example: 456,
       description: "Target account ID",
     }),
@@ -84,11 +84,11 @@ export const RecurringCreateSchema = createInsertSchema(recurring, {
     example: 123,
     description: "User ID",
   }),
-  sourcetransactionAccountID: z.number().openapi({
+  sourceTransactionAccountID: z.number().openapi({
     example: 123,
     description: "Source account ID",
   }),
-  targettransactionAccountID: z.number().openapi({
+  targetTransactionAccountID: z.number().openapi({
     example: 456,
     description: "Target account ID",
   }),

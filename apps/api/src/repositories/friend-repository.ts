@@ -6,6 +6,7 @@ import {
   FriendshipUpdate,
 } from "@/models/friendship";
 import { db as DATABASE } from "@pocket-pixie/db";
+import { FRIEND_STATUS } from "@pocket-pixie/db";
 
 export class FriendRepository {
   private db: typeof DATABASE;
@@ -57,7 +58,7 @@ export class FriendRepository {
         createdAt: new Date(),
         updatedAt: new Date(),
         ...data,
-        status: data.status,
+        status: data.status || FRIEND_STATUS.PENDING,
       })
       .returning({ id: friendship.id });
 

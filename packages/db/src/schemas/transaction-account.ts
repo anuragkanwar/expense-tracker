@@ -1,6 +1,6 @@
 import { sqliteTable, text, integer, real } from "drizzle-orm/sqlite-core";
 import { user } from "./user";
-import { TXN_CATEGORY } from "@/constants";
+import { TXN_TYPE, ACCOUNT_TYPE } from "../constants";
 
 export const transactionAccount = sqliteTable("transaction_account", {
   id: integer("id").primaryKey({ autoIncrement: true }),
@@ -8,31 +8,17 @@ export const transactionAccount = sqliteTable("transaction_account", {
     .notNull()
     .references(() => user.id, { onDelete: "cascade" }),
   name: text("name").notNull(),
-  category: text("category", {
+  type: text("type", {
     enum: [
-      TXN_CATEGORY.BILLS,
-      TXN_CATEGORY.BOOZE,
-      TXN_CATEGORY.CAR,
-      TXN_CATEGORY.COSMETIC,
-      TXN_CATEGORY.DINING_OUT,
-      TXN_CATEGORY.ENTERTAINMENT,
-      TXN_CATEGORY.GENERAL,
-      TXN_CATEGORY.GROCERIES,
-      TXN_CATEGORY.GYM,
-      TXN_CATEGORY.HEALTHCARE,
-      TXN_CATEGORY.INCOME,
-      TXN_CATEGORY.INVESTMENT,
-      TXN_CATEGORY.ORDERING_IN,
-      TXN_CATEGORY.PETS,
-      TXN_CATEGORY.RENT,
-      TXN_CATEGORY.SAVING,
-      TXN_CATEGORY.SHOPPING,
-      TXN_CATEGORY.SUBSCRIPTIONS,
-      TXN_CATEGORY.TRANSPORTATION,
-      TXN_CATEGORY.TRAVEL,
-      TXN_CATEGORY.UTILITIES,
+      ACCOUNT_TYPE.EXPENSE,
+      ACCOUNT_TYPE.INCOME,
+      ACCOUNT_TYPE.LOAN_GIVEN,
+      ACCOUNT_TYPE.LOAN_TAKEN,
+      ACCOUNT_TYPE.SAVING,
+      ACCOUNT_TYPE.EXTERNAL,
     ],
   }).notNull(),
+  isPaymentSource: integer("is_payment_source", { mode: "boolean" }).notNull(),
   balance: real("balance").notNull().default(0.0),
   currency: text("currency").notNull(),
   createdAt: integer("created_at", { mode: "timestamp" })

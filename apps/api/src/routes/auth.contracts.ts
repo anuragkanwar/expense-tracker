@@ -3,7 +3,7 @@ import { createRoute, z } from "@hono/zod-openapi";
 
 export const registerRoute = createRoute({
   method: "post",
-  path: "/register",
+  path: "/sign-up/email",
   summary: "Register a new user",
   description: "Creates a new user account with the provided information.",
   tags: ["Authentication"],

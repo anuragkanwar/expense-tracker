@@ -13,7 +13,6 @@ import {
   passbookRoutes,
   budgetRoutes,
   accountRoutes,
-  categoryRoutes,
   recurringItemRoutes,
   balanceRoutes,
   dashboardRoutes,
@@ -84,6 +83,8 @@ app.get("/health", (c) => {
   });
 });
 
+// Mount auth extended routes
+app.route("/api/auth", authRoutes);
 // Mount authentication routes
 app.on(["POST", "GET"], "/api/auth/*", (c) => {
   return auth.handler(c.req.raw);
@@ -109,7 +110,6 @@ app.route("/api/v1/budgets", budgetRoutes);
 
 // Mount personal finance routes
 app.route("/api/v1/accounts", accountRoutes);
-app.route("/api/v1/categories", categoryRoutes);
 app.route("/api/v1/recurring-items", recurringItemRoutes);
 
 // Mount balances and settlements routes

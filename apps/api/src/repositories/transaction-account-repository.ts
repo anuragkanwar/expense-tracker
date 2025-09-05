@@ -1,4 +1,4 @@
-import { transactionAccount, TXN_CATEGORY } from "@pocket-pixie/db";
+import { ACCOUNT_TYPE, transactionAccount } from "@pocket-pixie/db";
 import { and, eq } from "drizzle-orm";
 import {
   TransactionAccountResponse,
@@ -56,7 +56,7 @@ export class TransactionAccountRepository {
       .where(
         and(
           eq(transactionAccount.userId, userId),
-          eq(transactionAccount.category, "MAIN")
+          eq(transactionAccount.name, "MAIN")
         )
       )
       .limit(1);
@@ -65,7 +65,8 @@ export class TransactionAccountRepository {
       result = await this.db
         .insert(transactionAccount)
         .values({
-          category: "MAIN",
+          isPaymentSource: true,
+          type: ACCOUNT_TYPE.INCOME,
           currency: "INR",
           name: "MAIN",
           userId: userId,
@@ -91,7 +92,7 @@ export class TransactionAccountRepository {
       .where(
         and(
           eq(transactionAccount.userId, userId),
-          eq(transactionAccount.category, "EXTERNAL")
+          eq(transactionAccount.name, "EXTERNAL")
         )
       )
       .limit(1);
@@ -100,7 +101,8 @@ export class TransactionAccountRepository {
       result = await this.db
         .insert(transactionAccount)
         .values({
-          category: "EXTERNAL",
+          isPaymentSource: true,
+          type: ACCOUNT_TYPE.EXTERNAL,
           currency: "INR",
           name: "EXTERNAL",
           userId: userId,
@@ -119,7 +121,7 @@ export class TransactionAccountRepository {
 
   async findByUserIdAndCategoryName(
     userId: number,
-    categoryName: TXN_CATEGORY
+    categoryName: string
   ): Promise<TransactionAccountResponse | null> {
     const result = await this.db
       .select()
@@ -127,7 +129,7 @@ export class TransactionAccountRepository {
       .where(
         and(
           eq(transactionAccount.userId, userId),
-          eq(transactionAccount.category, categoryName)
+          eq(transactionAccount.name, categoryName)
         )
       )
       .limit(1);

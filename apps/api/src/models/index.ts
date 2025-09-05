@@ -8,7 +8,6 @@ export * from "./friendship";
 // Personal finance models
 export * from "./transaction-account";
 export * from "./transaction";
-export * from "./transaction-category";
 export * from "./transaction-entry";
 export * from "./budget";
 export * from "./recurring";

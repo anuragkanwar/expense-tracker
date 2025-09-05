@@ -23,10 +23,6 @@ export const TransactionEntryCreateSchema = createInsertSchema(
       example: 25.5,
       description: "Entry amount",
     }),
-    type: z.enum(TXN_TYPE).openapi({
-      example: "Expense, Income, Loan Taken",
-      description: "Entry direction",
-    }),
     transactionId: z.number().openapi({
       example: 123,
       description: "Transaction ID",
@@ -34,10 +30,6 @@ export const TransactionEntryCreateSchema = createInsertSchema(
     transactionAccountId: z.number().openapi({
       example: 123,
       description: "Account ID",
-    }),
-    categoryId: z.number().openapi({
-      example: 123,
-      description: "Category ID",
     }),
   }
 )
