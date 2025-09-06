@@ -29,7 +29,12 @@ export class StudentService {
       throw new BadRequestError("Invalid student ID");
     }
 
-    return this.studentRepository.findById(id);
+    const numericId = parseInt(id, 10);
+    if (isNaN(numericId)) {
+      throw new BadRequestError("Invalid student ID format");
+    }
+
+    return this.studentRepository.findById(numericId);
   }
 
   async createStudent(data: StudentCreate): Promise<StudentResponse> {
@@ -52,8 +57,13 @@ export class StudentService {
       throw new BadRequestError("Invalid student ID");
     }
 
+    const numericId = parseInt(id, 10);
+    if (isNaN(numericId)) {
+      throw new BadRequestError("Invalid student ID format");
+    }
+
     // Check if student exists
-    const existingStudent = await this.studentRepository.findById(id);
+    const existingStudent = await this.studentRepository.findById(numericId);
     if (!existingStudent) {
       return null;
     }
@@ -66,7 +76,7 @@ export class StudentService {
       }
     }
 
-    return this.studentRepository.update(id, data);
+    return this.studentRepository.update(numericId, data);
   }
 
   async deleteStudent(id: string): Promise<boolean> {
@@ -74,12 +84,17 @@ export class StudentService {
       throw new BadRequestError("Invalid student ID");
     }
 
+    const numericId = parseInt(id, 10);
+    if (isNaN(numericId)) {
+      throw new BadRequestError("Invalid student ID format");
+    }
+
     // Check if student exists
-    const existingStudent = await this.studentRepository.findById(id);
+    const existingStudent = await this.studentRepository.findById(numericId);
     if (!existingStudent) {
       throw new StudentNotFoundError(id);
     }
 
-    return this.studentRepository.delete(id);
+    return this.studentRepository.delete(numericId);
   }
 }

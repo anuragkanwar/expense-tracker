@@ -1,32 +1,17 @@
 import { OpenAPIHono } from "@hono/zod-openapi";
-import { signInRoute, signOutRoute, signUpRoute } from "./auth.contracts";
-import { SignIn, SignUp } from "@/models/auth";
-
-import { auth } from "@pocket-pixie/db"
-
+import { registerRoute } from "./auth.contracts";
 export const authRoutes = new OpenAPIHono();
+import { auth } from "@/db";
 
-authRoutes.openapi(signUpRoute, async (c) => {
+authRoutes.openapi(registerRoute, async (c) => {
   try {
-    return auth.handler(c.req.raw);
+    const { authService } = c.get("services");
+    const validatedData = c.req.valid("json");
+    const result = await authService.signUp(validatedData);
+    return c.json(result.response, {
+      headers: result.headers,
+    });
   } catch (error: any) {
-    return c.json({ error }, 500);
+    return c.json({ error: error }, 500);
   }
 });
-
-authRoutes.openapi(signInRoute, async (c) => {
-  try {
-    return auth.handler(c.req.raw);
-  } catch (error: any) {
-    return c.json({ error }, 500);
-  }
-});
-
-
-authRoutes.openapi(signOutRoute, async (c) => {
-  try {
-    return auth.handler(c.req.raw);
-  } catch (error: any) {
-    return c.json({ error }, 500);
-  }
-})
