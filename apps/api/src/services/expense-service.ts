@@ -42,12 +42,14 @@ export class ExpenseService {
   ) {
     const userId = parseInt(user.id);
 
-    const data = await this.db.transaction(async (tx) => {
+    await this.db.transaction(async (tx) => {
       if (expenseCreateWithDetails.sharedWith === SHARE_TYPE.NONE) {
         // transaction Account
 
+        console.log(`userId is : ${userId}`);
         let srcTransactionAcc =
-          await this.transactionAccountRepository.findById(
+          await this.transactionAccountRepository.findByUserIdAndAccountId(
+            userId,
             expenseCreateWithDetails.sourceTransactionAccountID
           );
 
@@ -55,7 +57,8 @@ export class ExpenseService {
           throw new TransactionAccountNotFoundError("`From` account");
         }
         let dstTranasctionAcc =
-          await this.transactionAccountRepository.findById(
+          await this.transactionAccountRepository.findByUserIdAndAccountId(
+            userId,
             expenseCreateWithDetails.targetTransactionAccountID
           );
 

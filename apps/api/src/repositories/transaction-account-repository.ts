@@ -47,8 +47,9 @@ export class TransactionAccountRepository {
     } as TransactionAccountResponse;
   }
 
-  async findMainAccountByUser(
-    userId: number
+  async findByUserIdAndAccountId(
+    userId: number,
+    accountId: number
   ): Promise<TransactionAccountResponse | null> {
     let result = await this.db
       .select()
@@ -56,59 +57,13 @@ export class TransactionAccountRepository {
       .where(
         and(
           eq(transactionAccount.userId, userId),
-          eq(transactionAccount.name, "MAIN")
+          eq(transactionAccount.id, accountId)
         )
       )
       .limit(1);
 
     if (result.length === 0) {
-      result = await this.db
-        .insert(transactionAccount)
-        .values({
-          isPaymentSource: true,
-          type: ACCOUNT_TYPE.INCOME,
-          currency: "INR",
-          name: "MAIN",
-          userId: userId,
-          balance: 0,
-        })
-        .returning();
-    }
-
-    const item = result[0]!;
-    return {
-      ...item,
-      createdAt: item.createdAt.toISOString(),
-      updatedAt: item.updatedAt.toISOString(),
-    } as TransactionAccountResponse;
-  }
-
-  async findExternalAccountByUser(
-    userId: number
-  ): Promise<TransactionAccountResponse | null> {
-    let result = await this.db
-      .select()
-      .from(transactionAccount)
-      .where(
-        and(
-          eq(transactionAccount.userId, userId),
-          eq(transactionAccount.name, "EXTERNAL")
-        )
-      )
-      .limit(1);
-
-    if (result.length === 0) {
-      result = await this.db
-        .insert(transactionAccount)
-        .values({
-          isPaymentSource: true,
-          type: ACCOUNT_TYPE.EXTERNAL,
-          currency: "INR",
-          name: "EXTERNAL",
-          userId: userId,
-          balance: 0,
-        })
-        .returning();
+      return null;
     }
 
     const item = result[0]!;

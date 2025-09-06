@@ -84,9 +84,9 @@ app.get("/health", (c) => {
 });
 
 // Mount auth extended routes
-app.route("/api/auth", authRoutes);
+app.route("/api/v1/auth", authRoutes);
 // Mount authentication routes
-app.on(["POST", "GET"], "/api/auth/*", (c) => {
+app.on(["POST", "GET"], "/api/v1/auth/*", (c) => {
   return auth.handler(c.req.raw);
 });
 

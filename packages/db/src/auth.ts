@@ -45,4 +45,5 @@ export const auth = betterAuth({
       generateId: false,
     },
   },
+  basePath: "/api/v1/auth",
 });
