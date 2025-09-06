@@ -1,6 +1,6 @@
 import { createSelectSchema, createInsertSchema } from "drizzle-zod";
 import { z } from "@hono/zod-openapi";
-import { expenseSplit, SPLIT_TYPE } from "@pocket-pixie/db";
+import { expenseSplit, SPLIT_TYPE } from "@/db";
 
 // ==========================================================
 // EXPENSE SPLIT SCHEMAS

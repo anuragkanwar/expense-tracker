@@ -1,11 +1,11 @@
-import { expense } from "@pocket-pixie/db";
+import { expense } from "@/db";
 import { eq } from "drizzle-orm";
 import {
   ExpenseResponse,
   ExpenseCreate,
   ExpenseUpdate,
 } from "@/models/expense";
-import { db as DATABASE } from "@pocket-pixie/db";
+import { db as DATABASE } from "@/db";
 
 export class ExpenseRepository {
   private db: typeof DATABASE;

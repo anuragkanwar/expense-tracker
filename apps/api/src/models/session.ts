@@ -1,6 +1,6 @@
 import { createSelectSchema, createInsertSchema } from "drizzle-zod";
 import { z } from "@hono/zod-openapi";
-import { session } from "@pocket-pixie/db";
+import { session } from "@/db";
 
 // ==========================================================
 // SESSION SCHEMAS

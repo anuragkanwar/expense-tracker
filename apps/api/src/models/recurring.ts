@@ -1,6 +1,6 @@
 import { createSelectSchema, createInsertSchema } from "drizzle-zod";
 import { z } from "@hono/zod-openapi";
-import { RECURRENCE_TYPE, recurring } from "@pocket-pixie/db";
+import { RECURRENCE_TYPE, recurring } from "@/db";
 
 // ==========================================================
 // RECURRING SCHEMAS

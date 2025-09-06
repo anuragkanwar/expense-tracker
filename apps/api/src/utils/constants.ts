@@ -28,7 +28,7 @@
 //   YEARLY = "YEARLY",
 // }
 
-import { ACCOUNT_TYPE } from "@pocket-pixie/db";
+import { ACCOUNT_TYPE } from "@/db";
 
 export const initialAccountSeed: Map<string, ACCOUNT_TYPE> = new Map([
   ["MAIN", ACCOUNT_TYPE.INCOME],

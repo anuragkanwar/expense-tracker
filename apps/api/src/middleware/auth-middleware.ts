@@ -1,5 +1,5 @@
 import { SessionAuth, UserAuth } from "@/models/auth";
-import { auth } from "@pocket-pixie/db";
+import { auth } from "@/db";
 import { MiddlewareHandler } from "hono";
 
 declare module "hono" {

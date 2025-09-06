@@ -1,4 +1,4 @@
-import { student } from "@pocket-pixie/db";
+import { student } from "@/db";
 import { eq } from "drizzle-orm";
 import {
   StudentResponse,
@@ -6,7 +6,7 @@ import {
   StudentUpdate,
   transformStudentForApi,
 } from "@/models/student";
-import { db as DATABASE } from "@pocket-pixie/db";
+import { db as DATABASE } from "@/db";
 
 export class StudentRepository {
   private db: typeof DATABASE;

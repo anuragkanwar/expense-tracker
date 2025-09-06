@@ -1,11 +1,11 @@
-import { userBalance } from "@pocket-pixie/db";
+import { userBalance } from "@/db";
 import { eq } from "drizzle-orm";
 import {
   UserBalanceResponse,
   UserBalanceCreate,
   UserBalanceUpdate,
 } from "@/models/user-balance";
-import { db as DATABASE } from "@pocket-pixie/db";
+import { db as DATABASE } from "@/db";
 
 export class BalanceRepository {
   private db: typeof DATABASE;

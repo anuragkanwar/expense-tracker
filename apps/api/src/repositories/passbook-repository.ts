@@ -1,6 +1,6 @@
-import { transaction } from "@pocket-pixie/db";
+import { transaction } from "@/db";
 import { eq } from "drizzle-orm";
-import { db as DATABASE } from "@pocket-pixie/db";
+import { db as DATABASE } from "@/db";
 
 export class PassbookRepository {
   private db: typeof DATABASE;

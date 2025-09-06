@@ -1,6 +1,6 @@
 import { createSelectSchema, createInsertSchema } from "drizzle-zod";
 import { z } from "@hono/zod-openapi";
-import { transactionEntry, TXN_TYPE } from "@pocket-pixie/db";
+import { transactionEntry, TXN_TYPE } from "@/db";
 
 // ==========================================================
 // TRANSACTION ENTRY SCHEMAS

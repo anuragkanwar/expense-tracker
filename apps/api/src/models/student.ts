@@ -1,6 +1,6 @@
 import { createSelectSchema, createInsertSchema } from "drizzle-zod";
 import { z } from "@hono/zod-openapi";
-import { student } from "@pocket-pixie/db";
+import { student } from "@/db";
 // ==========================================================
 // STUDENT API SCHEMAS (DTOs)
 // The single source of truth for the Student API contract.

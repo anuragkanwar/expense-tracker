@@ -1,11 +1,11 @@
-import { expenseSplit } from "@pocket-pixie/db";
+import { expenseSplit } from "@/db";
 import { eq } from "drizzle-orm";
 import {
   ExpenseSplitResponse,
   ExpenseSplitCreate,
   ExpenseSplitUpdate,
 } from "@/models/expense-split";
-import { db as DATABASE } from "@pocket-pixie/db";
+import { db as DATABASE } from "@/db";
 
 export class ExpenseSplitRepository {
   private db: typeof DATABASE;

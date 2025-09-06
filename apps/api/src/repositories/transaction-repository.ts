@@ -1,11 +1,11 @@
-import { transaction } from "@pocket-pixie/db";
+import { transaction } from "@/db";
 import { eq } from "drizzle-orm";
 import {
   TransactionResponse,
   TransactionCreate,
   TransactionUpdate,
 } from "@/models/transaction";
-import { db as DATABASE } from "@pocket-pixie/db";
+import { db as DATABASE } from "@/db";
 
 export class TransactionRepository {
   private db: typeof DATABASE;

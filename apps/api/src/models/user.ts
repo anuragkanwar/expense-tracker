@@ -1,6 +1,6 @@
 import { createSelectSchema, createInsertSchema } from "drizzle-zod";
 import { z } from "@hono/zod-openapi";
-import { user } from "@pocket-pixie/db";
+import { user } from "@/db";
 
 // ==========================================================
 // USER SCHEMAS

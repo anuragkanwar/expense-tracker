@@ -1,6 +1,6 @@
 import { createSelectSchema, createInsertSchema } from "drizzle-zod";
 import { z } from "@hono/zod-openapi";
-import { budget, TIME_PERIOD } from "@pocket-pixie/db";
+import { budget, TIME_PERIOD } from "@/db";
 // ==========================================================
 // BUDGET SCHEMAS
 // ==========================================================

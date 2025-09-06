@@ -8,7 +8,7 @@ import {
   TransactionAccountRepository,
 } from "@/repositories";
 
-import { db as DATABASE, SHARE_TYPE, TXN_TYPE } from "@pocket-pixie/db";
+import { db as DATABASE, SHARE_TYPE, TXN_TYPE } from "@/db";
 
 export class ExpenseService {
   private readonly expenseRepository;

@@ -1,6 +1,6 @@
 import { createSelectSchema, createInsertSchema } from "drizzle-zod";
 import { z } from "@hono/zod-openapi";
-import { FRIEND_STATUS, friendship } from "@pocket-pixie/db";
+import { FRIEND_STATUS, friendship } from "@/db";
 
 // ==========================================================
 // FRIENDSHIP SCHEMAS

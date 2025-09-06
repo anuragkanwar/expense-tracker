@@ -1,6 +1,6 @@
-import { recurring } from "@pocket-pixie/db";
+import { recurring } from "@/db";
 import { eq } from "drizzle-orm";
-import { db as DATABASE } from "@pocket-pixie/db";
+import { db as DATABASE } from "@/db";
 
 export class RecurringRepository {
   private db: typeof DATABASE;

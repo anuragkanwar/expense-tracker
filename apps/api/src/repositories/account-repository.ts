@@ -1,11 +1,11 @@
-import { account } from "@pocket-pixie/db";
+import { account } from "@/db";
 import { eq } from "drizzle-orm";
 import {
   AccountResponse,
   AccountCreate,
   AccountUpdate,
 } from "@/models/account";
-import { db as DATABASE } from "@pocket-pixie/db";
+import { db as DATABASE } from "@/db";
 
 export class AccountRepository {
   private db: typeof DATABASE;

@@ -6,7 +6,7 @@ import {
   SPLIT_TYPE,
   TXN_CATEGORY,
   TXN_TYPE,
-} from "@pocket-pixie/db";
+} from "@/db";
 
 // Complex schema for creating expense with payers and splits
 export const ExpenseCreateWithDetailsSchema = z

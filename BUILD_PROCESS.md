@@ -11,7 +11,7 @@ pocket-pixie/
 │   └── mobile/        # React Native/Expo app
 ├── packages/
 │   ├── auth/          # Authentication package
-│   ├── db/            # Database package
+│   ├── validators/    # Zod validation schemas
 │   ├── validators/    # Zod validation schemas
 │   ├── config-eslint/ # ESLint configuration
 │   ├── config-prettier/ # Prettier configuration
@@ -26,11 +26,9 @@ config-* (no dependencies)
     ↓
 validators (uses config-typescript)
     ↓
-db (uses config-typescript, drizzle-zod)
+validators (uses config-typescript)
     ↓
-auth (uses db, config-typescript)
-    ↓
-api (uses auth, db, validators, auto-generated schemas)
+api (uses validators, auto-generated schemas, db integrated)
 mobile (uses auth)
 ```
 
@@ -52,11 +50,9 @@ config-\* (no dependencies)
 ↓
 validators (uses config-typescript)
 ↓
-db (uses config-typescript, drizzle-zod, auto-generates Zod schemas)
+validators (uses config-typescript)
 ↓
-auth (uses db, config-typescript)
-↓
-api (uses auth, db, validators, smart DTOs)
+api (uses validators, smart DTOs, db integrated)
 mobile (uses auth)
 
 ```
@@ -90,7 +86,7 @@ pnpm run dev:server       # API + Database + Drizzle Studio
 
 # Start specific services
 cd apps/api && pnpm run dev    # API server only
-cd packages/db && pnpm run dev # Database + Drizzle Studio only
+cd apps/api && pnpm run db:studio # Database + Drizzle Studio only
 
 # Database operations
 pnpm run db:generate      # Generate database schema from types
@@ -232,12 +228,12 @@ pnpm run db:migrate
 # Start all services
 pnpm run dev
 
-# Start API + Database together (recommended)
-pnpm run dev:server   # API + Database + Drizzle Studio
+# Start API + Database + Drizzle Studio together (recommended)
+pnpm run dev:server   # API + Turso + Drizzle Studio
 
 # Or start individually
 cd apps/api && pnpm run dev    # API server
-cd packages/db && pnpm run dev # Database + Drizzle Studio
+cd apps/api && pnpm run db:studio # Database + Drizzle Studio
 ```
 
 ### Development Features
@@ -386,7 +382,7 @@ pnpm run build --force
 pnpm run db:generate
 
 # Reset database
-rm packages/db/local.db && pnpm run db:migrate
+rm apps/api/local.db && pnpm run db:migrate
 ```
 
 ## Performance Tips
@@ -401,7 +397,7 @@ rm packages/db/local.db && pnpm run db:migrate
 - [Root README](../README.md) - Main project documentation
 - [API Documentation](../apps/api/README.md) - Backend API
 - [Mobile App](../apps/mobile/README.md) - React Native application
-- [Database Package](../packages/db/README.md) - Database setup
+- [Database Module](../apps/api/src/db) - Database setup
 - [Auth Package](../packages/auth/README.md) - Authentication
 - [Environment Setup](../apps/mobile/README_ENVIRONMENTS.md) - Mobile app environments
 

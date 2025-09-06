@@ -19,8 +19,9 @@ import {
   UserRepository,
 } from "./repositories";
 import {
+  AuthService,
   StudentService,
-  AccountService,
+  TransactionAccountService,
   BalanceService,
   BudgetService,
   ConnectionService,
@@ -32,7 +33,7 @@ import {
   RecurringService,
   UserService,
 } from "./services";
-import { db } from "@pocket-pixie/db";
+import { db } from "@/db";
 
 const container = createContainer();
 
@@ -80,8 +81,11 @@ container.register({
   userRepository: asClass(UserRepository, { lifetime: Lifetime.SCOPED }),
 
   // Services
+  authService: asClass(AuthService, { lifetime: Lifetime.SCOPED }),
   studentService: asClass(StudentService, { lifetime: Lifetime.SCOPED }),
-  accountService: asClass(AccountService, { lifetime: Lifetime.SCOPED }),
+  transactionAccountService: asClass(TransactionAccountService, {
+    lifetime: Lifetime.SCOPED,
+  }),
   balanceService: asClass(BalanceService, { lifetime: Lifetime.SCOPED }),
   budgetService: asClass(BudgetService, { lifetime: Lifetime.SCOPED }),
   connectionService: asClass(ConnectionService, { lifetime: Lifetime.SCOPED }),

@@ -12,7 +12,7 @@ pnpm install
 pnpm run db:generate
 pnpm run db:migrate
 
-# Start development server
+# Start development server (API + Turso + Drizzle Studio)
 pnpm run dev
 ```
 
@@ -44,7 +44,7 @@ This API server provides:
 
 ### Dependencies
 
-- `@pocket-pixie/db` - Database schema, auto-generated Zod schemas, and types (single source of truth)
+- `./src/db` - Database schema, auto-generated Zod schemas, and types (single source of truth)
 - `drizzle-orm` - Type-safe database operations
 - `zod` - Runtime type validation and schema creation
 - `@hono/zod-openapi` - OpenAPI documentation generation
@@ -94,10 +94,10 @@ This API server provides:
    The API uses environment variables from the root `.env` file:
 
    ```bash
-   DATABASE_URL=./packages/db/local.db
+    DATABASE_URL=./local.db
    ```
 
-   **Note:** Authentication is handled by the `@pocket-pixie/db` package.
+   **Note:** Authentication is handled by the `./src/db` module.
 
 ### Development Commands
 
@@ -406,7 +406,7 @@ For production:
 
 ### Schema
 
-The database schema is defined in `@pocket-pixie/db` package:
+The database schema is defined in `./src/db` module:
 
 - **Students** - Student records with CRUD operations
 - **Users** - User authentication and profiles
@@ -437,7 +437,7 @@ pnpm run db:generate
 pnpm run db:migrate
 
 # Reset database (clean slate)
-rm packages/db/local.db && pnpm run db:migrate
+rm local.db && pnpm run db:migrate
 ```
 
 **✅ Features:**
@@ -574,7 +574,7 @@ The API includes comprehensive monitoring and logging:
 
 ### Core Packages
 
-- [Database Package](../../packages/db/README.md) - Turso + Drizzle ORM + Better Auth setup
+- [Database Module](../src/db) - Turso + Drizzle ORM + Better Auth setup
 - [Validators Package](../../packages/validators/README.md) - Zod validation schemas
 
 ### Applications
@@ -603,7 +603,7 @@ The API includes comprehensive monitoring and logging:
 
    ```bash
    # Reset database
-   rm ../../packages/db/local.db
+    rm local.db
    pnpm run db:migrate
    ```
 

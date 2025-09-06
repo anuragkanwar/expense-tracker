@@ -1,6 +1,6 @@
 import { createSelectSchema, createInsertSchema } from "drizzle-zod";
 import { z } from "@hono/zod-openapi";
-import { expense } from "@pocket-pixie/db";
+import { expense } from "@/db";
 
 // ==========================================================
 // EXPENSE SCHEMAS

@@ -21,7 +21,7 @@ import {
 } from "./routes";
 
 import { cors } from "hono/cors";
-import { auth } from "@pocket-pixie/db";
+import { auth } from "@/db";
 // API setup
 const app = new OpenAPIHono();
 

@@ -1,6 +1,6 @@
 import { createSelectSchema, createInsertSchema } from "drizzle-zod";
 import { z } from "@hono/zod-openapi";
-import { userBalance } from "@pocket-pixie/db";
+import { userBalance } from "@/db";
 
 // ==========================================================
 // USER BALANCE SCHEMAS

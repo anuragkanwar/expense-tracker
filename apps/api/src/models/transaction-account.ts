@@ -1,6 +1,6 @@
 import { createSelectSchema, createInsertSchema } from "drizzle-zod";
 import { z } from "@hono/zod-openapi";
-import { ACCOUNT_TYPE, transactionAccount, TXN_TYPE } from "@pocket-pixie/db";
+import { ACCOUNT_TYPE, transactionAccount, TXN_TYPE } from "@/db";
 
 export const TransactionAccountResponseSchema = createSelectSchema(
   transactionAccount

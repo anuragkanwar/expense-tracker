@@ -314,7 +314,7 @@ pnpm run lint
 ### Backend Services
 
 - [API Documentation](../api/README.md) - Backend API with clean architecture
-- [Database Package](../../packages/db/README.md) - Database and authentication setup
+- [Database Module](../api/src/db) - Database and authentication setup
 
 ### Development Tools
 

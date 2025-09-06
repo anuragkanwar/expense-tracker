@@ -2,8 +2,9 @@ import { createMiddleware } from "hono/factory";
 import { container } from "@/container";
 
 export type InjectedServices = {
+  authService: import("@/services/auth-service").AuthService;
   studentService: import("@/services/student-service").StudentService;
-  transactionAccountService: import("@/services/transaction-account-service").AccountService;
+  transactionAccountService: import("@/services/transaction-account-service").TransactionAccountService;
   balanceService: import("@/services/balance-service").BalanceService;
   budgetService: import("@/services/budget-service").BudgetService;
   connectionService: import("@/services/connection-service").ConnectionService;
@@ -26,8 +27,9 @@ export const dependencyInjector = createMiddleware(async (c, next) => {
   const scope = container.createScope();
 
   const services: InjectedServices = {
+    authService: scope.resolve("authService"),
     studentService: scope.resolve("studentService"),
-    transactionAccountService: scope.resolve("accountService"),
+    transactionAccountService: scope.resolve("transactionAccountService"),
     balanceService: scope.resolve("balanceService"),
     budgetService: scope.resolve("budgetService"),
     connectionService: scope.resolve("connectionService"),

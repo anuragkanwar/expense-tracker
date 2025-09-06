@@ -1,6 +1,6 @@
 import { createSelectSchema, createInsertSchema } from "drizzle-zod";
 import { z } from "@hono/zod-openapi";
-import { settlement } from "@pocket-pixie/db";
+import { settlement } from "@/db";
 
 // ==========================================================
 // SETTLEMENT SCHEMAS

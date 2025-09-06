@@ -1,6 +1,6 @@
 import { createSelectSchema, createInsertSchema } from "drizzle-zod";
 import { z } from "@hono/zod-openapi";
-import { account } from "@pocket-pixie/db";
+import { account } from "@/db";
 
 // ==========================================================
 // ACCOUNT SCHEMAS

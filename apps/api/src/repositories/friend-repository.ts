@@ -1,12 +1,12 @@
-import { friendship } from "@pocket-pixie/db";
+import { friendship } from "@/db";
 import { eq } from "drizzle-orm";
 import {
   FriendshipResponse,
   FriendshipCreate,
   FriendshipUpdate,
 } from "@/models/friendship";
-import { db as DATABASE } from "@pocket-pixie/db";
-import { FRIEND_STATUS } from "@pocket-pixie/db";
+import { db as DATABASE } from "@/db";
+import { FRIEND_STATUS } from "@/db";
 
 export class FriendRepository {
   private db: typeof DATABASE;

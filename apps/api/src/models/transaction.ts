@@ -1,6 +1,6 @@
 import { createSelectSchema, createInsertSchema } from "drizzle-zod";
 import { z } from "@hono/zod-openapi";
-import { transaction } from "@pocket-pixie/db";
+import { transaction } from "@/db";
 
 export const TransactionResponseSchema = createSelectSchema(transaction)
   .transform((data) => ({

@@ -1,7 +1,7 @@
-import { budget } from "@pocket-pixie/db";
+import { budget } from "@/db";
 import { eq } from "drizzle-orm";
 import { BudgetResponse, BudgetCreate, BudgetUpdate } from "@/models/budget";
-import { db as DATABASE } from "@pocket-pixie/db";
+import { db as DATABASE } from "@/db";
 
 export class BudgetRepository {
   private db: typeof DATABASE;

@@ -1,12 +1,12 @@
-import { db as DATABASE } from "@pocket-pixie/db";
+import { db as DATABASE } from "@/db";
 // import {
 //   transactionEntry,
 //   transactionAccount,
 //   recurring,
 //   budget,
-// } from "@pocket-pixie/db";
+// } from "@/db";
 // import { eq, and, gte, lte, desc, sum, count } from "drizzle-orm";
-// import { TXN_TYPE, RECURRENCE_TYPE, TIME_PERIOD } from "@pocket-pixie/db";
+// import { TXN_TYPE, RECURRENCE_TYPE, TIME_PERIOD } from "@/db";
 import { TransactionAccountRepository } from "./transaction-account-repository";
 
 export class DashboardRepository {

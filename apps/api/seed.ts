@@ -1,6 +1,6 @@
 // #!/usr/bin/env node
 //
-// import { seedCategories, seedStandardCategories } from "./src/seeds/index.js";
+// import { seedCategories, seedStandardCategories } from "./src/db/seeds/index.js";
 //
 // async function main() {
 //   const userId = process.argv[2];

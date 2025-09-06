@@ -1,11 +1,11 @@
-import { expensePayer } from "@pocket-pixie/db";
+import { expensePayer } from "@/db";
 import { eq } from "drizzle-orm";
 import {
   ExpensePayerResponse,
   ExpensePayerCreate,
   ExpensePayerUpdate,
 } from "@/models/expense-payer";
-import { db as DATABASE } from "@pocket-pixie/db";
+import { db as DATABASE } from "@/db";
 
 export class ExpensePayerRepository {
   private db: typeof DATABASE;

@@ -1,7 +1,7 @@
-import { group } from "@pocket-pixie/db";
+import { group } from "@/db";
 import { eq } from "drizzle-orm";
 import { GroupResponse, GroupCreate, GroupUpdate } from "@/models/group";
-import { db as DATABASE } from "@pocket-pixie/db";
+import { db as DATABASE } from "@/db";
 
 export class GroupRepository {
   private db: typeof DATABASE;

@@ -1,7 +1,7 @@
-import { ACCOUNT_TYPE, db as DATABASE } from "@pocket-pixie/db";
+import { ACCOUNT_TYPE, db as DATABASE } from "@/db";
 import { initialAccountSeed } from "@/utils/constants";
 import { TransactionAccountRepository } from "@/repositories";
-export class AccountService {
+export class TransactionAccountService {
   private readonly transactionAccountRepository;
   private db: typeof DATABASE;
   constructor({

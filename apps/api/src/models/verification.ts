@@ -1,6 +1,6 @@
 import { createSelectSchema, createInsertSchema } from "drizzle-zod";
 import { z } from "@hono/zod-openapi";
-import { verification } from "@pocket-pixie/db";
+import { verification } from "@/db";
 
 // ==========================================================
 // VERIFICATION SCHEMAS

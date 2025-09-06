@@ -1,6 +1,6 @@
 import { createSelectSchema, createInsertSchema } from "drizzle-zod";
 import { z } from "@hono/zod-openapi";
-import { groupMember } from "@pocket-pixie/db";
+import { groupMember } from "@/db";
 
 // ==========================================================
 // GROUP MEMBER SCHEMAS
