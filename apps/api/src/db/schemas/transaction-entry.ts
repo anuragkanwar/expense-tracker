@@ -1,7 +1,6 @@
-import { sqliteTable, text, integer, real } from "drizzle-orm/sqlite-core";
+import { sqliteTable, integer, real } from "drizzle-orm/sqlite-core";
 import { transaction } from "./transaction";
 import { transactionAccount } from "./transaction-account";
-import { TXN_TYPE } from "../constants";
 
 export const transactionEntry = sqliteTable("transaction_entry", {
   id: integer("id").primaryKey({ autoIncrement: true }),

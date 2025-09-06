@@ -11,8 +11,10 @@ import {
   ExpenseRepository,
   FriendRepository,
   GroupRepository,
+  GroupMemberRepository,
   PassbookRepository,
   RecurringRepository,
+  SettlementRepository,
   TransactionAccountRepository,
   TransactionEntryRepository,
   TransactionRepository,
@@ -29,8 +31,10 @@ import {
   ExpenseService,
   FriendService,
   GroupService,
+  GroupMemberService,
   PassbookService,
   RecurringService,
+  SettlementService,
   UserService,
 } from "./services";
 import { db } from "@/db";
@@ -62,6 +66,12 @@ container.register({
   expenseRepository: asClass(ExpenseRepository, { lifetime: Lifetime.SCOPED }),
   friendRepository: asClass(FriendRepository, { lifetime: Lifetime.SCOPED }),
   groupRepository: asClass(GroupRepository, { lifetime: Lifetime.SCOPED }),
+  groupMemberRepository: asClass(GroupMemberRepository, {
+    lifetime: Lifetime.SCOPED,
+  }),
+  settlementRepository: asClass(SettlementRepository, {
+    lifetime: Lifetime.SCOPED,
+  }),
   passbookRepository: asClass(PassbookRepository, {
     lifetime: Lifetime.SCOPED,
   }),
@@ -93,6 +103,10 @@ container.register({
   expenseService: asClass(ExpenseService, { lifetime: Lifetime.SCOPED }),
   friendService: asClass(FriendService, { lifetime: Lifetime.SCOPED }),
   groupService: asClass(GroupService, { lifetime: Lifetime.SCOPED }),
+  groupMemberService: asClass(GroupMemberService, {
+    lifetime: Lifetime.SCOPED,
+  }),
+  settlementService: asClass(SettlementService, { lifetime: Lifetime.SCOPED }),
   passbookService: asClass(PassbookService, { lifetime: Lifetime.SCOPED }),
   recurringService: asClass(RecurringService, { lifetime: Lifetime.SCOPED }),
   userService: asClass(UserService, { lifetime: Lifetime.SCOPED }),

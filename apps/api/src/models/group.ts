@@ -7,32 +7,11 @@ import { group } from "@/db";
 // ==========================================================
 
 export const GroupResponseSchema = createSelectSchema(group)
-  .extend({
-    id: z.number().openapi({
-      example: 123,
-      description: "Unique group identifier",
-    }),
-    name: z.string().openapi({
-      example: "Trip to Paris",
-      description: "Group name",
-    }),
-    coverPhotoURL: z.string().nullable().openapi({
-      example: "https://example.com/photo.jpg",
-      description: "Group cover photo URL",
-    }),
-    createdBy: z.number().openapi({
-      example: 123,
-      description: "User ID who created the group",
-    }),
-    createdAt: z.string().openapi({
-      example: "2025-09-01T12:00:00.000Z",
-      description: "When the group was created",
-    }),
-    updatedAt: z.string().openapi({
-      example: "2025-09-01T12:00:00.000Z",
-      description: "When the group was updated",
-    }),
-  })
+  .transform((data) => ({
+    ...data,
+    createdAt: data.createdAt.toISOString(),
+    updatedAt: data.updatedAt.toISOString(),
+  }))
   .openapi("GroupResponse");
 
 export const GroupCreateSchema = createInsertSchema(group, {

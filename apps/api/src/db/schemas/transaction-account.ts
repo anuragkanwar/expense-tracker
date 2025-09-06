@@ -1,6 +1,6 @@
 import { sqliteTable, text, integer, real } from "drizzle-orm/sqlite-core";
 import { user } from "./user";
-import { TXN_TYPE, ACCOUNT_TYPE } from "../constants";
+import { ACCOUNT_TYPE } from "../constants";
 
 export const transactionAccount = sqliteTable("transaction_account", {
   id: integer("id").primaryKey({ autoIncrement: true }),
@@ -16,6 +16,7 @@ export const transactionAccount = sqliteTable("transaction_account", {
       ACCOUNT_TYPE.LOAN_TAKEN,
       ACCOUNT_TYPE.SAVING,
       ACCOUNT_TYPE.EXTERNAL,
+      ACCOUNT_TYPE.OUTGOING,
     ],
   }).notNull(),
   isPaymentSource: integer("is_payment_source", { mode: "boolean" }).notNull(),

@@ -6,40 +6,12 @@ import { budget, TIME_PERIOD } from "@/db";
 // ==========================================================
 
 export const BudgetResponseSchema = createSelectSchema(budget)
-  .extend({
-    id: z.number().openapi({
-      example: 123,
-      description: "Unique budget identifier",
-    }),
-    userId: z.number().openapi({
-      example: 123,
-      description: "User ID",
-    }),
-    transactionAccountId: z.number().openapi({
-      example: 123,
-      description: "Transaction Account ID",
-    }),
-    amount: z.number().openapi({
-      example: 500.0,
-      description: "Budget amount",
-    }),
-    period: z.enum(TIME_PERIOD).openapi({
-      example: "monthly",
-      description: "Budget period",
-    }),
-    startDate: z.string().openapi({
-      example: "2025-09-01T00:00:00.000Z",
-      description: "Budget start date",
-    }),
-    createdAt: z.string().openapi({
-      example: "2025-09-01T12:00:00.000Z",
-      description: "When the budget was created",
-    }),
-    updatedAt: z.string().openapi({
-      example: "2025-09-01T12:00:00.000Z",
-      description: "When the budget was updated",
-    }),
-  })
+  .transform((data) => ({
+    ...data,
+    startDate: data.startDate?.toISOString() || null,
+    createdAt: data.createdAt.toISOString(),
+    updatedAt: data.updatedAt.toISOString(),
+  }))
   .openapi("BudgetResponse");
 
 export const BudgetCreateSchema = createInsertSchema(budget, {

@@ -15,7 +15,7 @@ export const settlement = sqliteTable("settlement", {
     .references(() => user.id, { onDelete: "cascade" }),
   amount: real("amount").notNull(),
   currency: text("currency").notNull(),
-  setlledAt: integer("settled_at", { mode: "timestamp" })
+  settledAt: integer("settled_at", { mode: "timestamp" })
     .notNull()
     .$defaultFn(() => /* @__PURE__ */ new Date()),
   createdAt: integer("created_at", { mode: "timestamp" })

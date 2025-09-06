@@ -32,7 +32,7 @@ export const SettlementResponseSchema = createSelectSchema(settlement)
       example: "USD",
       description: "Currency code",
     }),
-    setlledAt: z.string().openapi({
+    settledAt: z.string().openapi({
       example: "2025-09-01T12:00:00.000Z",
       description: "Settlement date",
     }),
@@ -60,7 +60,7 @@ export const SettlementCreateSchema = createInsertSchema(settlement, {
       example: "USD",
       description: "Currency code",
     }),
-  setlledAt: z.string().optional().openapi({
+  settledAt: z.string().optional().openapi({
     example: "2025-09-01T12:00:00.000Z",
     description: "Settlement date",
   }),

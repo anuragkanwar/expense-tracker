@@ -1,5 +1,5 @@
 import { ACCOUNT_TYPE, transactionAccount } from "@/db";
-import { and, eq } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import {
   TransactionAccountResponse,
   TransactionAccountCreate,
@@ -34,6 +34,36 @@ export class TransactionAccountRepository {
       .select()
       .from(transactionAccount)
       .where(eq(transactionAccount.id, id))
+      .limit(1);
+
+    if (result.length === 0) {
+      return null;
+    }
+    const item = result[0]!;
+    return {
+      ...item,
+      createdAt: item.createdAt.toISOString(),
+      updatedAt: item.updatedAt.toISOString(),
+    } as TransactionAccountResponse;
+  }
+
+  async getSpecialAccountByUserIdAndAccountType(
+    userId: number,
+    accountType: ACCOUNT_TYPE
+  ): Promise<TransactionAccountResponse | null> {
+    if (accountType === ACCOUNT_TYPE.EXPENSE) {
+      return null;
+    }
+
+    let result = await this.db
+      .select()
+      .from(transactionAccount)
+      .where(
+        and(
+          eq(transactionAccount.type, accountType),
+          eq(transactionAccount.userId, userId)
+        )
+      )
       .limit(1);
 
     if (result.length === 0) {

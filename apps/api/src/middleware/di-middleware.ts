@@ -12,6 +12,9 @@ export type InjectedServices = {
   expenseService: import("@/services/expense-service").ExpenseService;
   friendService: import("@/services/friend-service").FriendService;
   groupService: import("@/services/group-service").GroupService;
+  groupMemberService: import("@/services/group-member-service").GroupMemberService;
+  settlementService: import("@/services/settlement-service").SettlementService;
+  groupMemberRepository: import("@/repositories/group-member-repository").GroupMemberRepository;
   passbookService: import("@/services/passbook-service").PassbookService;
   recurringService: import("@/services/recurring-service").RecurringService;
   userService: import("@/services/user-service").UserService;
@@ -37,6 +40,9 @@ export const dependencyInjector = createMiddleware(async (c, next) => {
     expenseService: scope.resolve("expenseService"),
     friendService: scope.resolve("friendService"),
     groupService: scope.resolve("groupService"),
+    groupMemberService: scope.resolve("groupMemberService"),
+    settlementService: scope.resolve("settlementService"),
+    groupMemberRepository: scope.resolve("groupMemberRepository"),
     passbookService: scope.resolve("passbookService"),
     recurringService: scope.resolve("recurringService"),
     userService: scope.resolve("userService"),

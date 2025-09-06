@@ -1,11 +1,8 @@
 import { betterAuth } from "better-auth";
-import { createAuthMiddleware, APIError } from "better-auth/api";
 import { expo } from "@better-auth/expo";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { db } from "./database";
 import { Redis } from "ioredis";
-import { TransactionAccountRepository } from "@/repositories";
-import { container } from "@/container";
 const redis = new Redis();
 
 export const auth = betterAuth({

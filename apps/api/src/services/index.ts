@@ -8,6 +8,8 @@ export * from "./dashboard-service";
 export * from "./expense-service";
 export * from "./friend-service";
 export * from "./group-service";
+export * from "./group-member-service";
 export * from "./passbook-service";
 export * from "./recurring-service";
+export * from "./settlement-service";
 export * from "./user-service";

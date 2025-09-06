@@ -23,7 +23,7 @@ expenseRoutes.openapi(createExpenseRoute, async (c) => {
     if (!user) {
       return c.json({ message: "Not Authenticated" }, 401);
     }
-    expenseService.createExpense(data, user);
+    await expenseService.createExpense(data);
   } catch (error: any) {
     return c.json({ message: error }, 400);
   }

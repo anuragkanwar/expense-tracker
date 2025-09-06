@@ -1,12 +1,7 @@
 import { z } from "@hono/zod-openapi";
 import { ExpenseResponseSchema, ExpenseCreateSchema } from "@/models/expense";
 import { ExpenseSplitCreateSchema } from "@/models/expense-split";
-import {
-  SHARE_TYPE,
-  SPLIT_TYPE,
-  TXN_CATEGORY,
-  TXN_TYPE,
-} from "@/db";
+import { SHARE_TYPE, SPLIT_TYPE, TXN_TYPE } from "@/db";
 
 // Complex schema for creating expense with payers and splits
 export const ExpenseCreateWithDetailsSchema = z
@@ -16,7 +11,7 @@ export const ExpenseCreateWithDetailsSchema = z
     groupId: ExpenseCreateSchema.shape.groupId,
     expenseDate: ExpenseCreateSchema.shape.expenseDate,
     type: z.enum(TXN_TYPE),
-    payer: z.string().optional().openapi({
+    payer: z.number().openapi({
       description: "user who paid for the transaction",
     }),
     sharedWith: z.enum(SHARE_TYPE).openapi({

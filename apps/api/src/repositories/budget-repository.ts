@@ -23,7 +23,7 @@ export class BudgetRepository {
       startDate: row.startDate?.toISOString() || null,
       createdAt: row.createdAt.toISOString(),
       updatedAt: row.updatedAt.toISOString(),
-    })) as BudgetResponse[];
+    }));
   }
 
   async findById(id: number): Promise<BudgetResponse | null> {
@@ -45,7 +45,7 @@ export class BudgetRepository {
       startDate: row.startDate?.toISOString() || null,
       createdAt: row.createdAt.toISOString(),
       updatedAt: row.updatedAt.toISOString(),
-    } as BudgetResponse;
+    };
   }
 
   async create(data: BudgetCreate): Promise<BudgetResponse> {

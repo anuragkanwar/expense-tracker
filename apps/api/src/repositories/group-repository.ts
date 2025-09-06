@@ -22,7 +22,7 @@ export class GroupRepository {
       ...row,
       createdAt: row.createdAt.toISOString(),
       updatedAt: row.updatedAt.toISOString(),
-    })) as GroupResponse[];
+    }));
   }
 
   async findById(id: number): Promise<GroupResponse | null> {
@@ -43,7 +43,7 @@ export class GroupRepository {
       ...row,
       createdAt: row.createdAt.toISOString(),
       updatedAt: row.updatedAt.toISOString(),
-    } as GroupResponse;
+    };
   }
 
   async create(data: GroupCreate): Promise<GroupResponse> {
