@@ -18,6 +18,7 @@ import { NotFoundError, ValidationError } from "@/errors/base-error";
 import { GroupNotFoundError } from "@/errors/group-errors";
 import { mathOperationAndGetFixedNumber } from "@/utils/mathUtils";
 import { TransactionAccountResponse } from "@/models";
+import { TransactionHelperService } from "./transaction-helper-service";
 
 export class ExpenseService {
   private readonly balanceRepository;
@@ -29,6 +30,7 @@ export class ExpenseService {
   private readonly transactionAccountRepository;
   private readonly transactionEntryRepository;
   private readonly transactionRepository;
+  private readonly transactionHelperService;
   private db: typeof DATABASE;
   constructor({
     balanceRepository,
@@ -41,6 +43,7 @@ export class ExpenseService {
     transactionAccountRepository,
     transactionEntryRepository,
     transactionRepository,
+    transactionHelperService,
   }: {
     balanceRepository: BalanceRepository;
     db: typeof DATABASE;
@@ -52,6 +55,7 @@ export class ExpenseService {
     transactionAccountRepository: TransactionAccountRepository;
     transactionEntryRepository: TransactionEntryRepository;
     transactionRepository: TransactionRepository;
+    transactionHelperService: TransactionHelperService;
   }) {
     this.balanceRepository = balanceRepository;
     this.db = db;
@@ -63,6 +67,7 @@ export class ExpenseService {
     this.transactionAccountRepository = transactionAccountRepository;
     this.transactionEntryRepository = transactionEntryRepository;
     this.transactionRepository = transactionRepository;
+    this.transactionHelperService = transactionHelperService;
   }
 
   private async validateTransactionAccounts(
@@ -101,40 +106,6 @@ export class ExpenseService {
       description,
       userId: payerId,
     });
-  }
-
-  private async updateAccountsAndCreateEntries(
-    entries: Array<{
-      srcAcc: TransactionAccountResponse;
-      dstAcc: TransactionAccountResponse;
-      amount: number;
-      txnId: number;
-    }>
-  ) {
-    for (const entry of entries) {
-      if (entry.amount <= 0) {
-        continue;
-      }
-      await this.transactionAccountRepository.update(entry.srcAcc.id, {
-        balance: entry.srcAcc.balance - entry.amount,
-      });
-
-      await this.transactionAccountRepository.update(entry.dstAcc.id, {
-        balance: entry.dstAcc.balance + entry.amount,
-      });
-
-      await this.transactionEntryRepository.create({
-        amount: entry.amount,
-        transactionAccountId: entry.dstAcc.id,
-        transactionId: entry.txnId,
-      });
-
-      await this.transactionEntryRepository.create({
-        amount: -entry.amount,
-        transactionAccountId: entry.srcAcc.id,
-        transactionId: entry.txnId,
-      });
-    }
   }
 
   private async createExpenseAndHandleSplits(
@@ -186,7 +157,7 @@ export class ExpenseService {
         throw new TransactionAccountNotFoundError(`${payerId} ,  LOAN_GIVEN`);
       }
 
-      this.updateAccountsAndCreateEntries([
+      await this.transactionHelperService.updateAccountsAndCreateEntries([
         {
           srcAcc: payerLoanGiveAcc,
           dstAcc: payeeLoanTakenAcc,
@@ -259,7 +230,7 @@ export class ExpenseService {
   private async updateBalances() {}
   // NOTE:
   // EXPENSE => OUTGOING -> EXPENSE (categories)
-  // INCOME => EXTERNAL -> INCOME
+  // INCOME => EXTERNAL (-) -> INCOME (+)
   // LOAN_TAKEN => LOAN_GIVEN (someones) -> LOAN_TAKEN
   // LOAN_GIVEN => LOAN_TAKEN (someones) -> LOAN_GIVEN
   async createExpense(expenseCreateWithDetails: ExpenseCreateWithDetails) {
@@ -283,7 +254,7 @@ export class ExpenseService {
           expenseCreateWithDetails.type === TXN_TYPE.LOAN_TAKEN
         ) {
           if (expenseCreateWithDetails.sharedWith === SHARE_TYPE.NONE) {
-            await this.updateAccountsAndCreateEntries([
+            await this.transactionHelperService.updateAccountsAndCreateEntries([
               {
                 srcAcc,
                 dstAcc,
@@ -308,7 +279,7 @@ export class ExpenseService {
               0
             );
             const payerTotal = expenseCreateWithDetails.amount - splitTotal;
-            await this.updateAccountsAndCreateEntries([
+            await this.transactionHelperService.updateAccountsAndCreateEntries([
               {
                 srcAcc: srcAcc,
                 dstAcc: dstAcc,
@@ -330,7 +301,7 @@ export class ExpenseService {
           expenseCreateWithDetails.type === TXN_TYPE.INCOME ||
           expenseCreateWithDetails.type === TXN_TYPE.SAVING
         ) {
-          await this.updateAccountsAndCreateEntries([
+          await this.transactionHelperService.updateAccountsAndCreateEntries([
             {
               srcAcc,
               dstAcc,
@@ -347,5 +318,6 @@ export class ExpenseService {
       }
     });
   }
+
   // TODO: Implement expense service methods
 }

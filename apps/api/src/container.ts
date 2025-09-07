@@ -33,6 +33,7 @@ import {
   PassbookService,
   RecurringService,
   SettlementService,
+  TransactionHelperService,
   UserService,
 } from "./services";
 import { db } from "@/db";
@@ -102,7 +103,12 @@ container.register({
   groupMemberService: asClass(GroupMemberService, {
     lifetime: Lifetime.SCOPED,
   }),
-  settlementService: asClass(SettlementService, { lifetime: Lifetime.SCOPED }),
+  transactionHelperService: asClass(TransactionHelperService, {
+    lifetime: Lifetime.SCOPED,
+  }),
+  settlementService: asClass(SettlementService, {
+    lifetime: Lifetime.SCOPED,
+  }),
   passbookService: asClass(PassbookService, { lifetime: Lifetime.SCOPED }),
   recurringService: asClass(RecurringService, { lifetime: Lifetime.SCOPED }),
   userService: asClass(UserService, { lifetime: Lifetime.SCOPED }),

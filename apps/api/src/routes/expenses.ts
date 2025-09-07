@@ -60,6 +60,7 @@ expenseRoutes.openapi(deleteExpenseRoute, async (c) => {
   return c.json({ message: "Not implemented" }, 501);
 });
 
+// NOTE: DO NOT IMPLEMENT THIS, THIS IS JUST FUTURE NOT IMPLEMENT NOW
 expenseRoutes.openapi(createExpenseWithAIRoute, async (c) => {
   // TODO: Implement create expense with AI
   // 1. Get the AI prompt from request body

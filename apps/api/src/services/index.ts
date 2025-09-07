@@ -11,4 +11,5 @@ export * from "./group-member-service";
 export * from "./passbook-service";
 export * from "./recurring-service";
 export * from "./settlement-service";
+export * from "./transaction-helper-service";
 export * from "./user-service";

@@ -22,6 +22,11 @@ import { SettlementRepository } from "@/repositories/settlement-repository";
 import { UserRepository } from "@/repositories/user-repository";
 import { GroupRepository } from "@/repositories/group-repository";
 import { GroupMemberRepository } from "@/repositories/group-member-repository";
+import { TransactionRepository } from "@/repositories/transaction-repository";
+import { TransactionEntryRepository } from "@/repositories/transaction-entry-repository";
+import { TransactionAccountRepository } from "@/repositories/transaction-account-repository";
+import { TransactionHelperService } from "./transaction-helper-service";
+import { ACCOUNT_TYPE } from "@/db";
 
 export class BalanceService {
   private readonly balanceRepository;
@@ -29,6 +34,10 @@ export class BalanceService {
   private readonly userRepository;
   private readonly groupRepository;
   private readonly groupMemberRepository;
+  private readonly transactionRepository;
+  private readonly transactionEntryRepository;
+  private readonly transactionAccountRepository;
+  private readonly transactionHelperService;
 
   constructor({
     balanceRepository,
@@ -36,18 +45,30 @@ export class BalanceService {
     userRepository,
     groupRepository,
     groupMemberRepository,
+    transactionRepository,
+    transactionEntryRepository,
+    transactionAccountRepository,
+    transactionHelperService,
   }: {
     balanceRepository: BalanceRepository;
     settlementRepository: SettlementRepository;
     userRepository: UserRepository;
     groupRepository: GroupRepository;
     groupMemberRepository: GroupMemberRepository;
+    transactionRepository: TransactionRepository;
+    transactionEntryRepository: TransactionEntryRepository;
+    transactionAccountRepository: TransactionAccountRepository;
+    transactionHelperService: TransactionHelperService;
   }) {
     this.balanceRepository = balanceRepository;
     this.settlementRepository = settlementRepository;
     this.userRepository = userRepository;
     this.groupRepository = groupRepository;
     this.groupMemberRepository = groupMemberRepository;
+    this.transactionRepository = transactionRepository;
+    this.transactionEntryRepository = transactionEntryRepository;
+    this.transactionAccountRepository = transactionAccountRepository;
+    this.transactionHelperService = transactionHelperService;
   }
 
   async getAllBalances(
@@ -222,12 +243,81 @@ export class BalanceService {
       throw new BadRequestError("Invalid payer or payee");
     }
 
+    // Create transaction header for the settlement
+    const transaction = await this.transactionRepository.create({
+      description: `Direct settlement: ${payer.name} paid ${data.amount} ${data.currency} to ${payee.name}`,
+      userId: data.payerId,
+    });
+
+    // Get payer's OUTGOING account (money going out)
+    const payerOutgoingAcc =
+      await this.transactionAccountRepository.getSpecialAccountByUserIdAndAccountType(
+        data.payerId,
+        ACCOUNT_TYPE.OUTGOING
+      );
+
+    if (!payerOutgoingAcc) {
+      throw new BadRequestError("Payer's outgoing account not found");
+    }
+
+    // Get payee's EXPENSE account (money coming in as income)
+    const payeeExpenseAcc =
+      await this.transactionAccountRepository.getSpecialAccountByUserIdAndAccountType(
+        data.payeeId,
+        ACCOUNT_TYPE.EXPENSE
+      );
+
+    if (!payeeExpenseAcc) {
+      throw new BadRequestError("Payee's expense account not found");
+    }
+
+    // Record the actual payment: OUTGOING (-) → EXPENSE (+)
+    await this.transactionHelperService.updateAccountsAndCreateEntries([
+      {
+        srcAcc: payerOutgoingAcc,
+        dstAcc: payeeExpenseAcc,
+        amount: data.amount,
+        txnId: transaction.id,
+      },
+    ]);
+
+    // Also reverse the loan relationship: LOAN_TAKEN (-) → LOAN_GIVEN (+)
+    // This represents the debt being settled
+    const payerLoanTakenAcc =
+      await this.transactionAccountRepository.getSpecialAccountByUserIdAndAccountType(
+        data.payerId,
+        ACCOUNT_TYPE.LOAN_TAKEN
+      );
+
+    const payeeLoanGivenAcc =
+      await this.transactionAccountRepository.getSpecialAccountByUserIdAndAccountType(
+        data.payeeId,
+        ACCOUNT_TYPE.LOAN_GIVEN
+      );
+
+    if (payerLoanTakenAcc && payeeLoanGivenAcc) {
+      // Create another transaction for the loan reversal
+      const loanReversalTxn = await this.transactionRepository.create({
+        description: `Loan reversal: Debt between ${payer.name} and ${payee.name} settled`,
+        userId: data.payerId,
+      });
+
+      await this.transactionHelperService.updateAccountsAndCreateEntries([
+        {
+          srcAcc: payerLoanTakenAcc,
+          dstAcc: payeeLoanGivenAcc,
+          amount: data.amount,
+          txnId: loanReversalTxn.id,
+        },
+      ]);
+    }
+
     // Update overall balances for both sides
     // Payer's balance with payee: payer (owner) pays payee (counterparty) -amount
     const payerBalance = await this.balanceRepository.findBalance(
       data.payerId,
       data.payeeId,
-      null
+      undefined
     );
     if (payerBalance) {
       await this.balanceRepository.update(payerBalance.id, {
@@ -248,7 +338,7 @@ export class BalanceService {
     const payeeBalance = await this.balanceRepository.findBalance(
       data.payeeId,
       data.payerId,
-      null
+      undefined
     );
     if (payeeBalance) {
       await this.balanceRepository.update(payeeBalance.id, {
@@ -384,6 +474,44 @@ export class BalanceService {
     if (!lender || !borrower) {
       throw new BadRequestError("Invalid lender or borrower");
     }
+
+    // Create transaction header for the loan
+    const transaction = await this.transactionRepository.create({
+      description: `Direct loan: ${lender.name} lent ${amount} ${currency} to ${borrower.name}`,
+      userId: lenderId,
+    });
+
+    // Get lender's LOAN_GIVEN account
+    const lenderLoanGivenAcc =
+      await this.transactionAccountRepository.getSpecialAccountByUserIdAndAccountType(
+        lenderId,
+        ACCOUNT_TYPE.LOAN_GIVEN
+      );
+
+    if (!lenderLoanGivenAcc) {
+      throw new BadRequestError("Lender's loan given account not found");
+    }
+
+    // Get borrower's LOAN_TAKEN account
+    const borrowerLoanTakenAcc =
+      await this.transactionAccountRepository.getSpecialAccountByUserIdAndAccountType(
+        borrowerId,
+        ACCOUNT_TYPE.LOAN_TAKEN
+      );
+
+    if (!borrowerLoanTakenAcc) {
+      throw new BadRequestError("Borrower's loan taken account not found");
+    }
+
+    // Create transaction entries using helper service
+    await this.transactionHelperService.updateAccountsAndCreateEntries([
+      {
+        srcAcc: lenderLoanGivenAcc,
+        dstAcc: borrowerLoanTakenAcc,
+        amount: amount,
+        txnId: transaction.id,
+      },
+    ]);
 
     // Update or create overall balances for both sides
     // Borrower owes lender: borrower (owner) owes lender (counterparty) -amount

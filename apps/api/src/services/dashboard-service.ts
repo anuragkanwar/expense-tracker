@@ -1,13 +1,11 @@
 import { DashboardRepository } from "@/repositories/dashboard-repository";
-// import { UserAuth } from "@/models/auth";
-// import {
-//   MonthlySummaryResponse,
-//   SpendingByCategoryResponse,
-//   UpcomingBillsResponse,
-//   NetWorthTrendResponse,
-//   SpendingAnalyticsResponse,
-// } from "@/dto/dashboard.dto";
-// import { DashboardServiceError } from "@/errors/dashboard-errors";
+import {
+  MonthlySummaryResponse,
+  SpendingAnalyticsResponse,
+  SpendingByCategoryResponse,
+  UpcomingBillsResponse,
+  NetWorthTrendResponse,
+} from "@/dto/dashboard.dto";
 
 export class DashboardService {
   private readonly dashboardRepository;
@@ -19,104 +17,111 @@ export class DashboardService {
   }) {
     this.dashboardRepository = dashboardRepository;
   }
-  //
-  // async getMonthlySummary(user: UserAuth): Promise<MonthlySummaryResponse> {
-  //   try {
-  //     const userId = parseInt(user.id);
-  //     const currentMonth = new Date();
-  //
-  //     const summary = await this.dashboardRepository.getMonthlySummary(
-  //       userId,
-  //       currentMonth
-  //     );
-  //
-  //     return {
-  //       month: currentMonth.toLocaleString("default", {
-  //         month: "long",
-  //         year: "numeric",
-  //       }),
-  //       totalIncome: summary.totalIncome,
-  //       totalExpenses: summary.totalExpenses,
-  //       netIncome: summary.netIncome,
-  //       budgetUtilization: summary.budgetUtilization,
-  //       savingsRate: summary.savingsRate,
-  //       topExpenseCategory: summary.topExpenseCategory,
-  //     };
-  //   } catch (error) {
-  //     throw new DashboardServiceError(
-  //       "getMonthlySummary",
-  //       error instanceof Error ? error.message : "Unknown error"
-  //     );
-  //   }
-  // }
-  //
-  // async getSpendingByCategory(
-  //   user: UserAuth
-  // ): Promise<SpendingByCategoryResponse> {
-  //   try {
-  //     const userId = parseInt(user.id);
-  //     const currentMonth = new Date();
-  //
-  //     return await this.dashboardRepository.getSpendingByCategory(
-  //       userId,
-  //       currentMonth
-  //     );
-  //   } catch (error) {
-  //     throw new DashboardServiceError(
-  //       "getSpendingByCategory",
-  //       error instanceof Error ? error.message : "Unknown error"
-  //     );
-  //   }
-  // }
-  //
-  // async getUpcomingBills(
-  //   user: UserAuth,
-  //   days: number = 30
-  // ): Promise<UpcomingBillsResponse> {
-  //   try {
-  //     const userId = parseInt(user.id);
-  //
-  //     return await this.dashboardRepository.getUpcomingBills(userId, days);
-  //   } catch (error) {
-  //     throw new DashboardServiceError(
-  //       "getUpcomingBills",
-  //       error instanceof Error ? error.message : "Unknown error"
-  //     );
-  //   }
-  // }
-  //
-  // async getNetWorthTrend(
-  //   user: UserAuth,
-  //   months: number = 12
-  // ): Promise<NetWorthTrendResponse> {
-  //   try {
-  //     const userId = parseInt(user.id);
-  //
-  //     return await this.dashboardRepository.getNetWorthTrend(userId, months);
-  //   } catch (error) {
-  //     throw new DashboardServiceError(
-  //       "getNetWorthTrend",
-  //       error instanceof Error ? error.message : "Unknown error"
-  //     );
-  //   }
-  // }
-  //
-  // async getSpendingAnalytics(
-  //   user: UserAuth
-  // ): Promise<SpendingAnalyticsResponse> {
-  //   try {
-  //     const userId = parseInt(user.id);
-  //     const currentMonth = new Date();
-  //
-  //     return await this.dashboardRepository.getSpendingAnalytics(
-  //       userId,
-  //       currentMonth
-  //     );
-  //   } catch (error) {
-  //     throw new DashboardServiceError(
-  //       "getSpendingAnalytics",
-  //       error instanceof Error ? error.message : "Unknown error"
-  //     );
-  //   }
-  // }
+
+  async getMonthlySummary(userId: number): Promise<MonthlySummaryResponse> {
+    const now = new Date();
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+
+    const totalExpenses = await this.dashboardRepository.getMonthlyExpenses(
+      userId,
+      startOfMonth,
+      endOfMonth
+    );
+    const totalIncome = await this.dashboardRepository.getMonthlyIncome(
+      userId,
+      startOfMonth,
+      endOfMonth
+    );
+    const budgetUtilization =
+      await this.dashboardRepository.getBudgetUtilization(
+        userId,
+        startOfMonth,
+        endOfMonth
+      );
+
+    const netIncome = totalIncome - totalExpenses;
+    const savingsRate = totalIncome > 0 ? (netIncome / totalIncome) * 100 : 0;
+
+    // Get top expense category
+    const topExpenseCategoryData =
+      await this.dashboardRepository.getTopExpenseCategory(
+        userId,
+        startOfMonth,
+        endOfMonth
+      );
+
+    const topExpenseCategory = topExpenseCategoryData || {
+      name: "No expenses",
+      amount: 0,
+      percentage: 0,
+    };
+
+    return {
+      month: now.toLocaleString("default", { month: "long", year: "numeric" }),
+      totalIncome,
+      totalExpenses,
+      netIncome,
+      budgetUtilization,
+      savingsRate,
+      topExpenseCategory,
+    };
+  }
+
+  async getSpendingAnalytics(
+    userId: number
+  ): Promise<SpendingAnalyticsResponse | null> {
+    const now = new Date();
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+
+    const analytics = await this.dashboardRepository.getSpendingAnalytics(
+      userId,
+      startOfMonth,
+      endOfMonth
+    );
+
+    if (!analytics) {
+      return null;
+    }
+
+    return analytics;
+  }
+
+  async getSpendingByCategory(
+    userId: number
+  ): Promise<SpendingByCategoryResponse> {
+    const now = new Date();
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+
+    const categories = await this.dashboardRepository.getSpendingByCategory(
+      userId,
+      startOfMonth,
+      endOfMonth
+    );
+
+    return categories;
+  }
+
+  async getUpcomingBills(
+    userId: number,
+    daysAhead?: number
+  ): Promise<UpcomingBillsResponse> {
+    const days = daysAhead ? parseInt(daysAhead.toString()) : 30;
+    const bills = await this.dashboardRepository.getUpcomingBills(userId, days);
+    return bills;
+  }
+
+  async getNetWorthTrend(
+    userId: number,
+    months?: number
+  ): Promise<NetWorthTrendResponse> {
+    const monthsCount = months ? parseInt(months.toString()) : 12;
+    const trend = await this.dashboardRepository.getNetWorthTrend(
+      userId,
+      monthsCount
+    );
+    return trend;
+  }
 }

@@ -207,7 +207,7 @@ export class BalanceRepository {
     ];
 
     if (groupId !== undefined) {
-      if (groupId === null) {
+      if (groupId === null || groupId === undefined) {
         conditions.push(isNull(userBalance.groupId));
       } else {
         conditions.push(eq(userBalance.groupId, groupId));

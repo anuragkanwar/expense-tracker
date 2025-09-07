@@ -1,453 +1,664 @@
 import { db as DATABASE } from "@/db";
-// import {
-//   transactionEntry,
-//   transactionAccount,
-//   recurring,
-//   budget,
-// } from "@/db";
-// import { eq, and, gte, lte, desc, sum, count } from "drizzle-orm";
-// import { TXN_TYPE, RECURRENCE_TYPE, TIME_PERIOD } from "@/db";
-import { TransactionAccountRepository } from "./transaction-account-repository";
+import {
+  budget,
+  transaction,
+  transactionEntry,
+  transactionAccount,
+  recurring,
+} from "@/db";
+import { sql, eq, and, gte, lte, inArray } from "drizzle-orm";
+import { ACCOUNT_TYPE } from "@/db/constants";
 
 export class DashboardRepository {
   private readonly db: typeof DATABASE;
-  private readonly transactionAccountRepository: TransactionAccountRepository;
 
-  constructor({
-    db,
-    transactionAccountRepository,
-  }: {
-    db: typeof DATABASE;
-    transactionAccountRepository: TransactionAccountRepository;
-  }) {
+  constructor({ db }: { db: typeof DATABASE }) {
     this.db = db;
-    this.transactionAccountRepository = transactionAccountRepository;
   }
-  //
-  // async getMonthlySummary(userId: number, month: Date) {
-  //   const startOfMonth = new Date(month.getFullYear(), month.getMonth(), 1);
-  //   const endOfMonth = new Date(
-  //     month.getFullYear(),
-  //     month.getMonth() + 1,
-  //     0,
-  //     23,
-  //     59,
-  //     59
-  //   );
-  //
-  //   // Get main account for the user
-  //   const mainAccount =
-  //     await this.transactionAccountRepository.findMainAccountByUser(userId);
-  //
-  //   if (!mainAccount) {
-  //     return {
-  //       totalIncome: 0,
-  //       totalExpenses: 0,
-  //       netIncome: 0,
-  //       budgetUtilization: 0,
-  //       savingsRate: 0,
-  //       topExpenseCategory: {
-  //         name: "No expenses",
-  //         amount: 0,
-  //         percentage: 0,
-  //       },
-  //     };
-  //   }
-  //
-  //   const mainAccountId = mainAccount.id;
-  //
-  //   // Get total income: positive amounts in main account for INCOME type
-  //   const incomeResult = await this.db
-  //     .select({
-  //       total: sum(transactionEntry.amount),
-  //     })
-  //     .from(transactionEntry)
-  //     .where(
-  //       and(
-  //         eq(transactionEntry.transactionAccountId, mainAccountId),
-  //         eq(transactionEntry.type, TXN_TYPE.INCOME),
-  //         gte(transactionEntry.createdAt, startOfMonth),
-  //         lte(transactionEntry.createdAt, endOfMonth)
-  //       )
-  //     );
-  //
-  //   // Get total expenses: negative amounts in main account for EXPENSE type
-  //   const expenseResult = await this.db
-  //     .select({
-  //       total: sum(transactionEntry.amount),
-  //     })
-  //     .from(transactionEntry)
-  //     .where(
-  //       and(
-  //         eq(transactionEntry.transactionAccountId, mainAccountId),
-  //         eq(transactionEntry.type, TXN_TYPE.EXPENSE),
-  //         gte(transactionEntry.createdAt, startOfMonth),
-  //         lte(transactionEntry.createdAt, endOfMonth)
-  //       )
-  //     );
-  //
-  //   const income = Number((incomeResult[0] && incomeResult[0].total) || 0);
-  //   const expenses = Math.abs(
-  //     Number((expenseResult[0] && expenseResult[0].total) || 0)
-  //   ); // Expenses are stored as negative, so take absolute value
-  //
-  //   // Get budget utilization
-  //   const budgetUtilization = await this.getBudgetUtilization(userId, month);
-  //
-  //   // Get top expense category
-  //   const topCategory = await this.getTopExpenseCategory(userId, month);
-  //
-  //   return {
-  //     totalIncome: income,
-  //     totalExpenses: expenses,
-  //     netIncome: income - expenses,
-  //     budgetUtilization,
-  //     savingsRate: income > 0 ? ((income - expenses) / income) * 100 : 0,
-  //     topExpenseCategory: topCategory,
-  //   };
-  // }
-  //
-  // async getSpendingByCategory(userId: number, month: Date) {
-  //   const startOfMonth = new Date(month.getFullYear(), month.getMonth(), 1);
-  //   const endOfMonth = new Date(
-  //     month.getFullYear(),
-  //     month.getMonth() + 1,
-  //     0,
-  //     23,
-  //     59,
-  //     59
-  //   );
-  //
-  //   // Get main account to exclude it from category spending
-  //   const mainAccount =
-  //     await this.transactionAccountRepository.findMainAccountByUser(userId);
-  //   if (!mainAccount) {
-  //     return [];
-  //   }
-  //
-  //   // Get spending by category: positive amounts in non-main accounts for EXPENSE type
-  //   const categorySpending = await this.db
-  //     .select({
-  //       categoryId: transactionCategory.id,
-  //       categoryName: transactionCategory.name,
-  //       amount: sum(transactionEntry.amount),
-  //       transactionCount: count(transactionEntry.id),
-  //     })
-  //     .from(transactionEntry)
-  //     .innerJoin(
-  //       transactionAccount,
-  //       eq(transactionEntry.transactionAccountId, transactionAccount.id)
-  //     )
-  //     .innerJoin(
-  //       transactionCategory,
-  //       eq(transactionEntry.categoryId, transactionCategory.id)
-  //     )
-  //     .where(
-  //       and(
-  //         eq(transactionAccount.userId, userId),
-  //         eq(transactionEntry.transactionAccountId, mainAccount.id), // Only main account entries
-  //         eq(transactionEntry.type, TXN_TYPE.EXPENSE),
-  //         lte(transactionEntry.amount, 0), // Only negative amounts (money going out of main account)
-  //         gte(transactionEntry.createdAt, startOfMonth),
-  //         lte(transactionEntry.createdAt, endOfMonth)
-  //       )
-  //     )
-  //     .groupBy(transactionCategory.id, transactionCategory.name)
-  //     .orderBy(desc(sum(transactionEntry.amount)));
-  //
-  //   const totalSpending = categorySpending.reduce(
-  //     (sum, cat) => sum + Math.abs(Number(cat.amount)),
-  //     0
-  //   );
-  //
-  //   return categorySpending.map((cat) => ({
-  //     categoryId: cat.categoryId.toString(),
-  //     categoryName: cat.categoryName,
-  //     amount: Math.abs(Number(cat.amount)), // Convert negative to positive
-  //     percentage:
-  //       totalSpending > 0
-  //         ? (Math.abs(Number(cat.amount)) / totalSpending) * 100
-  //         : 0,
-  //     transactionCount: cat.transactionCount,
-  //     trend: "stable" as const, // TODO: Implement trend calculation
-  //   }));
-  // }
-  //
-  // async getUpcomingBills(userId: number, days: number = 30) {
-  //   const now = new Date();
-  //   const futureDate = new Date();
-  //   futureDate.setDate(now.getDate() + days);
-  //
-  //   const upcomingRecurring = await this.db
-  //     .select({
-  //       id: recurring.id,
-  //       description: recurring.description,
-  //       amount: recurring.amount,
-  //       nextDate: recurring.nextDate,
-  //       category: transactionAccount.category,
-  //     })
-  //     .from(recurring)
-  //     .innerJoin(
-  //       transactionAccount,
-  //       eq(recurring.sourcetransactionAccountID, transactionAccount.id)
-  //     )
-  //     .where(
-  //       and(
-  //         eq(recurring.userId, userId),
-  //         eq(recurring.type, RECURRENCE_TYPE.DEBIT),
-  //         gte(recurring.nextDate, now),
-  //         lte(recurring.nextDate, futureDate)
-  //       )
-  //     )
-  //     .orderBy(recurring.nextDate);
-  //
-  //   return upcomingRecurring.map((bill) => ({
-  //     id: bill.id.toString(),
-  //     description: bill.description,
-  //     amount: bill.amount,
-  //     dueDate: bill.nextDate.toISOString(),
-  //     daysUntilDue: Math.ceil(
-  //       (bill.nextDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)
-  //     ),
-  //     category: bill.category,
-  //     priority: "medium" as const, // TODO: Implement priority logic
-  //   }));
-  // }
-  //
-  // async getNetWorthTrend(userId: number, months: number = 12) {
-  //   const results = [];
-  //   const now = new Date();
-  //
-  //   for (let i = months - 1; i >= 0; i--) {
-  //     const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
-  //
-  //     // Get assets and liabilities up to this date
-  //     const accountBalances = await this.db
-  //       .select({
-  //         balance: transactionAccount.balance,
-  //       })
-  //       .from(transactionAccount)
-  //       .where(eq(transactionAccount.userId, userId));
-  //
-  //     let assets = 0;
-  //     let liabilities = 0;
-  //
-  //     accountBalances.forEach((account) => {
-  //       if (account.category === "INCOME" || account.category === "SAVING") {
-  //         assets += account.balance;
-  //       } else {
-  //         liabilities += account.balance;
-  //       }
-  //     });
-  //
-  //     const netWorth = assets - liabilities;
-  //
-  //     results.push({
-  //       date: date.toISOString().split("T")[0]!,
-  //       netWorth,
-  //       assets,
-  //       liabilities,
-  //       change: 0, // TODO: Calculate change from previous period
-  //       changePercentage: 0, // TODO: Calculate percentage change
-  //     });
-  //   }
-  //
-  //   // Calculate changes
-  //   for (let i = 1; i < results.length; i++) {
-  //     const current = results[i]!;
-  //     const previous = results[i - 1]!;
-  //     current.change = current.netWorth - previous.netWorth;
-  //     current.changePercentage =
-  //       previous.netWorth !== 0
-  //         ? (current.change / previous.netWorth) * 100
-  //         : 0;
-  //   }
-  //
-  //   return results;
-  // }
-  //
-  // async getSpendingAnalytics(userId: number, month: Date) {
-  //   const spendingByCategory = await this.getSpendingByCategory(userId, month);
-  //   const totalSpending = spendingByCategory.reduce(
-  //     (sum, cat) => sum + cat.amount,
-  //     0
-  //   );
-  //
-  //   const analytics = {
-  //     numberOfCategories: spendingByCategory.length,
-  //     averageSpendingPerCategory:
-  //       spendingByCategory.length > 0
-  //         ? totalSpending / spendingByCategory.length
-  //         : 0,
-  //     minSpending:
-  //       spendingByCategory.length > 0
-  //         ? Math.min(...spendingByCategory.map((cat) => cat.amount))
-  //         : 0,
-  //     maxSpending:
-  //       spendingByCategory.length > 0
-  //         ? Math.max(...spendingByCategory.map((cat) => cat.amount))
-  //         : 0,
-  //     totalTransactions: spendingByCategory.reduce(
-  //       (sum, cat) => sum + cat.transactionCount,
-  //       0
-  //     ),
-  //     sumOfPercentages: spendingByCategory.reduce(
-  //       (sum, cat) => sum + cat.percentage,
-  //       0
-  //     ),
-  //     standardDeviation: this.calculateStandardDeviation(
-  //       spendingByCategory.map((cat) => cat.amount)
-  //     ),
-  //   };
-  //
-  //   return {
-  //     totalSpending,
-  //     categories: spendingByCategory,
-  //     analytics,
-  //   };
-  // }
-  //
-  // private async getBudgetUtilization(
-  //   userId: number,
-  //   month: Date
-  // ): Promise<number> {
-  //   const startOfMonth = new Date(month.getFullYear(), month.getMonth(), 1);
-  //   const endOfMonth = new Date(
-  //     month.getFullYear(),
-  //     month.getMonth() + 1,
-  //     0,
-  //     23,
-  //     59,
-  //     59
-  //   );
-  //
-  //   const budgets = await this.db
-  //     .select({
-  //       budgetId: budget.id,
-  //       categoryId: budget.categoryId,
-  //       budgetAmount: budget.amount,
-  //       spent: sum(transactionEntry.amount),
-  //     })
-  //     .from(budget)
-  //     .leftJoin(
-  //       transactionEntry,
-  //       and(
-  //         eq(transactionEntry.categoryId, budget.categoryId),
-  //         eq(transactionEntry.type, TXN_TYPE.EXPENSE),
-  //         gte(transactionEntry.amount, 0), // Only positive amounts in category accounts
-  //         gte(transactionEntry.createdAt, startOfMonth),
-  //         lte(transactionEntry.createdAt, endOfMonth)
-  //       )
-  //     )
-  //     .where(
-  //       and(eq(budget.userId, userId), eq(budget.period, TIME_PERIOD.MONTHLY))
-  //     )
-  //     .groupBy(budget.id, budget.categoryId, budget.amount);
-  //
-  //   if (budgets.length === 0) return 0;
-  //
-  //   const totalBudget = budgets.reduce((sum, b) => sum + b.budgetAmount, 0);
-  //   const totalSpent = budgets.reduce(
-  //     (sum, b) => sum + (Number(b.spent) || 0),
-  //     0
-  //   );
-  //
-  //   return totalBudget > 0 ? (totalSpent / totalBudget) * 100 : 0;
-  // }
-  //
-  // private async getTopExpenseCategory(userId: number, month: Date) {
-  //   const startOfMonth = new Date(month.getFullYear(), month.getMonth(), 1);
-  //   const endOfMonth = new Date(
-  //     month.getFullYear(),
-  //     month.getMonth() + 1,
-  //     0,
-  //     23,
-  //     59,
-  //     59
-  //   );
-  //
-  //   // Get main account
-  //   const mainAccount =
-  //     await this.transactionAccountRepository.findMainAccountByUser(userId);
-  //   if (!mainAccount) {
-  //     return {
-  //       name: "No expenses",
-  //       amount: 0,
-  //       percentage: 0,
-  //     };
-  //   }
-  //
-  //   const topCategory = await this.db
-  //     .select({
-  //       categoryName: transactionCategory.name,
-  //       amount: sum(transactionEntry.amount),
-  //     })
-  //     .from(transactionEntry)
-  //     .innerJoin(
-  //       transactionAccount,
-  //       eq(transactionEntry.transactionAccountId, transactionAccount.id)
-  //     )
-  //     .innerJoin(
-  //       transactionCategory,
-  //       eq(transactionEntry.categoryId, transactionCategory.id)
-  //     )
-  //     .where(
-  //       and(
-  //         eq(transactionEntry.transactionAccountId, mainAccount.id),
-  //         eq(transactionEntry.type, TXN_TYPE.EXPENSE),
-  //         lte(transactionEntry.amount, 0), // Only negative amounts in main account
-  //         gte(transactionEntry.createdAt, startOfMonth),
-  //         lte(transactionEntry.createdAt, endOfMonth)
-  //       )
-  //     )
-  //     .groupBy(transactionCategory.id, transactionCategory.name)
-  //     .orderBy(desc(sum(transactionEntry.amount)))
-  //     .limit(1);
-  //
-  //   const totalExpenses = await this.db
-  //     .select({
-  //       total: sum(transactionEntry.amount),
-  //     })
-  //     .from(transactionEntry)
-  //     .where(
-  //       and(
-  //         eq(transactionEntry.transactionAccountId, mainAccount.id),
-  //         eq(transactionEntry.type, TXN_TYPE.EXPENSE),
-  //         lte(transactionEntry.amount, 0), // Only negative amounts in main account
-  //         gte(transactionEntry.createdAt, startOfMonth),
-  //         lte(transactionEntry.createdAt, endOfMonth)
-  //       )
-  //     );
-  //
-  //   const total = Math.abs(
-  //     Number((totalExpenses[0] && totalExpenses[0].total) || 0)
-  //   );
-  //   const topCat = topCategory[0];
-  //   if (!topCat) {
-  //     return {
-  //       name: "No expenses",
-  //       amount: 0,
-  //       percentage: 0,
-  //     };
-  //   }
-  //
-  //   const amount = Math.abs(Number(topCat.amount));
-  //
-  //   return {
-  //     name: topCat.categoryName,
-  //     amount,
-  //     percentage: total > 0 ? (amount / total) * 100 : 0,
-  //   };
-  // }
-  //
-  // private calculateStandardDeviation(values: number[]): number {
-  //   if (values.length === 0) return 0;
-  //
-  //   const mean = values.reduce((sum, val) => sum + val, 0) / values.length;
-  //   const squaredDifferences = values.map((val) => Math.pow(val - mean, 2));
-  //   const variance =
-  //     squaredDifferences.reduce((sum, val) => sum + val, 0) / values.length;
-  //
-  //   return Math.sqrt(variance);
-  // }
+
+  async getMonthlyExpenses(
+    userId: number,
+    startDate: Date,
+    endDate: Date
+  ): Promise<number> {
+    const result = await this.db
+      .select({ total: sql<number>`SUM(${transactionEntry.amount})` })
+      .from(transactionEntry)
+      .innerJoin(
+        transaction,
+        eq(transactionEntry.transactionId, transaction.id)
+      )
+      .innerJoin(
+        transactionAccount,
+        eq(transactionEntry.transactionAccountId, transactionAccount.id)
+      )
+      .where(
+        and(
+          eq(transaction.userId, userId),
+          eq(transactionAccount.type, ACCOUNT_TYPE.EXPENSE),
+          gte(transaction.transactionDate, startDate),
+          lte(transaction.transactionDate, endDate),
+          sql`${transactionEntry.amount} > 0` // Only positive amounts (money received by expense accounts)
+        )
+      );
+
+    return result[0]?.total || 0;
+  }
+
+  async getMonthlyIncome(
+    userId: number,
+    startDate: Date,
+    endDate: Date
+  ): Promise<number> {
+    const result = await this.db
+      .select({ total: sql<number>`SUM(${transactionEntry.amount})` })
+      .from(transactionEntry)
+      .innerJoin(
+        transaction,
+        eq(transactionEntry.transactionId, transaction.id)
+      )
+      .innerJoin(
+        transactionAccount,
+        eq(transactionEntry.transactionAccountId, transactionAccount.id)
+      )
+      .where(
+        and(
+          eq(transaction.userId, userId),
+          eq(transactionAccount.type, ACCOUNT_TYPE.INCOME),
+          gte(transaction.transactionDate, startDate),
+          lte(transaction.transactionDate, endDate),
+          sql`${transactionEntry.amount} > 0` // Only positive amounts (money received by income accounts)
+        )
+      );
+
+    return result[0]?.total || 0;
+  }
+
+  async getBudgetUtilization(
+    userId: number,
+    startDate: Date,
+    endDate: Date
+  ): Promise<number> {
+    // Get budgets linked to EXPENSE type accounts
+    const budgetData = await this.db
+      .select({
+        budgetAmount: budget.amount,
+        accountId: budget.transactionAccountId,
+      })
+      .from(budget)
+      .innerJoin(
+        transactionAccount,
+        eq(budget.transactionAccountId, transactionAccount.id)
+      )
+      .where(
+        and(
+          eq(budget.userId, userId),
+          eq(transactionAccount.type, ACCOUNT_TYPE.EXPENSE)
+        )
+      );
+
+    const totalBudget = budgetData.reduce((sum, b) => sum + b.budgetAmount, 0);
+
+    // Calculate total expenses for the same accounts that have budgets
+    if (budgetData.length === 0) {
+      return 0; // No budgets set
+    }
+
+    const accountIds = budgetData.map((b) => b.accountId);
+    const expenseResult = await this.db
+      .select({ total: sql<number>`SUM(${transactionEntry.amount})` })
+      .from(transactionEntry)
+      .innerJoin(
+        transaction,
+        eq(transactionEntry.transactionId, transaction.id)
+      )
+      .where(
+        and(
+          eq(transaction.userId, userId),
+          inArray(transactionEntry.transactionAccountId, accountIds),
+          gte(transaction.transactionDate, startDate),
+          lte(transaction.transactionDate, endDate),
+          sql`${transactionEntry.amount} > 0`
+        )
+      );
+
+    const totalExpenses = expenseResult[0]?.total || 0;
+
+    return totalBudget > 0 ? (totalExpenses / totalBudget) * 100 : 0;
+  }
+
+  async getTopExpenseCategory(
+    userId: number,
+    startDate: Date,
+    endDate: Date
+  ): Promise<{ name: string; amount: number; percentage: number } | null> {
+    // Get total expenses for percentage calculation
+    const totalExpenses = await this.getMonthlyExpenses(
+      userId,
+      startDate,
+      endDate
+    );
+
+    if (totalExpenses === 0) {
+      return null; // No expenses to analyze
+    }
+
+    // Get spending by category (grouped by transaction account name)
+    const categorySpending = await this.db
+      .select({
+        categoryName: transactionAccount.name,
+        totalAmount: sql<number>`SUM(${transactionEntry.amount})`,
+      })
+      .from(transactionEntry)
+      .innerJoin(
+        transaction,
+        eq(transactionEntry.transactionId, transaction.id)
+      )
+      .innerJoin(
+        transactionAccount,
+        eq(transactionEntry.transactionAccountId, transactionAccount.id)
+      )
+      .where(
+        and(
+          eq(transaction.userId, userId),
+          eq(transactionAccount.type, ACCOUNT_TYPE.EXPENSE),
+          gte(transaction.transactionDate, startDate),
+          lte(transaction.transactionDate, endDate),
+          sql`${transactionEntry.amount} > 0`
+        )
+      )
+      .groupBy(transactionAccount.name)
+      .orderBy(sql`SUM(${transactionEntry.amount}) DESC`)
+      .limit(1);
+
+    if (categorySpending.length === 0) {
+      return null;
+    }
+
+    const topCategory = categorySpending[0];
+    if (!topCategory) {
+      return null;
+    }
+
+    const percentage = (topCategory.totalAmount / totalExpenses) * 100;
+
+    return {
+      name: topCategory.categoryName,
+      amount: topCategory.totalAmount,
+      percentage: Math.round(percentage * 10) / 10, // Round to 1 decimal place
+    };
+  }
+
+  async getSpendingAnalytics(
+    userId: number,
+    startDate: Date,
+    endDate: Date
+  ): Promise<{
+    totalSpending: number;
+    categories: Array<{
+      categoryId: number;
+      categoryName: string;
+      amount: number;
+      percentage: number;
+      transactionCount: number;
+      trend: "up" | "down" | "stable";
+    }>;
+    analytics: {
+      numberOfCategories: number;
+      averageSpendingPerCategory: number;
+      minSpending: number;
+      maxSpending: number;
+      totalTransactions: number;
+      sumOfPercentages: number;
+      standardDeviation: number;
+    };
+  } | null> {
+    // Get total spending
+    const totalSpending = await this.getMonthlyExpenses(
+      userId,
+      startDate,
+      endDate
+    );
+
+    if (totalSpending === 0) {
+      return null; // No spending data
+    }
+
+    // Get spending by category with transaction counts
+    const categoryData = await this.db
+      .select({
+        categoryId: transactionAccount.id,
+        categoryName: transactionAccount.name,
+        totalAmount: sql<number>`SUM(${transactionEntry.amount})`,
+        transactionCount: sql<number>`COUNT(${transactionEntry.id})`,
+      })
+      .from(transactionEntry)
+      .innerJoin(
+        transaction,
+        eq(transactionEntry.transactionId, transaction.id)
+      )
+      .innerJoin(
+        transactionAccount,
+        eq(transactionEntry.transactionAccountId, transactionAccount.id)
+      )
+      .where(
+        and(
+          eq(transaction.userId, userId),
+          eq(transactionAccount.type, ACCOUNT_TYPE.EXPENSE),
+          gte(transaction.transactionDate, startDate),
+          lte(transaction.transactionDate, endDate),
+          sql`${transactionEntry.amount} > 0`
+        )
+      )
+      .groupBy(transactionAccount.id, transactionAccount.name)
+      .orderBy(sql`SUM(${transactionEntry.amount}) DESC`);
+
+    if (categoryData.length === 0) {
+      return null;
+    }
+
+    // Calculate previous month dates for trend comparison
+    const prevMonthStart = new Date(startDate);
+    prevMonthStart.setMonth(prevMonthStart.getMonth() - 1);
+    const prevMonthEnd = new Date(endDate);
+    prevMonthEnd.setMonth(prevMonthEnd.getMonth() - 1);
+
+    // Get previous month spending by category
+    const prevMonthData = await this.db
+      .select({
+        categoryId: transactionAccount.id,
+        totalAmount: sql<number>`SUM(${transactionEntry.amount})`,
+      })
+      .from(transactionEntry)
+      .innerJoin(
+        transaction,
+        eq(transactionEntry.transactionId, transaction.id)
+      )
+      .innerJoin(
+        transactionAccount,
+        eq(transactionEntry.transactionAccountId, transactionAccount.id)
+      )
+      .where(
+        and(
+          eq(transaction.userId, userId),
+          eq(transactionAccount.type, ACCOUNT_TYPE.EXPENSE),
+          gte(transaction.transactionDate, prevMonthStart),
+          lte(transaction.transactionDate, prevMonthEnd),
+          sql`${transactionEntry.amount} > 0`
+        )
+      )
+      .groupBy(transactionAccount.id);
+
+    // Create a map for quick lookup of previous month data
+    const prevMonthMap = new Map<number, number>();
+    prevMonthData.forEach((item) => {
+      prevMonthMap.set(item.categoryId, item.totalAmount);
+    });
+
+    // Build categories array with trends
+    const categories = categoryData.map((category) => {
+      const percentage = (category.totalAmount / totalSpending) * 100;
+      const prevAmount = prevMonthMap.get(category.categoryId) || 0;
+
+      let trend: "up" | "down" | "stable";
+      if (prevAmount === 0) {
+        trend = "stable"; // No previous data
+      } else if (category.totalAmount > prevAmount) {
+        trend = "up";
+      } else if (category.totalAmount < prevAmount) {
+        trend = "down";
+      } else {
+        trend = "stable";
+      }
+
+      return {
+        categoryId: category.categoryId,
+        categoryName: category.categoryName,
+        amount: category.totalAmount,
+        percentage: Math.round(percentage * 10) / 10,
+        transactionCount: category.transactionCount,
+        trend,
+      };
+    });
+
+    // Calculate analytics
+    const amounts = categories.map((c) => c.amount);
+    const numberOfCategories = categories.length;
+    const totalTransactions = categories.reduce(
+      (sum, c) => sum + c.transactionCount,
+      0
+    );
+    const sumOfPercentages = categories.reduce(
+      (sum, c) => sum + c.percentage,
+      0
+    );
+    const averageSpendingPerCategory = totalSpending / numberOfCategories;
+    const minSpending = Math.min(...amounts);
+    const maxSpending = Math.max(...amounts);
+
+    // Calculate standard deviation
+    const mean = averageSpendingPerCategory;
+    const squaredDiffs = amounts.map((amount) => Math.pow(amount - mean, 2));
+    const variance =
+      squaredDiffs.reduce((sum, diff) => sum + diff, 0) / amounts.length;
+    const standardDeviation = Math.sqrt(variance);
+
+    return {
+      totalSpending,
+      categories,
+      analytics: {
+        numberOfCategories,
+        averageSpendingPerCategory:
+          Math.round(averageSpendingPerCategory * 100) / 100,
+        minSpending,
+        maxSpending,
+        totalTransactions,
+        sumOfPercentages: Math.round(sumOfPercentages * 10) / 10,
+        standardDeviation: Math.round(standardDeviation * 100) / 100,
+      },
+    };
+  }
+
+  async getSpendingByCategory(
+    userId: number,
+    startDate: Date,
+    endDate: Date
+  ): Promise<
+    Array<{
+      categoryId: number;
+      categoryName: string;
+      amount: number;
+      percentage: number;
+      transactionCount: number;
+      trend: "up" | "down" | "stable";
+    }>
+  > {
+    // Get total spending for percentage calculation
+    const totalSpending = await this.getMonthlyExpenses(
+      userId,
+      startDate,
+      endDate
+    );
+
+    if (totalSpending === 0) {
+      return [];
+    }
+
+    // Get spending by category with transaction counts
+    const categoryData = await this.db
+      .select({
+        categoryId: transactionAccount.id,
+        categoryName: transactionAccount.name,
+        totalAmount: sql<number>`SUM(${transactionEntry.amount})`,
+        transactionCount: sql<number>`COUNT(${transactionEntry.id})`,
+      })
+      .from(transactionEntry)
+      .innerJoin(
+        transaction,
+        eq(transactionEntry.transactionId, transaction.id)
+      )
+      .innerJoin(
+        transactionAccount,
+        eq(transactionEntry.transactionAccountId, transactionAccount.id)
+      )
+      .where(
+        and(
+          eq(transaction.userId, userId),
+          eq(transactionAccount.type, ACCOUNT_TYPE.EXPENSE),
+          gte(transaction.transactionDate, startDate),
+          lte(transaction.transactionDate, endDate),
+          sql`${transactionEntry.amount} > 0`
+        )
+      )
+      .groupBy(transactionAccount.id, transactionAccount.name)
+      .orderBy(sql`SUM(${transactionEntry.amount}) DESC`);
+
+    if (categoryData.length === 0) {
+      return [];
+    }
+
+    // Calculate previous month dates for trend comparison
+    const prevMonthStart = new Date(startDate);
+    prevMonthStart.setMonth(prevMonthStart.getMonth() - 1);
+    const prevMonthEnd = new Date(endDate);
+    prevMonthEnd.setMonth(prevMonthEnd.getMonth() - 1);
+
+    // Get previous month spending by category
+    const prevMonthData = await this.db
+      .select({
+        categoryId: transactionAccount.id,
+        totalAmount: sql<number>`SUM(${transactionEntry.amount})`,
+      })
+      .from(transactionEntry)
+      .innerJoin(
+        transaction,
+        eq(transactionEntry.transactionId, transaction.id)
+      )
+      .innerJoin(
+        transactionAccount,
+        eq(transactionEntry.transactionAccountId, transactionAccount.id)
+      )
+      .where(
+        and(
+          eq(transaction.userId, userId),
+          eq(transactionAccount.type, ACCOUNT_TYPE.EXPENSE),
+          gte(transaction.transactionDate, prevMonthStart),
+          lte(transaction.transactionDate, prevMonthEnd),
+          sql`${transactionEntry.amount} > 0`
+        )
+      )
+      .groupBy(transactionAccount.id);
+
+    // Create a map for quick lookup of previous month data
+    const prevMonthMap = new Map<number, number>();
+    prevMonthData.forEach((item) => {
+      prevMonthMap.set(item.categoryId, item.totalAmount);
+    });
+
+    // Build categories array with trends
+    const categories = categoryData.map((category) => {
+      const percentage = (category.totalAmount / totalSpending) * 100;
+      const prevAmount = prevMonthMap.get(category.categoryId) || 0;
+
+      let trend: "up" | "down" | "stable";
+      if (prevAmount === 0) {
+        trend = "stable"; // No previous data
+      } else if (category.totalAmount > prevAmount) {
+        trend = "up";
+      } else if (category.totalAmount < prevAmount) {
+        trend = "down";
+      } else {
+        trend = "stable";
+      }
+
+      return {
+        categoryId: category.categoryId,
+        categoryName: category.categoryName,
+        amount: category.totalAmount,
+        percentage: Math.round(percentage * 10) / 10,
+        transactionCount: category.transactionCount,
+        trend,
+      };
+    });
+
+    return categories;
+  }
+
+  async getUpcomingBills(
+    userId: number,
+    daysAhead: number = 30
+  ): Promise<
+    Array<{
+      id: number;
+      description: string;
+      amount: number;
+      dueDate: string;
+      daysUntilDue: number;
+      category: string;
+      priority: "high" | "medium" | "low";
+    }>
+  > {
+    const now = new Date();
+    const futureDate = new Date();
+    futureDate.setDate(now.getDate() + daysAhead);
+
+    // Get recurring items due within the specified days
+    const upcomingRecurring = await this.db
+      .select({
+        id: recurring.id,
+        description: recurring.description,
+        amount: recurring.amount,
+        nextDate: recurring.nextDate,
+        targetAccountName: transactionAccount.name,
+      })
+      .from(recurring)
+      .innerJoin(
+        transactionAccount,
+        eq(recurring.targetTransactionAccountID, transactionAccount.id)
+      )
+      .where(
+        and(
+          eq(recurring.userId, userId),
+          gte(recurring.nextDate, now),
+          lte(recurring.nextDate, futureDate)
+        )
+      )
+      .orderBy(recurring.nextDate);
+
+    // Process the results
+    const upcomingBills = upcomingRecurring.map((item) => {
+      const dueDate = new Date(item.nextDate);
+      const daysUntilDue = Math.ceil(
+        (dueDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)
+      );
+
+      // Determine priority based on days until due and amount
+      let priority: "high" | "medium" | "low";
+      if (daysUntilDue <= 3 || item.amount > 500) {
+        priority = "high";
+      } else if (daysUntilDue <= 7 || item.amount > 100) {
+        priority = "medium";
+      } else {
+        priority = "low";
+      }
+
+      return {
+        id: item.id,
+        description: item.description,
+        amount: item.amount,
+        dueDate: dueDate.toISOString(),
+        daysUntilDue,
+        category: item.targetAccountName,
+        priority,
+      };
+    });
+
+    return upcomingBills;
+  }
+
+  async getNetWorthTrend(
+    userId: number,
+    months: number = 12
+  ): Promise<
+    Array<{
+      date: string;
+      netWorth: number;
+      assets: number;
+      liabilities: number;
+      change: number;
+      changePercentage: number;
+    }>
+  > {
+    const startDate = new Date();
+    startDate.setMonth(startDate.getMonth() - months + 1); // Include current month
+
+    const trendData: Array<{
+      date: string;
+      netWorth: number;
+      assets: number;
+      liabilities: number;
+      change: number;
+      changePercentage: number;
+    }> = [];
+
+    // Calculate net worth for each month
+    for (let i = 0; i < months; i++) {
+      const monthStart = new Date(startDate);
+      monthStart.setMonth(startDate.getMonth() + i);
+      monthStart.setDate(1); // First day of month
+
+      const monthEnd = new Date(monthStart);
+      monthEnd.setMonth(monthStart.getMonth() + 1);
+      monthEnd.setDate(0); // Last day of month
+
+      // Calculate assets: INCOME + LOAN_GIVEN + SAVING accounts
+      const assetsResult = await this.db
+        .select({ total: sql<number>`SUM(${transactionEntry.amount})` })
+        .from(transactionEntry)
+        .innerJoin(
+          transaction,
+          eq(transactionEntry.transactionId, transaction.id)
+        )
+        .innerJoin(
+          transactionAccount,
+          eq(transactionEntry.transactionAccountId, transactionAccount.id)
+        )
+        .where(
+          and(
+            eq(transaction.userId, userId),
+            sql`${transactionAccount.type} IN ('INCOME', 'LOAN_GIVEN', 'SAVING')`,
+            gte(transaction.transactionDate, monthStart),
+            lte(transaction.transactionDate, monthEnd),
+            sql`${transactionEntry.amount} > 0`
+          )
+        );
+
+      // Calculate liabilities: LOAN_TAKEN accounts
+      const liabilitiesResult = await this.db
+        .select({ total: sql<number>`SUM(${transactionEntry.amount})` })
+        .from(transactionEntry)
+        .innerJoin(
+          transaction,
+          eq(transactionEntry.transactionId, transaction.id)
+        )
+        .innerJoin(
+          transactionAccount,
+          eq(transactionEntry.transactionAccountId, transactionAccount.id)
+        )
+        .where(
+          and(
+            eq(transaction.userId, userId),
+            eq(transactionAccount.type, ACCOUNT_TYPE.LOAN_TAKEN),
+            gte(transaction.transactionDate, monthStart),
+            lte(transaction.transactionDate, monthEnd),
+            sql`${transactionEntry.amount} > 0`
+          )
+        );
+
+      const assets = assetsResult[0]?.total || 0;
+      const liabilities = liabilitiesResult[0]?.total || 0;
+      const netWorth = assets - liabilities;
+
+      // Calculate change from previous month
+      const previousMonthData = trendData[trendData.length - 1];
+      const change = previousMonthData
+        ? netWorth - previousMonthData.netWorth
+        : 0;
+      const changePercentage =
+        previousMonthData && previousMonthData.netWorth !== 0
+          ? (change / previousMonthData.netWorth) * 100
+          : 0;
+
+      trendData.push({
+        date: monthEnd.toISOString().split("T")[0] || monthEnd.toISOString(), // YYYY-MM-DD format
+        netWorth,
+        assets,
+        liabilities,
+        change,
+        changePercentage: Math.round(changePercentage * 100) / 100, // Round to 2 decimal places
+      });
+    }
+
+    return trendData;
+  }
 }
