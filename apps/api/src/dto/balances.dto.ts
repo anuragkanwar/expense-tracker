@@ -26,8 +26,8 @@ export const BalanceSummaryResponseSchema = z
 // Friend balance response schema
 export const FriendBalanceResponseSchema = z
   .object({
-    friendId: z.string().openapi({
-      example: "user_456",
+    friendId: z.number().openapi({
+      example: 456,
       description: "Friend's user ID",
     }),
     friendName: z.string().openapi({
@@ -53,8 +53,8 @@ export const FriendBalanceResponseSchema = z
 // Group balance response schema
 export const GroupBalanceResponseSchema = z
   .object({
-    groupId: z.string().openapi({
-      example: "grp_123",
+    groupId: z.number().openapi({
+      example: 123,
       description: "Group ID",
     }),
     groupName: z.string().openapi({
@@ -81,16 +81,16 @@ export const GroupBalanceResponseSchema = z
 export const SettlementPlanResponseSchema = z
   .array(
     z.object({
-      fromUserId: z.string().openapi({
-        example: "user_123",
+      fromUserId: z.number().openapi({
+        example: 123,
         description: "User who should pay",
       }),
       fromUserName: z.string().openapi({
         example: "John Doe",
         description: "Name of user who should pay",
       }),
-      toUserId: z.string().openapi({
-        example: "user_456",
+      toUserId: z.number().openapi({
+        example: 456,
         description: "User who should receive payment",
       }),
       toUserName: z.string().openapi({
@@ -108,13 +108,3 @@ export const SettlementPlanResponseSchema = z
     })
   )
   .openapi("SettlementPlanResponse");
-
-// Inferred types
-export type BalanceSummaryResponse = z.infer<
-  typeof BalanceSummaryResponseSchema
->;
-export type FriendBalanceResponse = z.infer<typeof FriendBalanceResponseSchema>;
-export type GroupBalanceResponse = z.infer<typeof GroupBalanceResponseSchema>;
-export type SettlementPlanResponse = z.infer<
-  typeof SettlementPlanResponseSchema
->;

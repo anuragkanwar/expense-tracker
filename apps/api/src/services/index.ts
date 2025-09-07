@@ -1,5 +1,4 @@
 export * from "./auth-service";
-export * from "./student-service";
 export * from "./transaction-account-service";
 export * from "./balance-service";
 export * from "./budget-service";

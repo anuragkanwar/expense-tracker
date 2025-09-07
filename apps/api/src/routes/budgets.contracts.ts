@@ -61,8 +61,8 @@ export const getBudgetRoute = createRoute({
   tags: ["Budgets"],
   request: {
     params: z.object({
-      budgetId: z.string().openapi({
-        example: "bud_123",
+      budgetId: z.number().openapi({
+        example: 123,
         description: "Budget ID",
       }),
     }),
@@ -89,8 +89,8 @@ export const updateBudgetRoute = createRoute({
   tags: ["Budgets"],
   request: {
     params: z.object({
-      budgetId: z.string().openapi({
-        example: "bud_123",
+      budgetId: z.number().openapi({
+        example: 123,
         description: "Budget ID",
       }),
     }),
@@ -125,8 +125,8 @@ export const deleteBudgetRoute = createRoute({
   tags: ["Budgets"],
   request: {
     params: z.object({
-      budgetId: z.string().openapi({
-        example: "bud_123",
+      budgetId: z.number().openapi({
+        example: 123,
         description: "Budget ID",
       }),
     }),

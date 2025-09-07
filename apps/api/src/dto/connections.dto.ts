@@ -126,7 +126,7 @@ export const MonthlyDataResponseSchema = z
     categories: z
       .array(
         z.object({
-          categoryId: z.string().openapi({ example: "cat_123" }),
+          categoryId: z.number().openapi({ example: 123 }),
           categoryName: z.string().openapi({ example: "Food & Dining" }),
           amount: z.number().openapi({ example: 450.0 }),
           percentage: z.number().openapi({ example: 14.1 }),
@@ -137,7 +137,7 @@ export const MonthlyDataResponseSchema = z
     accounts: z
       .array(
         z.object({
-          accountId: z.string().openapi({ example: "acc_123" }),
+          accountId: z.number().openapi({ example: 123 }),
           accountName: z.string().openapi({ example: "Chase Checking" }),
           balance: z.number().openapi({ example: 2500.0 }),
           transactions: z.number().openapi({ example: 15 }),

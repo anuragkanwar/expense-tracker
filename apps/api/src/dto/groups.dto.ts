@@ -4,8 +4,8 @@ import { z } from "@hono/zod-openapi";
 export const GroupBalancesResponseSchema = z
   .array(
     z.object({
-      userId: z.number().openapi({
-        example: 123,
+      userId: z.string().openapi({
+        example: "uuid-string",
         description: "User ID",
       }),
       name: z.string().openapi({
@@ -29,16 +29,16 @@ export const GroupBalancesResponseSchema = z
 export const SettlementPlanResponseSchema = z
   .array(
     z.object({
-      fromUserId: z.number().openapi({
-        example: 123,
+      fromUserId: z.string().openapi({
+        example: "uuid-string",
         description: "User who should pay",
       }),
       fromUserName: z.string().openapi({
         example: "John Doe",
         description: "Name of user who should pay",
       }),
-      toUserId: z.number().openapi({
-        example: 456,
+      toUserId: z.string().openapi({
+        example: "uuid-string",
         description: "User who should receive payment",
       }),
       toUserName: z.string().openapi({

@@ -12,12 +12,12 @@ export const GroupMemberResponseSchema = createSelectSchema(groupMember)
       example: 123,
       description: "Unique member identifier",
     }),
-    groupId: z.number().openapi({
-      example: 123,
+    groupId: z.string().openapi({
+      example: "uuid-string",
       description: "Group ID",
     }),
-    userId: z.number().openapi({
-      example: 123,
+    userId: z.string().openapi({
+      example: "uuid-string",
       description: "User ID",
     }),
     createdAt: z.string().openapi({
@@ -32,12 +32,12 @@ export const GroupMemberResponseSchema = createSelectSchema(groupMember)
   .openapi("GroupMemberResponse");
 
 export const GroupMemberCreateSchema = createInsertSchema(groupMember, {
-  groupId: z.number().openapi({
-    example: 123,
+  groupId: z.string().openapi({
+    example: "uuid-string",
     description: "Group ID",
   }),
-  userId: z.number().openapi({
-    example: 123,
+  userId: z.string().openapi({
+    example: "uuid-string",
     description: "User ID",
   }),
 })

@@ -1,7 +1,6 @@
 import { sqliteTable, text, integer, real } from "drizzle-orm/sqlite-core";
 import { user } from "./user";
 import { group } from "./group";
-import { expense } from "./expense";
 
 export const userBalance = sqliteTable("user_balance", {
   id: integer("id").primaryKey({ autoIncrement: true }),
@@ -10,7 +9,7 @@ export const userBalance = sqliteTable("user_balance", {
     .references(() => user.id, { onDelete: "cascade" }),
   counterPartyId: integer("counterparty_id")
     .notNull()
-    .references(() => expense.id, { onDelete: "cascade" }),
+    .references(() => user.id, { onDelete: "cascade" }),
   groupId: integer("group_id").references(() => group.id, {
     onDelete: "cascade",
   }),

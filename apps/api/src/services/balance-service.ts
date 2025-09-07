@@ -3,14 +3,51 @@ import type {
   UserBalanceCreate,
   UserBalanceUpdate,
 } from "@/models/user-balance";
+import type { SettlementCreate } from "@/models/settlement";
+import { z } from "zod";
+import type {
+  BalanceSummaryResponseSchema,
+  FriendBalanceResponseSchema,
+  GroupBalanceResponseSchema,
+  SettlementPlanResponseSchema,
+} from "@/dto/balances.dto";
+
+type BalanceSummaryResponse = z.infer<typeof BalanceSummaryResponseSchema>;
+type FriendBalanceResponse = z.infer<typeof FriendBalanceResponseSchema>;
+type GroupBalanceResponse = z.infer<typeof GroupBalanceResponseSchema>;
+type SettlementPlanResponse = z.infer<typeof SettlementPlanResponseSchema>;
 import { BadRequestError } from "../errors/base-error";
 import { BalanceRepository } from "@/repositories/balance-repository";
+import { SettlementRepository } from "@/repositories/settlement-repository";
+import { UserRepository } from "@/repositories/user-repository";
+import { GroupRepository } from "@/repositories/group-repository";
+import { GroupMemberRepository } from "@/repositories/group-member-repository";
 
 export class BalanceService {
   private readonly balanceRepository;
+  private readonly settlementRepository;
+  private readonly userRepository;
+  private readonly groupRepository;
+  private readonly groupMemberRepository;
 
-  constructor({ balanceRepository }: { balanceRepository: BalanceRepository }) {
+  constructor({
+    balanceRepository,
+    settlementRepository,
+    userRepository,
+    groupRepository,
+    groupMemberRepository,
+  }: {
+    balanceRepository: BalanceRepository;
+    settlementRepository: SettlementRepository;
+    userRepository: UserRepository;
+    groupRepository: GroupRepository;
+    groupMemberRepository: GroupMemberRepository;
+  }) {
     this.balanceRepository = balanceRepository;
+    this.settlementRepository = settlementRepository;
+    this.userRepository = userRepository;
+    this.groupRepository = groupRepository;
+    this.groupMemberRepository = groupMemberRepository;
   }
 
   async getAllBalances(
@@ -33,7 +70,7 @@ export class BalanceService {
     return this.balanceRepository.findById(numericId);
   }
 
-  async createBalance(data: UserBalanceCreate): Promise<UserBalanceResponse> {
+  async create(data: UserBalanceCreate): Promise<UserBalanceResponse> {
     return this.balanceRepository.create(data);
   }
 
@@ -74,5 +111,360 @@ export class BalanceService {
     }
 
     return this.balanceRepository.delete(numericId);
+  }
+
+  async getBalanceSummary(userId: number): Promise<BalanceSummaryResponse> {
+    const balances = await this.balanceRepository.getUserBalances(userId);
+
+    // Calculate totals
+    let totalOwed = 0;
+    let totalOwe = 0;
+    let primaryCurrency = "USD";
+
+    for (const balance of balances) {
+      if (balance.amount > 0) {
+        totalOwed += balance.amount;
+      } else {
+        totalOwe += Math.abs(balance.amount);
+      }
+      if (!primaryCurrency || balance.currency === "USD") {
+        primaryCurrency = balance.currency;
+      }
+    }
+
+    return {
+      totalOwed,
+      totalOwe,
+      netBalance: totalOwed - totalOwe,
+      currency: primaryCurrency,
+    };
+  }
+
+  async getFriendBalance(
+    userId: number,
+    friendId: number
+  ): Promise<FriendBalanceResponse> {
+    const balances = await this.balanceRepository.getBalancesBetweenUsers(
+      userId,
+      friendId
+    );
+
+    let userOwes = 0;
+    let friendOwes = 0;
+    let currency = "USD";
+
+    for (const balance of balances) {
+      if (balance.ownerId === userId && balance.counterPartyId === friendId) {
+        userOwes = balance.amount;
+        currency = balance.currency;
+      } else if (
+        balance.ownerId === friendId &&
+        balance.counterPartyId === userId
+      ) {
+        friendOwes = balance.amount;
+      }
+    }
+
+    const netBalance = friendOwes - userOwes; // Positive means friend owes user
+
+    // Get friend name
+    const friend = await this.userRepository.findById(friendId);
+
+    return {
+      friendId,
+      friendName: friend?.name || "Unknown",
+      balance: netBalance,
+      currency,
+      lastActivity: new Date().toISOString(), // Could be improved with actual activity tracking
+    };
+  }
+
+  async getGroupBalance(
+    userId: number,
+    groupId: number
+  ): Promise<GroupBalanceResponse> {
+    const balances = await this.balanceRepository.getGroupBalances(
+      userId,
+      groupId
+    );
+    const groupInfo = await this.groupRepository.findById(groupId);
+    const groupMembers =
+      await this.groupMemberRepository.findByGroupId(groupId);
+
+    // Calculate net balance
+    let totalBalance = 0;
+    let currency = "USD";
+
+    for (const balance of balances) {
+      totalBalance += balance.amount;
+      currency = balance.currency;
+    }
+
+    return {
+      groupId,
+      groupName: groupInfo?.name || "Unknown Group",
+      balance: totalBalance,
+      currency,
+      memberCount: groupMembers.length,
+    };
+  }
+
+  async createSettlement(data: SettlementCreate): Promise<void> {
+    // Validate users exist and are different
+    if (data.payerId === data.payeeId) {
+      throw new BadRequestError("Cannot settle with self");
+    }
+
+    const payer = await this.userRepository.findById(data.payerId);
+    const payee = await this.userRepository.findById(data.payeeId);
+
+    if (!payer || !payee) {
+      throw new BadRequestError("Invalid payer or payee");
+    }
+
+    // Update overall balances for both sides
+    // Payer's balance with payee: payer (owner) pays payee (counterparty) -amount
+    const payerBalance = await this.balanceRepository.findBalance(
+      data.payerId,
+      data.payeeId,
+      null
+    );
+    if (payerBalance) {
+      await this.balanceRepository.update(payerBalance.id, {
+        amount: payerBalance.amount - data.amount,
+      });
+    } else {
+      // If no balance, create with -amount (payer now owes less or is owed more)
+      await this.balanceRepository.create({
+        ownerId: data.payerId,
+        counterPartyId: data.payeeId,
+        amount: -data.amount,
+        currency: data.currency,
+        groupId: undefined,
+      });
+    }
+
+    // Payee's balance with payer: payee (owner) receives from payer (counterparty) +amount
+    const payeeBalance = await this.balanceRepository.findBalance(
+      data.payeeId,
+      data.payerId,
+      null
+    );
+    if (payeeBalance) {
+      await this.balanceRepository.update(payeeBalance.id, {
+        amount: payeeBalance.amount + data.amount,
+      });
+    } else {
+      await this.balanceRepository.create({
+        ownerId: data.payeeId,
+        counterPartyId: data.payerId,
+        amount: data.amount,
+        currency: data.currency,
+        groupId: undefined,
+      });
+    }
+
+    // If groupId provided, also update group-specific balances
+    if (data.groupId) {
+      const payerGroupBalance = await this.balanceRepository.findBalance(
+        data.payerId,
+        data.payeeId,
+        data.groupId
+      );
+      if (payerGroupBalance) {
+        await this.balanceRepository.update(payerGroupBalance.id, {
+          amount: payerGroupBalance.amount - data.amount,
+        });
+      } else {
+        await this.balanceRepository.create({
+          ownerId: data.payerId,
+          counterPartyId: data.payeeId,
+          amount: -data.amount,
+          currency: data.currency,
+          groupId: data.groupId,
+        });
+      }
+
+      const payeeGroupBalance = await this.balanceRepository.findBalance(
+        data.payeeId,
+        data.payerId,
+        data.groupId
+      );
+      if (payeeGroupBalance) {
+        await this.balanceRepository.update(payeeGroupBalance.id, {
+          amount: payeeGroupBalance.amount + data.amount,
+        });
+      } else {
+        await this.balanceRepository.create({
+          ownerId: data.payeeId,
+          counterPartyId: data.payerId,
+          amount: data.amount,
+          currency: data.currency,
+          groupId: data.groupId,
+        });
+      }
+    }
+
+    // Create the settlement record
+    const settlementData = {
+      ...data,
+      settledAt: data.settledAt || new Date().toISOString(),
+    };
+    await this.settlementRepository.create(settlementData);
+  }
+
+  async getGlobalSettlementPlan(
+    userId: number
+  ): Promise<SettlementPlanResponse> {
+    const debts = await this.balanceRepository.getUserDebts(userId);
+    const settlements: SettlementPlanResponse = [];
+
+    for (const debt of debts) {
+      const creditor = await this.userRepository.findById(debt.counterPartyId);
+
+      settlements.push({
+        fromUserId: userId,
+        fromUserName: "You", // Current user
+        toUserId: debt.counterPartyId,
+        toUserName: creditor?.name || "Unknown",
+        amount: Math.abs(debt.amount),
+        currency: debt.currency,
+      });
+    }
+
+    return settlements;
+  }
+
+  async getGroupSettlementPlan(
+    userId: number,
+    groupId: number
+  ): Promise<SettlementPlanResponse> {
+    const balances = await this.balanceRepository.getGroupBalancesForSettlement(
+      userId,
+      groupId
+    );
+    const settlements: SettlementPlanResponse = [];
+
+    for (const balance of balances) {
+      if (balance.amount < 0) {
+        // owner owes counterparty
+        const owner = await this.userRepository.findById(balance.ownerId);
+        const counterparty = await this.userRepository.findById(
+          balance.counterPartyId
+        );
+
+        settlements.push({
+          fromUserId: balance.ownerId,
+          fromUserName: owner?.name || "Unknown",
+          toUserId: balance.counterPartyId,
+          toUserName: counterparty?.name || "Unknown",
+          amount: Math.abs(balance.amount),
+          currency: balance.currency,
+        });
+      }
+    }
+
+    return settlements;
+  }
+
+  async recordLoan(
+    lenderId: number,
+    borrowerId: number,
+    amount: number,
+    currency: string = "INR",
+    groupId?: number
+  ): Promise<void> {
+    if (lenderId === borrowerId) {
+      throw new BadRequestError("Cannot record loan to self");
+    }
+
+    const lender = await this.userRepository.findById(lenderId);
+    const borrower = await this.userRepository.findById(borrowerId);
+
+    if (!lender || !borrower) {
+      throw new BadRequestError("Invalid lender or borrower");
+    }
+
+    // Update or create overall balances for both sides
+    // Borrower owes lender: borrower (owner) owes lender (counterparty) -amount
+    const borrowerBalance = await this.balanceRepository.findBalance(
+      borrowerId,
+      lenderId,
+      null
+    );
+    if (borrowerBalance) {
+      await this.balanceRepository.update(borrowerBalance.id, {
+        amount: borrowerBalance.amount - amount,
+      });
+    } else {
+      await this.balanceRepository.create({
+        ownerId: borrowerId,
+        counterPartyId: lenderId,
+        amount: -amount,
+        currency: currency,
+        groupId: undefined,
+      });
+    }
+
+    // Lender is owed by borrower: lender (owner) is owed by borrower (counterparty) +amount
+    const lenderBalance = await this.balanceRepository.findBalance(
+      lenderId,
+      borrowerId,
+      null
+    );
+    if (lenderBalance) {
+      await this.balanceRepository.update(lenderBalance.id, {
+        amount: lenderBalance.amount + amount,
+      });
+    } else {
+      await this.balanceRepository.create({
+        ownerId: lenderId,
+        counterPartyId: borrowerId,
+        amount: amount,
+        currency: currency,
+        groupId: undefined,
+      });
+    }
+
+    // If groupId provided, also update or create group-specific balances
+    if (groupId) {
+      const borrowerGroupBalance = await this.balanceRepository.findBalance(
+        borrowerId,
+        lenderId,
+        groupId
+      );
+      if (borrowerGroupBalance) {
+        await this.balanceRepository.update(borrowerGroupBalance.id, {
+          amount: borrowerGroupBalance.amount - amount,
+        });
+      } else {
+        await this.balanceRepository.create({
+          ownerId: borrowerId,
+          counterPartyId: lenderId,
+          amount: -amount,
+          currency: currency,
+          groupId: groupId,
+        });
+      }
+
+      const lenderGroupBalance = await this.balanceRepository.findBalance(
+        lenderId,
+        borrowerId,
+        groupId
+      );
+      if (lenderGroupBalance) {
+        await this.balanceRepository.update(lenderGroupBalance.id, {
+          amount: lenderGroupBalance.amount + amount,
+        });
+      } else {
+        await this.balanceRepository.create({
+          ownerId: lenderId,
+          counterPartyId: borrowerId,
+          amount: amount,
+          currency: currency,
+          groupId: groupId,
+        });
+      }
+    }
   }
 }

@@ -6,7 +6,6 @@ import { dependencyInjector } from "@/middleware/di-middleware";
 import { authMiddeware } from "./middleware/auth-middleware";
 import {
   authRoutes,
-  userRoutes,
   friendRoutes,
   groupRoutes,
   expenseRoutes,
@@ -17,7 +16,6 @@ import {
   balanceRoutes,
   dashboardRoutes,
   connectionRoutes,
-  studentRoutes,
 } from "./routes";
 
 import { cors } from "hono/cors";
@@ -85,13 +83,11 @@ app.get("/health", (c) => {
 
 // Mount auth extended routes
 app.route("/api/v1/auth", authRoutes);
+
 // Mount authentication routes
 app.on(["POST", "GET"], "/api/v1/auth/*", (c) => {
   return auth.handler(c.req.raw);
 });
-
-// Mount user management routes
-app.route("/api/v1/users", userRoutes);
 
 // Mount social features routes
 app.route("/api/v1/friends", friendRoutes);
@@ -110,6 +106,8 @@ app.route("/api/v1/budgets", budgetRoutes);
 
 // Mount personal finance routes
 app.route("/api/v1/accounts", accountRoutes);
+
+// Mount recurring-items routes
 app.route("/api/v1/recurring-items", recurringItemRoutes);
 
 // Mount balances and settlements routes
@@ -120,9 +118,6 @@ app.route("/api/v1/dashboard", dashboardRoutes);
 
 // Mount external connections routes
 app.route("/api/v1/connections", connectionRoutes);
-
-// Mount student routes (legacy)
-app.route("/api/students", studentRoutes);
 
 // OpenAPI documentation - generated from Zod schemas
 app.doc("/openapi.json", {
@@ -139,7 +134,16 @@ app.doc("/openapi.json", {
 app.get(
   "/docs",
   Scalar({
-    url: "/openapi.json",
+    sources: [
+      {
+        title: "Main API",
+        url: "/openapi.json",
+      },
+      {
+        title: "Authentication Api",
+        url: "/api/v1/auth/open-api/generate-schema",
+      },
+    ],
     pageTitle: "Pocket Pixie API",
   })
 );

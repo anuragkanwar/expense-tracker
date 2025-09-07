@@ -26,7 +26,7 @@ groupRoutes.openapi(createGroupRoute, async (c) => {
 
   const group = await services.groupService.createGroup({
     ...body,
-    createdBy: parseInt(user.id),
+    createdBy: user.id,
   });
 
   return c.json(group, 201);
@@ -42,8 +42,7 @@ groupRoutes.openapi(getGroupsRoute, async (c) => {
   const groups = await services.groupService.getAllGroups();
 
   // Filter groups by user (groups created by user)
-  const userId = parseInt(user.id);
-  const userGroups = groups.filter((group) => group.createdBy === userId);
+  const userGroups = groups.filter((group) => group.createdBy === user.id);
 
   return c.json(userGroups, 200);
 });
@@ -58,15 +57,12 @@ groupRoutes.openapi(getGroupRoute, async (c) => {
   const { groupId } = c.req.valid("param");
 
   // First check if group exists and belongs to user
-  const existingGroup = await services.groupService.getGroupById(
-    groupId.toString()
-  );
+  const existingGroup = await services.groupService.getGroupById(groupId);
   if (!existingGroup) {
     return c.json({ message: "Group not found" }, 404);
   }
 
-  const userId = parseInt(user.id);
-  if (existingGroup.createdBy !== userId) {
+  if (existingGroup.createdBy !== user.id) {
     return c.json({ message: "Forbidden" }, 403);
   }
 
@@ -83,19 +79,16 @@ groupRoutes.openapi(deleteGroupRoute, async (c) => {
   const { groupId } = c.req.valid("param");
 
   // First check if group exists and belongs to user
-  const existingGroup = await services.groupService.getGroupById(
-    groupId.toString()
-  );
+  const existingGroup = await services.groupService.getGroupById(groupId);
   if (!existingGroup) {
     return c.json({ message: "Group not found" }, 404);
   }
 
-  const userId = parseInt(user.id);
-  if (existingGroup.createdBy !== userId) {
+  if (existingGroup.createdBy !== user.id) {
     return c.json({ message: "Forbidden" }, 403);
   }
 
-  const deleted = await services.groupService.deleteGroup(groupId.toString());
+  const deleted = await services.groupService.deleteGroup(groupId);
 
   if (!deleted) {
     return c.json({ message: "Group not found" }, 404);
@@ -114,21 +107,16 @@ groupRoutes.openapi(getGroupMembersRoute, async (c) => {
   const { groupId } = c.req.valid("param");
 
   // First check if group exists and belongs to user
-  const existingGroup = await services.groupService.getGroupById(
-    groupId.toString()
-  );
+  const existingGroup = await services.groupService.getGroupById(groupId);
   if (!existingGroup) {
     return c.json({ message: "Group not found" }, 404);
   }
 
-  const userId = parseInt(user.id);
-  if (existingGroup.createdBy !== userId) {
+  if (existingGroup.createdBy !== user.id) {
     return c.json({ message: "Forbidden" }, 403);
   }
 
-  const members = await services.groupService.getGroupMembers(
-    groupId.toString()
-  );
+  const members = await services.groupService.getGroupMembers(groupId);
   return c.json(members, 200);
 });
 
@@ -143,20 +131,17 @@ groupRoutes.openapi(addGroupMemberRoute, async (c) => {
   const body = c.req.valid("json");
 
   // First check if group exists and belongs to user
-  const existingGroup = await services.groupService.getGroupById(
-    groupId.toString()
-  );
+  const existingGroup = await services.groupService.getGroupById(groupId);
   if (!existingGroup) {
     return c.json({ message: "Group not found" }, 404);
   }
 
-  const userId = parseInt(user.id);
-  if (existingGroup.createdBy !== userId) {
+  if (existingGroup.createdBy !== user.id) {
     return c.json({ message: "Forbidden" }, 403);
   }
 
   try {
-    await services.groupService.addGroupMember(groupId.toString(), body.userId);
+    await services.groupService.addGroupMember(groupId, body.userId);
     return c.json({ message: "Member added successfully" }, 201);
   } catch (error: any) {
     if (error.message.includes("already a member")) {
@@ -176,23 +161,17 @@ groupRoutes.openapi(removeGroupMemberRoute, async (c) => {
   const { groupId, userId } = c.req.valid("param");
 
   // First check if group exists and belongs to user
-  const existingGroup = await services.groupService.getGroupById(
-    groupId.toString()
-  );
+  const existingGroup = await services.groupService.getGroupById(groupId);
   if (!existingGroup) {
     return c.json({ message: "Group not found" }, 404);
   }
 
-  const currentUserId = parseInt(user.id);
-  if (existingGroup.createdBy !== currentUserId) {
+  if (existingGroup.createdBy !== user.id) {
     return c.json({ message: "Forbidden" }, 403);
   }
 
   try {
-    await services.groupService.removeGroupMember(
-      groupId.toString(),
-      userId.toString()
-    );
+    await services.groupService.removeGroupMember(groupId, userId);
     return c.json({ message: "Member removed successfully" }, 200);
   } catch (error: any) {
     return c.json({ message: "Failed to remove member" }, 400);
@@ -209,22 +188,17 @@ groupRoutes.openapi(getGroupBalancesRoute, async (c) => {
   const { groupId } = c.req.valid("param");
 
   // First check if group exists and belongs to user
-  const existingGroup = await services.groupService.getGroupById(
-    groupId.toString()
-  );
+  const existingGroup = await services.groupService.getGroupById(groupId);
   if (!existingGroup) {
     return c.json({ message: "Group not found" }, 404);
   }
 
-  const userId = parseInt(user.id);
-  if (existingGroup.createdBy !== userId) {
+  if (existingGroup.createdBy !== user.id) {
     return c.json({ message: "Forbidden" }, 403);
   }
 
   try {
-    const balances = await services.groupService.getGroupBalances(
-      groupId.toString()
-    );
+    const balances = await services.groupService.getGroupBalances(groupId);
     return c.json(balances, 200);
   } catch (error: any) {
     return c.json({ message: "Failed to calculate balances" }, 400);
@@ -241,22 +215,18 @@ groupRoutes.openapi(getSettlementPlanRoute, async (c) => {
   const { groupId } = c.req.valid("param");
 
   // First check if group exists and belongs to user
-  const existingGroup = await services.groupService.getGroupById(
-    groupId.toString()
-  );
+  const existingGroup = await services.groupService.getGroupById(groupId);
   if (!existingGroup) {
     return c.json({ message: "Group not found" }, 404);
   }
 
-  const userId = parseInt(user.id);
-  if (existingGroup.createdBy !== userId) {
+  if (existingGroup.createdBy !== user.id) {
     return c.json({ message: "Forbidden" }, 403);
   }
 
   try {
-    const settlementPlan = await services.groupService.getSettlementPlan(
-      groupId.toString()
-    );
+    const settlementPlan =
+      await services.groupService.getSettlementPlan(groupId);
     return c.json(settlementPlan, 200);
   } catch (error: any) {
     return c.json({ message: "Failed to calculate settlement plan" }, 400);
@@ -275,7 +245,7 @@ groupRoutes.openapi(createSettlementRoute, async (c) => {
   try {
     await services.settlementService.createSettlement({
       ...body,
-      payerId: parseInt(user.id),
+      payerId: user.id,
     });
     return c.json({ message: "Settlement recorded successfully" }, 201);
   } catch (error: any) {

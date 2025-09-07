@@ -50,7 +50,7 @@ export class GroupMemberRepository {
     } as GroupMemberResponse;
   }
 
-  async findByGroupId(groupId: number): Promise<GroupMemberResponse[]> {
+  async findByGroupId(groupId: string): Promise<GroupMemberResponse[]> {
     const result = await this.db
       .select()
       .from(groupMember)
@@ -62,7 +62,7 @@ export class GroupMemberRepository {
     })) as GroupMemberResponse[];
   }
 
-  async findByUserId(userId: number): Promise<GroupMemberResponse[]> {
+  async findByUserId(userId: string): Promise<GroupMemberResponse[]> {
     const result = await this.db
       .select()
       .from(groupMember)
@@ -114,8 +114,8 @@ export class GroupMemberRepository {
   }
 
   async deleteByGroupIdAndUserId(
-    groupId: number,
-    userId: number
+    groupId: string,
+    userId: string
   ): Promise<boolean> {
     const result = await this.db
       .delete(groupMember)

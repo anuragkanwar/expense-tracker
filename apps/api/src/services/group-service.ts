@@ -39,12 +39,7 @@ export class GroupService {
       throw new BadRequestError("Invalid group ID");
     }
 
-    const numericId = parseInt(id, 10);
-    if (isNaN(numericId)) {
-      throw new BadRequestError("Invalid group ID format");
-    }
-
-    return this.groupRepository.findById(numericId);
+    return this.groupRepository.findById(id);
   }
 
   async createGroup(data: GroupCreate): Promise<GroupResponse> {
@@ -59,17 +54,12 @@ export class GroupService {
       throw new BadRequestError("Invalid group ID");
     }
 
-    const numericId = parseInt(id, 10);
-    if (isNaN(numericId)) {
-      throw new BadRequestError("Invalid group ID format");
-    }
-
-    const existingGroup = await this.groupRepository.findById(numericId);
+    const existingGroup = await this.groupRepository.findById(id);
     if (!existingGroup) {
       return null;
     }
 
-    return this.groupRepository.update(numericId, data);
+    return this.groupRepository.update(id, data);
   }
 
   async deleteGroup(id: string): Promise<boolean> {
@@ -77,26 +67,21 @@ export class GroupService {
       throw new BadRequestError("Invalid group ID");
     }
 
-    const numericId = parseInt(id, 10);
-    if (isNaN(numericId)) {
-      throw new BadRequestError("Invalid group ID format");
-    }
-
-    const existingGroup = await this.groupRepository.findById(numericId);
+    const existingGroup = await this.groupRepository.findById(id);
     if (!existingGroup) {
       throw new BadRequestError("Group not found");
     }
 
-    return this.groupRepository.delete(numericId);
+    return this.groupRepository.delete(id);
   }
 
   async getGroupMembers(groupId: string) {
     return this.groupMemberService.getGroupMembers(groupId);
   }
 
-  async addGroupMember(groupId: string, userId: number) {
+  async addGroupMember(groupId: string, userId: string) {
     return this.groupMemberService.addGroupMember({
-      groupId: parseInt(groupId),
+      groupId,
       userId,
     });
   }
@@ -110,13 +95,8 @@ export class GroupService {
       throw new BadRequestError("Invalid group ID");
     }
 
-    const numericGroupId = parseInt(groupId, 10);
-    if (isNaN(numericGroupId)) {
-      throw new BadRequestError("Invalid group ID format");
-    }
-
     // Validate that group exists
-    const group = await this.groupRepository.findById(numericGroupId);
+    const group = await this.groupRepository.findById(groupId);
     if (!group) {
       throw new BadRequestError("Group not found");
     }
@@ -136,13 +116,8 @@ export class GroupService {
       throw new BadRequestError("Invalid group ID");
     }
 
-    const numericGroupId = parseInt(groupId, 10);
-    if (isNaN(numericGroupId)) {
-      throw new BadRequestError("Invalid group ID format");
-    }
-
     // Validate that group exists
-    const group = await this.groupRepository.findById(numericGroupId);
+    const group = await this.groupRepository.findById(groupId);
     if (!group) {
       throw new BadRequestError("Group not found");
     }
@@ -168,7 +143,7 @@ export class GroupService {
     // - Partial payments
 
     const memberBalances: {
-      [key: number]: { balance: number; currency: string };
+      [key: string]: { balance: number; currency: string };
     } = {};
 
     // Initialize balances for all members
@@ -198,7 +173,7 @@ export class GroupService {
 
     // Convert to response format
     return Object.entries(memberBalances).map(([userId, balance]) => ({
-      userId: parseInt(userId),
+      userId: userId,
       name: `User ${userId}`, // In real implementation, get from user service
       balance: balance.balance,
       currency: balance.currency,

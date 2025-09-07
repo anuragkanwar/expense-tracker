@@ -1,6 +1,5 @@
 import { createContainer, asClass, asValue, Lifetime } from "awilix";
 import {
-  StudentRepository,
   AccountRepository,
   BalanceRepository,
   BudgetRepository,
@@ -22,7 +21,6 @@ import {
 } from "./repositories";
 import {
   AuthService,
-  StudentService,
   TransactionAccountService,
   BalanceService,
   BudgetService,
@@ -47,7 +45,6 @@ container.register({
 
 container.register({
   // Repositories
-  studentRepository: asClass(StudentRepository, { lifetime: Lifetime.SCOPED }),
   accountRepository: asClass(AccountRepository, { lifetime: Lifetime.SCOPED }),
   balanceRepository: asClass(BalanceRepository, { lifetime: Lifetime.SCOPED }),
   budgetRepository: asClass(BudgetRepository, { lifetime: Lifetime.SCOPED }),
@@ -92,7 +89,6 @@ container.register({
 
   // Services
   authService: asClass(AuthService, { lifetime: Lifetime.SCOPED }),
-  studentService: asClass(StudentService, { lifetime: Lifetime.SCOPED }),
   transactionAccountService: asClass(TransactionAccountService, {
     lifetime: Lifetime.SCOPED,
   }),

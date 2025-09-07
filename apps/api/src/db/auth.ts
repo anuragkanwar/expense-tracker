@@ -1,5 +1,6 @@
 import { betterAuth } from "better-auth";
 import { expo } from "@better-auth/expo";
+import { openAPI } from "better-auth/plugins";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { db } from "./database";
 import { Redis } from "ioredis";
@@ -9,7 +10,7 @@ export const auth = betterAuth({
   database: drizzleAdapter(db, {
     provider: "sqlite",
   }),
-  plugins: [expo()],
+  plugins: [expo(), openAPI()],
   emailAndPassword: {
     enabled: true,
   },
@@ -43,6 +44,7 @@ export const auth = betterAuth({
   advanced: {
     database: {
       generateId: false,
+      useNumberId: true,
     },
   },
   basePath: "/api/v1/auth",

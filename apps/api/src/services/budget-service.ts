@@ -20,17 +20,12 @@ export class BudgetService {
     return this.budgetRepository.findAll(limit, offset);
   }
 
-  async getBudgetById(id: string): Promise<BudgetResponse | null> {
-    if (!id || typeof id !== "string") {
+  async getBudgetById(id: number): Promise<BudgetResponse | null> {
+    if (!id || typeof id !== "number") {
       throw new BadRequestError("Invalid budget ID");
     }
 
-    const numericId = parseInt(id, 10);
-    if (isNaN(numericId)) {
-      throw new BadRequestError("Invalid budget ID format");
-    }
-
-    return this.budgetRepository.findById(numericId);
+    return this.budgetRepository.findById(id);
   }
 
   async createBudget(data: BudgetCreate): Promise<BudgetResponse> {
@@ -38,41 +33,31 @@ export class BudgetService {
   }
 
   async updateBudget(
-    id: string,
+    id: number,
     data: BudgetUpdate
   ): Promise<BudgetResponse | null> {
-    if (!id || typeof id !== "string") {
+    if (!id || typeof id !== "number") {
       throw new BadRequestError("Invalid budget ID");
     }
 
-    const numericId = parseInt(id, 10);
-    if (isNaN(numericId)) {
-      throw new BadRequestError("Invalid budget ID format");
-    }
-
-    const existingBudget = await this.budgetRepository.findById(numericId);
+    const existingBudget = await this.budgetRepository.findById(id);
     if (!existingBudget) {
       return null;
     }
 
-    return this.budgetRepository.update(numericId, data);
+    return this.budgetRepository.update(id, data);
   }
 
-  async deleteBudget(id: string): Promise<boolean> {
-    if (!id || typeof id !== "string") {
+  async deleteBudget(id: number): Promise<boolean> {
+    if (!id || typeof id !== "number") {
       throw new BadRequestError("Invalid budget ID");
     }
 
-    const numericId = parseInt(id, 10);
-    if (isNaN(numericId)) {
-      throw new BadRequestError("Invalid budget ID format");
-    }
-
-    const existingBudget = await this.budgetRepository.findById(numericId);
+    const existingBudget = await this.budgetRepository.findById(id);
     if (!existingBudget) {
       throw new BadRequestError("Budget not found");
     }
 
-    return this.budgetRepository.delete(numericId);
+    return this.budgetRepository.delete(id);
   }
 }

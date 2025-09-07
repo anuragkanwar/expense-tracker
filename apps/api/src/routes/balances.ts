@@ -11,31 +11,101 @@ import {
 export const balanceRoutes = new OpenAPIHono();
 
 balanceRoutes.openapi(getBalanceSummaryRoute, async (c) => {
-  // TODO: Implement get balance summary
-  return c.json({ message: "Not implemented" }, 501);
+  const user = c.get("user");
+  if (!user) {
+    return c.json({ message: "Unauthorized" }, 401);
+  }
+
+  const { balanceService } = c.get("services");
+  const userId = parseInt(user.id, 10);
+  const summary = await balanceService.getBalanceSummary(userId);
+
+  return c.json(summary, 200);
 });
 
 balanceRoutes.openapi(getFriendBalanceRoute, async (c) => {
-  // TODO: Implement get friend balance
-  return c.json({ message: "Not implemented" }, 501);
+  const user = c.get("user");
+  if (!user) {
+    return c.json({ message: "Unauthorized" }, 401);
+  }
+
+  const { userId: friendId } = c.req.valid("param");
+  const { balanceService } = c.get("services");
+
+  const userId = parseInt(user.id, 10);
+
+  try {
+    const balance = await balanceService.getFriendBalance(userId, friendId);
+    return c.json(balance, 200);
+  } catch {
+    return c.json({ message: "Friend not found" }, 404);
+  }
 });
 
 balanceRoutes.openapi(getGroupBalanceRoute, async (c) => {
-  // TODO: Implement get group balance
-  return c.json({ message: "Not implemented" }, 501);
+  const user = c.get("user");
+  if (!user) {
+    return c.json({ message: "Unauthorized" }, 401);
+  }
+
+  const { groupId } = c.req.valid("param");
+  const { balanceService } = c.get("services");
+
+  const userId = parseInt(user.id, 10);
+
+  try {
+    const balance = await balanceService.getGroupBalance(userId, groupId);
+    return c.json(balance, 200);
+  } catch {
+    return c.json({ message: "Group not found" }, 404);
+  }
 });
 
 balanceRoutes.openapi(createSettlementRoute, async (c) => {
-  // TODO: Implement create settlement
-  return c.json({ message: "Not implemented" }, 501);
+  const user = c.get("user");
+  if (!user) {
+    return c.json({ message: "Unauthorized" }, 401);
+  }
+
+  const settlementData = c.req.valid("json");
+  const { balanceService } = c.get("services");
+
+  try {
+    await balanceService.createSettlement(settlementData);
+    return c.json({ message: "Settlement recorded successfully" }, 201);
+  } catch {
+    return c.json({ message: "Failed to record settlement" }, 400);
+  }
 });
 
 balanceRoutes.openapi(getGlobalSettlementPlanRoute, async (c) => {
-  // TODO: Implement get global settlement plan
-  return c.json({ message: "Not implemented" }, 501);
+  const user = c.get("user");
+  if (!user) {
+    return c.json({ message: "Unauthorized" }, 401);
+  }
+
+  const { balanceService } = c.get("services");
+  const userId = parseInt(user.id, 10);
+
+  const plan = await balanceService.getGlobalSettlementPlan(userId);
+  return c.json(plan, 200);
 });
 
 balanceRoutes.openapi(getGroupSettlementPlanRoute, async (c) => {
-  // TODO: Implement get group settlement plan
-  return c.json({ message: "Not implemented" }, 501);
+  const user = c.get("user");
+  if (!user) {
+    return c.json({ message: "Unauthorized" }, 401);
+  }
+
+  const { groupId } = c.req.valid("param");
+  const { balanceService } = c.get("services");
+
+  const userId = parseInt(user.id, 10);
+
+  try {
+    const plan = await balanceService.getGroupSettlementPlan(userId, groupId);
+    return c.json(plan, 200);
+  } catch (error) {
+    return c.json({ message: "Group not found" }, 404);
+  }
 });

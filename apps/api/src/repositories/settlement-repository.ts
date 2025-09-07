@@ -52,7 +52,7 @@ export class SettlementRepository {
     } as SettlementResponse;
   }
 
-  async findByGroupId(groupId: number): Promise<SettlementResponse[]> {
+  async findByGroupId(groupId: string): Promise<SettlementResponse[]> {
     const result = await this.db
       .select()
       .from(settlement)
@@ -65,7 +65,7 @@ export class SettlementRepository {
     })) as SettlementResponse[];
   }
 
-  async findByUserId(userId: number): Promise<SettlementResponse[]> {
+  async findByUserId(userId: string): Promise<SettlementResponse[]> {
     const result = await this.db
       .select()
       .from(settlement)

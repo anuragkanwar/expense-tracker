@@ -4,13 +4,13 @@ import { user } from "./user";
 
 export const settlement = sqliteTable("settlement", {
   id: integer("id").primaryKey({ autoIncrement: true }),
-  groupId: integer("group_id").references(() => group.id, {
+  groupId: text("group_id").references(() => group.id, {
     onDelete: "cascade",
   }),
-  payerId: integer("payer_id")
+  payerId: text("payer_id")
     .notNull()
     .references(() => user.id, { onDelete: "cascade" }),
-  payeeId: integer("payee_id")
+  payeeId: text("payee_id")
     .notNull()
     .references(() => user.id, { onDelete: "cascade" }),
   amount: real("amount").notNull(),

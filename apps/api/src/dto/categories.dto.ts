@@ -3,8 +3,8 @@ import { z } from "@hono/zod-openapi";
 // Category response schema
 export const CategoryResponseSchema = z
   .object({
-    id: z.string().openapi({
-      example: "cat_123",
+    id: z.number().openapi({
+      example: 123,
       description: "Unique category identifier",
     }),
     name: z.string().openapi({
@@ -15,12 +15,12 @@ export const CategoryResponseSchema = z
       example: "expense",
       description: "Category type",
     }),
-    parentCategoryId: z.string().nullable().openapi({
-      example: "cat_456",
+    parentCategoryId: z.number().nullable().openapi({
+      example: 456,
       description: "Parent category ID",
     }),
-    userId: z.string().openapi({
-      example: "user_123",
+    userId: z.number().openapi({
+      example: 123,
       description: "User ID",
     }),
     createdAt: z.string().openapi({
@@ -49,8 +49,8 @@ export const CategoryCreateSchema = z
       example: "expense",
       description: "Category type",
     }),
-    parentCategoryId: z.string().optional().openapi({
-      example: "cat_456",
+    parentCategoryId: z.number().optional().openapi({
+      example: 456,
       description: "Parent category ID",
     }),
   })

@@ -3,6 +3,7 @@ import {
   TransactionAccountResponseSchema,
   TransactionAccountCreateSchema,
 } from "@/models/transaction-account";
+import { ACCOUNT_TYPE } from "@/db";
 
 export const getAccountsRoute = createRoute({
   method: "get",
@@ -64,8 +65,8 @@ export const getAccountRoute = createRoute({
   tags: ["Accounts"],
   request: {
     params: z.object({
-      accountId: z.string().openapi({
-        example: "acc_123",
+      accountId: z.number().openapi({
+        example: 123,
         description: "Account ID",
       }),
     }),
@@ -92,8 +93,8 @@ export const updateAccountRoute = createRoute({
   tags: ["Accounts"],
   request: {
     params: z.object({
-      accountId: z.string().openapi({
-        example: "acc_123",
+      accountId: z.number().openapi({
+        example: 123,
         description: "Account ID",
       }),
     }),
@@ -128,8 +129,8 @@ export const deleteAccountRoute = createRoute({
   tags: ["Accounts"],
   request: {
     params: z.object({
-      accountId: z.string().openapi({
-        example: "acc_123",
+      accountId: z.number().openapi({
+        example: 123,
         description: "Account ID",
       }),
     }),
@@ -149,5 +150,60 @@ export const deleteAccountRoute = createRoute({
     },
     401: { description: "Unauthorized" },
     404: { description: "Account not found" },
+  },
+});
+
+export const getSpecialAccountRoute = createRoute({
+  method: "get",
+  path: "/special/{type}",
+  summary: "Get special account by type",
+  description:
+    "Gets a user's special account by type (EXTERNAL, OUTGOING, LOAN_GIVEN, LOAN_TAKEN, INCOME, SAVING).",
+  tags: ["Accounts"],
+  request: {
+    params: z.object({
+      type: z.enum(ACCOUNT_TYPE).openapi({
+        example: "EXTERNAL",
+        description: "Account type",
+      }),
+    }),
+  },
+  responses: {
+    200: {
+      content: {
+        "application/json": {
+          schema: TransactionAccountResponseSchema.nullable(),
+        },
+      },
+      description: "Account retrieved successfully",
+    },
+    401: { description: "Unauthorized" },
+  },
+});
+
+export const getFriendsLoanAccountsRoute = createRoute({
+  method: "get",
+  path: "/friends/{friendId}/loans",
+  summary: "Get friend's loan accounts",
+  description: "Gets a friend's loan accounts (LOAN_GIVEN and LOAN_TAKEN).",
+  tags: ["Accounts"],
+  request: {
+    params: z.object({
+      friendId: z.number().openapi({
+        example: 123,
+        description: "Friend user ID",
+      }),
+    }),
+  },
+  responses: {
+    200: {
+      content: {
+        "application/json": {
+          schema: z.array(TransactionAccountResponseSchema),
+        },
+      },
+      description: "Friend's loan accounts retrieved successfully",
+    },
+    401: { description: "Unauthorized" },
   },
 });

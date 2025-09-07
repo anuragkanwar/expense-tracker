@@ -19,8 +19,7 @@ budgetRoutes.openapi(getBudgetsRoute, async (c) => {
   const budgets = await services.budgetService.getAllBudgets();
 
   // Filter budgets by user
-  const userId = parseInt(user.id);
-  const userBudgets = budgets.filter((budget) => budget.userId === userId);
+  const userBudgets = budgets.filter((budget) => budget.userId === user.id);
 
   return c.json(userBudgets, 200);
 });
@@ -36,7 +35,7 @@ budgetRoutes.openapi(createBudgetRoute, async (c) => {
 
   const budget = await services.budgetService.createBudget({
     ...body,
-    userId: parseInt(user.id),
+    userId: user.id,
   });
 
   return c.json(budget, 201);
@@ -58,8 +57,7 @@ budgetRoutes.openapi(getBudgetRoute, async (c) => {
   }
 
   // Check if budget belongs to user
-  const userId = parseInt(user.id);
-  if (budget.userId !== userId) {
+  if (budget.userId !== user.id) {
     return c.json({ message: "Forbidden" }, 403);
   }
 
@@ -82,8 +80,7 @@ budgetRoutes.openapi(updateBudgetRoute, async (c) => {
     return c.json({ message: "Budget not found" }, 404);
   }
 
-  const userId = parseInt(user.id);
-  if (existingBudget.userId !== userId) {
+  if (existingBudget.userId !== user.id) {
     return c.json({ message: "Forbidden" }, 403);
   }
 
@@ -111,8 +108,7 @@ budgetRoutes.openapi(deleteBudgetRoute, async (c) => {
     return c.json({ message: "Budget not found" }, 404);
   }
 
-  const userId = parseInt(user.id);
-  if (existingBudget.userId !== userId) {
+  if (existingBudget.userId !== user.id) {
     return c.json({ message: "Forbidden" }, 403);
   }
 

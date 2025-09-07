@@ -24,17 +24,12 @@ export class RecurringService {
     return this.recurringRepository.findAll(limit, offset);
   }
 
-  async getRecurringItemById(id: string): Promise<RecurringResponse | null> {
-    if (!id || typeof id !== "string") {
+  async getRecurringItemById(id: number): Promise<RecurringResponse | null> {
+    if (!id || typeof id !== "number") {
       throw new BadRequestError("Invalid recurring item ID");
     }
 
-    const numericId = parseInt(id, 10);
-    if (isNaN(numericId)) {
-      throw new BadRequestError("Invalid recurring item ID format");
-    }
-
-    return this.recurringRepository.findById(numericId);
+    return this.recurringRepository.findById(id);
   }
 
   async createRecurringItem(data: RecurringCreate): Promise<RecurringResponse> {
@@ -42,41 +37,31 @@ export class RecurringService {
   }
 
   async updateRecurringItem(
-    id: string,
+    id: number,
     data: RecurringUpdate
   ): Promise<RecurringResponse | null> {
-    if (!id || typeof id !== "string") {
+    if (!id || typeof id !== "number") {
       throw new BadRequestError("Invalid recurring item ID");
     }
 
-    const numericId = parseInt(id, 10);
-    if (isNaN(numericId)) {
-      throw new BadRequestError("Invalid recurring item ID format");
-    }
-
-    const existingItem = await this.recurringRepository.findById(numericId);
+    const existingItem = await this.recurringRepository.findById(id);
     if (!existingItem) {
       return null;
     }
 
-    return this.recurringRepository.update(numericId, data);
+    return this.recurringRepository.update(id, data);
   }
 
-  async deleteRecurringItem(id: string): Promise<boolean> {
-    if (!id || typeof id !== "string") {
+  async deleteRecurringItem(id: number): Promise<boolean> {
+    if (!id || typeof id !== "number") {
       throw new BadRequestError("Invalid recurring item ID");
     }
 
-    const numericId = parseInt(id, 10);
-    if (isNaN(numericId)) {
-      throw new BadRequestError("Invalid recurring item ID format");
-    }
-
-    const existingItem = await this.recurringRepository.findById(numericId);
+    const existingItem = await this.recurringRepository.findById(id);
     if (!existingItem) {
       throw new BadRequestError("Recurring item not found");
     }
 
-    return this.recurringRepository.delete(numericId);
+    return this.recurringRepository.delete(id);
   }
 }

@@ -32,7 +32,7 @@ export const registerRoute = createRoute({
 
 export const loginRoute = createRoute({
   method: "post",
-  path: "/login",
+  path: "/sign-in/email",
   summary: "Authenticate user",
   description: "Authenticates a user with credentials and returns a JWT token.",
   tags: ["Authentication"],
@@ -61,7 +61,7 @@ export const loginRoute = createRoute({
 
 export const logoutRoute = createRoute({
   method: "post",
-  path: "/logout",
+  path: "/sign-out",
   summary: "Logout user",
   description: "Logs out the currently authenticated user.",
   tags: ["Authentication"],

@@ -1,4 +1,3 @@
-export * from "./student-repository";
 export * from "./account-repository";
 export * from "./balance-repository";
 export * from "./budget-repository";

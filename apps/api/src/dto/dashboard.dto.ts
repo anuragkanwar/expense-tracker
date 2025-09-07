@@ -41,8 +41,8 @@ export const MonthlySummaryResponseSchema = z
 export const SpendingByCategoryResponseSchema = z
   .array(
     z.object({
-      categoryId: z.string().openapi({
-        example: "cat_123",
+      categoryId: z.number().openapi({
+        example: 123,
         description: "Category ID",
       }),
       categoryName: z.string().openapi({
@@ -73,8 +73,8 @@ export const SpendingByCategoryResponseSchema = z
 export const UpcomingBillsResponseSchema = z
   .array(
     z.object({
-      id: z.string().openapi({
-        example: "rec_123",
+      id: z.number().openapi({
+        example: 123,
         description: "Recurring item ID",
       }),
       description: z.string().openapi({
@@ -147,8 +147,8 @@ export const SpendingAnalyticsResponseSchema = z
     categories: z
       .array(
         z.object({
-          categoryId: z.string().openapi({
-            example: "cat_123",
+          categoryId: z.number().openapi({
+            example: 123,
             description: "Category ID",
           }),
           categoryName: z.string().openapi({

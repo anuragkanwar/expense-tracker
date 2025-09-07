@@ -44,12 +44,7 @@ export class SettlementService {
       throw new BadRequestError("Invalid group ID");
     }
 
-    const numericGroupId = parseInt(groupId, 10);
-    if (isNaN(numericGroupId)) {
-      throw new BadRequestError("Invalid group ID format");
-    }
-
-    return this.settlementRepository.findByGroupId(numericGroupId);
+    return this.settlementRepository.findByGroupId(groupId);
   }
 
   async createSettlement(data: SettlementCreate): Promise<SettlementResponse> {

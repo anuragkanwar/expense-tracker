@@ -62,7 +62,7 @@ export const UserBalanceCreateSchema = createInsertSchema(userBalance, {
   }),
   counterPartyId: z.number().openapi({
     example: 123,
-    description: "Counterparty ID",
+    description: "Counterparty ID (expense or user)",
   }),
   groupId: z.number().optional().openapi({
     example: 123,

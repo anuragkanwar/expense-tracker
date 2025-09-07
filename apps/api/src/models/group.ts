@@ -27,8 +27,8 @@ export const GroupCreateSchema = createInsertSchema(group, {
     example: "https://example.com/photo.jpg",
     description: "Group cover photo URL",
   }),
-  createdBy: z.number().openapi({
-    example: 123,
+  createdBy: z.string().openapi({
+    example: "123",
     description: "User ID who created the group",
   }),
 })

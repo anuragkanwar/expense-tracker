@@ -1,9 +1,6 @@
 // Authentication routes
 export * from "./auth";
 
-// User management routes
-export * from "./users";
-
 // Social features routes
 export * from "./friends";
 
@@ -20,7 +17,9 @@ export * from "./passbook";
 export * from "./budgets";
 
 // Personal finance routes
-export * from "./accounts";
+export * from "./transaction-accounts";
+
+// Recurring-items routes
 export * from "./recurring-items";
 
 // Balances and settlements routes
@@ -31,6 +30,3 @@ export * from "./dashboard";
 
 // External connections routes
 export * from "./connections";
-
-// Student routes (legacy)
-export * from "./students";

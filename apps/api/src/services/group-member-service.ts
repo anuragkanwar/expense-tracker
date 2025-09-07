@@ -46,12 +46,7 @@ export class GroupMemberService {
       throw new BadRequestError("Invalid group ID");
     }
 
-    const numericGroupId = parseInt(groupId, 10);
-    if (isNaN(numericGroupId)) {
-      throw new BadRequestError("Invalid group ID format");
-    }
-
-    return this.groupMemberRepository.findByGroupId(numericGroupId);
+    return this.groupMemberRepository.findByGroupId(groupId);
   }
 
   async addGroupMember(data: GroupMemberCreate): Promise<GroupMemberResponse> {
@@ -83,37 +78,23 @@ export class GroupMemberService {
       throw new BadRequestError("Invalid user ID");
     }
 
-    const numericGroupId = parseInt(groupId, 10);
-    const numericUserId = parseInt(userId, 10);
-
-    if (isNaN(numericGroupId)) {
-      throw new BadRequestError("Invalid group ID format");
-    }
-    if (isNaN(numericUserId)) {
-      throw new BadRequestError("Invalid user ID format");
-    }
-
     // Validate that group exists
-    const group = await this.groupRepository.findById(numericGroupId);
+    const group = await this.groupRepository.findById(groupId);
     if (!group) {
       throw new NotFoundError("Group not found");
     }
 
     // Check if user is a member
-    const members =
-      await this.groupMemberRepository.findByGroupId(numericGroupId);
-    const isMember = members.some((member) => member.userId === numericUserId);
+    const members = await this.groupMemberRepository.findByGroupId(groupId);
+    const isMember = members.some((member) => member.userId === userId);
     if (!isMember) {
       throw new NotFoundError("User is not a member of this group");
     }
 
-    return this.groupMemberRepository.deleteByGroupIdAndUserId(
-      numericGroupId,
-      numericUserId
-    );
+    return this.groupMemberRepository.deleteByGroupIdAndUserId(groupId, userId);
   }
 
-  async isUserMemberOfGroup(groupId: number, userId: number): Promise<boolean> {
+  async isUserMemberOfGroup(groupId: string, userId: string): Promise<boolean> {
     const members = await this.groupMemberRepository.findByGroupId(groupId);
     return members.some((member) => member.userId === userId);
   }
@@ -123,11 +104,6 @@ export class GroupMemberService {
       throw new BadRequestError("Invalid user ID");
     }
 
-    const numericUserId = parseInt(userId, 10);
-    if (isNaN(numericUserId)) {
-      throw new BadRequestError("Invalid user ID format");
-    }
-
-    return this.groupMemberRepository.findByUserId(numericUserId);
+    return this.groupMemberRepository.findByUserId(userId);
   }
 }

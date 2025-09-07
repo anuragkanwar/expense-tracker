@@ -1,13 +1,13 @@
-import { sqliteTable, integer } from "drizzle-orm/sqlite-core";
+import { sqliteTable, integer, text } from "drizzle-orm/sqlite-core";
 import { group } from "./group";
 import { user } from "./user";
 
 export const groupMember = sqliteTable("group_member", {
   id: integer("id").primaryKey({ autoIncrement: true }),
-  groupId: integer("group_id")
+  groupId: text("group_id")
     .notNull()
     .references(() => group.id, { onDelete: "cascade" }),
-  userId: integer("user_id")
+  userId: text("user_id")
     .notNull()
     .references(() => user.id, { onDelete: "cascade" }),
   createdAt: integer("created_at", { mode: "timestamp" })

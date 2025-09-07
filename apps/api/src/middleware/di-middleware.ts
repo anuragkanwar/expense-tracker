@@ -3,7 +3,6 @@ import { container } from "@/container";
 
 export type InjectedServices = {
   authService: import("@/services/auth-service").AuthService;
-  studentService: import("@/services/student-service").StudentService;
   transactionAccountService: import("@/services/transaction-account-service").TransactionAccountService;
   balanceService: import("@/services/balance-service").BalanceService;
   budgetService: import("@/services/budget-service").BudgetService;
@@ -31,7 +30,6 @@ export const dependencyInjector = createMiddleware(async (c, next) => {
 
   const services: InjectedServices = {
     authService: scope.resolve("authService"),
-    studentService: scope.resolve("studentService"),
     transactionAccountService: scope.resolve("transactionAccountService"),
     balanceService: scope.resolve("balanceService"),
     budgetService: scope.resolve("budgetService"),

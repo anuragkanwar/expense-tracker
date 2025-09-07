@@ -13,16 +13,11 @@ import {
   GroupMemberRepository,
 } from "@/repositories";
 
-import {
-  ACCOUNT_TYPE,
-  db as DATABASE,
-  SHARE_TYPE,
-  SPLIT_TYPE,
-  TXN_TYPE,
-} from "@/db";
+import { ACCOUNT_TYPE, db as DATABASE, SHARE_TYPE, TXN_TYPE } from "@/db";
 import { NotFoundError, ValidationError } from "@/errors/base-error";
 import { GroupNotFoundError } from "@/errors/group-errors";
 import { mathOperationAndGetFixedNumber } from "@/utils/mathUtils";
+import { TransactionAccountResponse } from "@/models";
 
 export class ExpenseService {
   private readonly balanceRepository;
@@ -70,6 +65,198 @@ export class ExpenseService {
     this.transactionRepository = transactionRepository;
   }
 
+  private async validateTransactionAccounts(
+    payerId: number,
+    srcAccId: number,
+    dstAccId: number
+  ): Promise<{
+    srcAcc: TransactionAccountResponse;
+    dstAcc: TransactionAccountResponse;
+  }> {
+    const srcAcc =
+      await this.transactionAccountRepository.findByUserIdAndAccountId(
+        payerId,
+        srcAccId
+      );
+
+    if (!srcAcc) {
+      throw new TransactionAccountNotFoundError("`From` account");
+    }
+
+    const dstTransactionAcc =
+      await this.transactionAccountRepository.findByUserIdAndAccountId(
+        payerId,
+        dstAccId
+      );
+
+    if (!dstTransactionAcc) {
+      throw new TransactionAccountNotFoundError("`to` account");
+    }
+
+    return { srcAcc: srcAcc, dstAcc: dstTransactionAcc };
+  }
+
+  private async createTransactionHeader(payerId: number, description: string) {
+    return await this.transactionRepository.create({
+      description,
+      userId: payerId,
+    });
+  }
+
+  private async updateAccountsAndCreateEntries(
+    entries: Array<{
+      srcAcc: TransactionAccountResponse;
+      dstAcc: TransactionAccountResponse;
+      amount: number;
+      txnId: number;
+    }>
+  ) {
+    for (const entry of entries) {
+      if (entry.amount <= 0) {
+        continue;
+      }
+      await this.transactionAccountRepository.update(entry.srcAcc.id, {
+        balance: entry.srcAcc.balance - entry.amount,
+      });
+
+      await this.transactionAccountRepository.update(entry.dstAcc.id, {
+        balance: entry.dstAcc.balance + entry.amount,
+      });
+
+      await this.transactionEntryRepository.create({
+        amount: entry.amount,
+        transactionAccountId: entry.dstAcc.id,
+        transactionId: entry.txnId,
+      });
+
+      await this.transactionEntryRepository.create({
+        amount: -entry.amount,
+        transactionAccountId: entry.srcAcc.id,
+        transactionId: entry.txnId,
+      });
+    }
+  }
+
+  private async createExpenseAndHandleSplits(
+    payerId: number,
+    expenseCreateWithDetails: ExpenseCreateWithDetails,
+    txnId: number,
+    splits: {
+      userId: number;
+      amountOwed: number;
+    }[]
+  ) {
+    const expense = await this.expenseRepository.create({
+      amount: expenseCreateWithDetails.amount,
+      createdBy: payerId,
+      currency: "INR",
+      description: expenseCreateWithDetails.description,
+      groupId: expenseCreateWithDetails.groupId,
+    });
+
+    await this.expensePayerRepository.create({
+      amountPaid: expenseCreateWithDetails.amount,
+      expenseId: expense.id,
+      userId: payerId,
+    });
+
+    if (splits.length === 0) {
+      throw new ValidationError("expected splits length > 0");
+    }
+
+    for (const split of splits) {
+      const payeeLoanTakenAcc =
+        await this.transactionAccountRepository.findByUserIdAndCategoryName(
+          split.userId,
+          ACCOUNT_TYPE.LOAN_TAKEN
+        );
+
+      if (!payeeLoanTakenAcc) {
+        throw new TransactionAccountNotFoundError(
+          `${split.userId} , LOAN_TAKEN`
+        );
+      }
+      const payerLoanGiveAcc =
+        await this.transactionAccountRepository.findByUserIdAndCategoryName(
+          payerId,
+          ACCOUNT_TYPE.LOAN_GIVEN
+        );
+
+      if (!payerLoanGiveAcc) {
+        throw new TransactionAccountNotFoundError(`${payerId} ,  LOAN_GIVEN`);
+      }
+
+      this.updateAccountsAndCreateEntries([
+        {
+          srcAcc: payerLoanGiveAcc,
+          dstAcc: payeeLoanTakenAcc,
+          amount: split.amountOwed,
+          txnId: txnId,
+        },
+      ]);
+
+      await this.expenseSplitRepository.create({
+        amountOwed: split.amountOwed,
+        expenseId: expense.id,
+        userId: split.userId,
+        splitType: expenseCreateWithDetails.splitType,
+        metadata: expenseCreateWithDetails.description,
+      });
+    }
+  }
+
+  private async calculateSplits(
+    expenseCreateWithDetails: ExpenseCreateWithDetails
+  ): Promise<
+    {
+      userId: number;
+      amountOwed: number;
+    }[]
+  > {
+    const payerId = expenseCreateWithDetails.payer;
+    if (!expenseCreateWithDetails.groupId) {
+      throw new ValidationError(
+        "group Id not mentioned when 'share type' = 'Group'"
+      );
+    }
+
+    const group = await this.groupRepository.findById(
+      expenseCreateWithDetails.groupId
+    );
+
+    if (!group) {
+      throw new GroupNotFoundError(`${expenseCreateWithDetails.groupId}`);
+    }
+    const groupMembers = await this.groupMemberRepository.findByGroupId(
+      group.id
+    );
+
+    if (groupMembers.length === 0) {
+      throw new ValidationError("group is not valid 0 members huh");
+    }
+
+    const splitPrice = mathOperationAndGetFixedNumber(
+      expenseCreateWithDetails.amount,
+      groupMembers.length,
+      (a, b) => a / b
+    );
+    const splits: {
+      userId: number;
+      amountOwed: number;
+    }[] = [];
+    for (const member of groupMembers) {
+      if (member.id === payerId) {
+        continue;
+      }
+      splits.concat({
+        userId: member.id,
+        amountOwed: splitPrice,
+      });
+    }
+    return splits;
+  }
+
+  private async updateBalances() {}
   // NOTE:
   // EXPENSE => OUTGOING -> EXPENSE (categories)
   // INCOME => EXTERNAL -> INCOME
@@ -79,59 +266,31 @@ export class ExpenseService {
     const payerId = expenseCreateWithDetails.payer;
     await this.db.transaction(async (tx) => {
       try {
-        const srcTransactionAcc =
-          await this.transactionAccountRepository.findByUserIdAndAccountId(
-            payerId,
-            expenseCreateWithDetails.sourceTransactionAccountID
-          );
+        const { srcAcc, dstAcc } = await this.validateTransactionAccounts(
+          payerId,
+          expenseCreateWithDetails.sourceTransactionAccountID,
+          expenseCreateWithDetails.targetTransactionAccountID
+        );
 
-        if (!srcTransactionAcc) {
-          throw new TransactionAccountNotFoundError("`From` account");
-        }
-        const dstTranasctionAcc =
-          await this.transactionAccountRepository.findByUserIdAndAccountId(
-            payerId,
-            expenseCreateWithDetails.targetTransactionAccountID
-          );
+        const txnHeader = await this.createTransactionHeader(
+          payerId,
+          expenseCreateWithDetails.description
+        );
 
-        if (!dstTranasctionAcc) {
-          throw new TransactionAccountNotFoundError("`to` account");
-        }
-
-        const txnHeader = await this.transactionRepository.create({
-          description: expenseCreateWithDetails.description,
-          userId: payerId,
-        });
-
-        if (expenseCreateWithDetails.type === TXN_TYPE.EXPENSE) {
+        if (
+          expenseCreateWithDetails.type === TXN_TYPE.EXPENSE ||
+          expenseCreateWithDetails.type === TXN_TYPE.LOAN_GIVEN ||
+          expenseCreateWithDetails.type === TXN_TYPE.LOAN_TAKEN
+        ) {
           if (expenseCreateWithDetails.sharedWith === SHARE_TYPE.NONE) {
-            await this.transactionAccountRepository.update(
-              srcTransactionAcc.id,
+            await this.updateAccountsAndCreateEntries([
               {
-                balance:
-                  srcTransactionAcc.balance - expenseCreateWithDetails.amount,
-              }
-            );
-
-            await this.transactionAccountRepository.update(
-              dstTranasctionAcc.id,
-              {
-                balance:
-                  dstTranasctionAcc.balance + expenseCreateWithDetails.amount,
-              }
-            );
-
-            await this.transactionEntryRepository.create({
-              amount: expenseCreateWithDetails.amount,
-              transactionAccountId: dstTranasctionAcc.id,
-              transactionId: txnHeader.id,
-            });
-
-            await this.transactionEntryRepository.create({
-              amount: -expenseCreateWithDetails.amount,
-              transactionAccountId: srcTransactionAcc.id,
-              transactionId: txnHeader.id,
-            });
+                srcAcc,
+                dstAcc,
+                amount: expenseCreateWithDetails.amount,
+                txnId: txnHeader.id,
+              },
+            ]);
           } else if (
             expenseCreateWithDetails.sharedWith === SHARE_TYPE.GROUP ||
             expenseCreateWithDetails.sharedWith === SHARE_TYPE.FRIENDS
@@ -140,280 +299,50 @@ export class ExpenseService {
               throw new ValidationError("Split type must be set");
             }
 
-            let splits = expenseCreateWithDetails.splits ?? [];
-            if (
-              expenseCreateWithDetails.sharedWith === SHARE_TYPE.GROUP &&
-              expenseCreateWithDetails.splitType === SPLIT_TYPE.EQUAL
-            ) {
-              if (!expenseCreateWithDetails.groupId) {
-                throw new ValidationError(
-                  "group Id not mentioned when `share type` = `Group`"
-                );
-              }
-
-              const group = await this.groupRepository.findById(
-                expenseCreateWithDetails.groupId
-              );
-
-              if (!group) {
-                throw new GroupNotFoundError(
-                  `${expenseCreateWithDetails.groupId}`
-                );
-              }
-              const groupMembers =
-                await this.groupMemberRepository.findByGroupId(group.id);
-
-              if (groupMembers.length === 0) {
-                throw new ValidationError(
-                  "group is not valid 0 members huh ??"
-                );
-              }
-              const splitPrice = mathOperationAndGetFixedNumber(
-                expenseCreateWithDetails.amount,
-                groupMembers.length,
-                (a, b) => a * b
-              );
-              for (const member of groupMembers) {
-                if (member.id === payerId) {
-                  continue;
-                }
-                splits.concat({
-                  userId: member.id,
-                  amountOwed: splitPrice,
-                });
-              }
-            }
+            const splits =
+              expenseCreateWithDetails.splits ??
+              (await this.calculateSplits(expenseCreateWithDetails));
 
             const splitTotal = splits.reduce(
               (acc, split) => acc + split.amountOwed,
               0
             );
-
             const payerTotal = expenseCreateWithDetails.amount - splitTotal;
-
-            console.log(
-              expenseCreateWithDetails.amount,
-              splitTotal,
-              payerTotal
-            );
-            // payer
-            await this.transactionAccountRepository.update(
-              srcTransactionAcc.id,
+            await this.updateAccountsAndCreateEntries([
               {
-                balance: srcTransactionAcc.balance - payerTotal,
-              }
+                srcAcc: srcAcc,
+                dstAcc: dstAcc,
+                amount: payerTotal,
+                txnId: txnHeader.id,
+              },
+            ]);
+
+            await this.createExpenseAndHandleSplits(
+              payerId,
+              expenseCreateWithDetails,
+              txnHeader.id,
+              splits
             );
-
-            await this.transactionAccountRepository.update(
-              dstTranasctionAcc.id,
-              {
-                balance: dstTranasctionAcc.balance + payerTotal,
-              }
-            );
-
-            await this.transactionEntryRepository.create({
-              amount: payerTotal,
-              transactionAccountId: dstTranasctionAcc.id,
-              transactionId: txnHeader.id,
-            });
-
-            await this.transactionEntryRepository.create({
-              amount: -payerTotal,
-              transactionAccountId: srcTransactionAcc.id,
-              transactionId: txnHeader.id,
-            });
-
-            const expense = await this.expenseRepository.create({
-              amount: expenseCreateWithDetails.amount,
-              createdBy: payerId,
-              currency: "INR",
-              description: expenseCreateWithDetails.description,
-              groupId: expenseCreateWithDetails.groupId,
-            });
-
-            await this.expensePayerRepository.create({
-              amountPaid: expenseCreateWithDetails.amount,
-              expenseId: expense.id,
-              userId: payerId,
-            });
-
-            let payerLoanGiveAcc =
-              await this.transactionAccountRepository.findByUserIdAndCategoryName(
-                payerId,
-                ACCOUNT_TYPE.LOAN_GIVEN
-              );
-            if (!payerLoanGiveAcc) {
-              throw new TransactionAccountNotFoundError(
-                `${payerId} ,  LOAN_GIVEN`
-              );
-            }
-
-            // payer single entry for loan given
-            await this.transactionEntryRepository.create({
-              amount: -expenseCreateWithDetails.amount + payerTotal,
-              transactionAccountId: payerLoanGiveAcc.id,
-              transactionId: txnHeader.id,
-            });
-
-            if (splits.length === 0) {
-              throw new ValidationError("expected splits length > 0");
-            }
-
-            for (const split of splits) {
-              console.log(split);
-              const payeeLoanTakenAcc =
-                await this.transactionAccountRepository.findByUserIdAndCategoryName(
-                  split.userId,
-                  ACCOUNT_TYPE.LOAN_TAKEN
-                );
-              if (!payeeLoanTakenAcc) {
-                throw new TransactionAccountNotFoundError(
-                  `${split.userId} , LOAN_TAKEN`
-                );
-              }
-              payerLoanGiveAcc = await this.transactionAccountRepository.update(
-                payerLoanGiveAcc.id,
-                {
-                  balance: payerLoanGiveAcc.balance - split.amountOwed,
-                }
-              );
-              if (!payerLoanGiveAcc) {
-                throw new TransactionAccountNotFoundError(
-                  `${payerId} ,  LOAN_GIVEN`
-                );
-              }
-
-              await this.transactionAccountRepository.update(
-                payeeLoanTakenAcc.id,
-                {
-                  balance: payeeLoanTakenAcc.balance + split.amountOwed,
-                }
-              );
-
-              await this.transactionEntryRepository.create({
-                amount: split.amountOwed,
-                transactionAccountId: payeeLoanTakenAcc.id,
-                transactionId: txnHeader.id,
-              });
-
-              await this.expenseSplitRepository.create({
-                amountOwed: split.amountOwed,
-                expenseId: expense.id,
-                userId: split.userId,
-                splitType: expenseCreateWithDetails.splitType,
-                metadata: expenseCreateWithDetails.description,
-              });
-            }
           } else {
             throw new NotFoundError("Provided share type not found");
           }
-        } else if (expenseCreateWithDetails.type === TXN_TYPE.INCOME) {
-          await this.transactionAccountRepository.update(srcTransactionAcc.id, {
-            balance:
-              srcTransactionAcc.balance - expenseCreateWithDetails.amount,
-          });
-
-          await this.transactionAccountRepository.update(dstTranasctionAcc.id, {
-            balance:
-              dstTranasctionAcc.balance + expenseCreateWithDetails.amount,
-          });
-
-          await this.transactionEntryRepository.create({
-            amount: expenseCreateWithDetails.amount,
-            transactionAccountId: dstTranasctionAcc.id,
-            transactionId: txnHeader.id,
-          });
-
-          await this.transactionEntryRepository.create({
-            amount: -expenseCreateWithDetails.amount,
-            transactionAccountId: srcTransactionAcc.id,
-            transactionId: txnHeader.id,
-          });
-        } else if (expenseCreateWithDetails.type === TXN_TYPE.LOAN_GIVEN) {
-          // await this.transactionAccountRepository.update(srcTransactionAcc.id, {
-          //   balance:
-          //     srcTransactionAcc.balance + expenseCreateWithDetails.amount,
-          // });
-          //
-          // await this.transactionAccountRepository.update(dstTranasctionAcc.id, {
-          //   balance:
-          //     dstTranasctionAcc.balance + expenseCreateWithDetails.amount,
-          // });
-          //
-          // await this.transactionEntryRepository.create({
-          //   amount: expenseCreateWithDetails.amount,
-          //   transactionAccountId: dstTranasctionAcc.id,
-          //   transactionId: txnHeader.id,
-          // });
-          //
-          // await this.transactionEntryRepository.create({
-          //   amount: expenseCreateWithDetails.amount,
-          //   transactionAccountId: srcTransactionAcc.id,
-          //   transactionId: txnHeader.id,
-          // });
-          //
-          // const expense = await this.expenseRepository.create({
-          //   amount: expenseCreateWithDetails.amount,
-          //   createdBy: payerId,
-          //   currency: "INR",
-          //   description: expenseCreateWithDetails.description,
-          // });
-          //
-          // await this.expensePayerRepository.create({
-          //   amountPaid: expenseCreateWithDetails.amount,
-          //   expenseId: expense.id,
-          //   userId: payerId,
-          // });
-        } else if (expenseCreateWithDetails.type === TXN_TYPE.LOAN_TAKEN) {
-          // await this.transactionAccountRepository.update(srcTransactionAcc.id, {
-          //   balance:
-          //     srcTransactionAcc.balance - expenseCreateWithDetails.amount,
-          // });
-          //
-          // await this.transactionAccountRepository.update(dstTranasctionAcc.id, {
-          //   balance:
-          //     dstTranasctionAcc.balance + expenseCreateWithDetails.amount,
-          // });
-          //
-          // await this.transactionEntryRepository.create({
-          //   amount: expenseCreateWithDetails.amount,
-          //   transactionAccountId: dstTranasctionAcc.id,
-          //   transactionId: txnHeader.id,
-          // });
-          //
-          // await this.transactionEntryRepository.create({
-          //   amount: -expenseCreateWithDetails.amount,
-          //   transactionAccountId: srcTransactionAcc.id,
-          //   transactionId: txnHeader.id,
-          // });
-        } else if (expenseCreateWithDetails.type === TXN_TYPE.SAVING) {
-          await this.transactionAccountRepository.update(srcTransactionAcc.id, {
-            balance:
-              srcTransactionAcc.balance - expenseCreateWithDetails.amount,
-          });
-
-          await this.transactionAccountRepository.update(dstTranasctionAcc.id, {
-            balance:
-              dstTranasctionAcc.balance + expenseCreateWithDetails.amount,
-          });
-
-          await this.transactionEntryRepository.create({
-            amount: expenseCreateWithDetails.amount,
-            transactionAccountId: dstTranasctionAcc.id,
-            transactionId: txnHeader.id,
-          });
-
-          await this.transactionEntryRepository.create({
-            amount: -expenseCreateWithDetails.amount,
-            transactionAccountId: srcTransactionAcc.id,
-            transactionId: txnHeader.id,
-          });
+        } else if (
+          expenseCreateWithDetails.type === TXN_TYPE.INCOME ||
+          expenseCreateWithDetails.type === TXN_TYPE.SAVING
+        ) {
+          await this.updateAccountsAndCreateEntries([
+            {
+              srcAcc,
+              dstAcc,
+              amount: expenseCreateWithDetails.amount,
+              txnId: txnHeader.id,
+            },
+          ]);
         } else {
           throw new NotFoundError("Provided txn type not found");
         }
       } catch (error: any) {
         tx.rollback();
-        console.log(error);
         throw error;
       }
     });

@@ -10,26 +10,97 @@ import {
 export const friendRoutes = new OpenAPIHono();
 
 friendRoutes.openapi(getFriendsRoute, async (c) => {
-  // TODO: Implement get friends list
-  return c.json({ message: "Not implemented" }, 501);
+  try {
+    const { friendService } = c.get("services");
+    const user = c.get("user");
+    if (!user) {
+      return c.json({ message: "Not authenticated" }, 401);
+    }
+    const friends = await friendService.getFriends(user);
+    return c.json(friends, 200);
+  } catch (error: any) {
+    return c.json({ message: error.message || "Internal server error" }, 500);
+  }
 });
 
 friendRoutes.openapi(sendFriendRequestRoute, async (c) => {
-  // TODO: Implement send friend request
-  return c.json({ message: "Not implemented" }, 501);
+  try {
+    const { friendId } = c.req.valid("json");
+    const { friendService } = c.get("services");
+    const user = c.get("user");
+    if (!user) {
+      return c.json({ message: "Not authenticated" }, 401);
+    }
+    const friendship = await friendService.sendFriendRequest(user, friendId);
+    return c.json(friendship, 201);
+  } catch (error: any) {
+    if (error.message.includes("already")) {
+      return c.json({ message: error.message }, 409);
+    }
+    if (error.message.includes("yourself")) {
+      return c.json({ message: error.message }, 400);
+    }
+    return c.json({ message: error.message || "Internal server error" }, 500);
+  }
 });
 
 friendRoutes.openapi(getFriendRequestsRoute, async (c) => {
-  // TODO: Implement get friend requests
-  return c.json({ message: "Not implemented" }, 501);
+  try {
+    const { friendService } = c.get("services");
+    const user = c.get("user");
+    if (!user) {
+      return c.json({ message: "Not authenticated" }, 401);
+    }
+    const requests = await friendService.getFriendRequests(user);
+    return c.json(requests, 200);
+  } catch (error: any) {
+    return c.json({ message: error.message || "Internal server error" }, 500);
+  }
 });
 
 friendRoutes.openapi(respondToFriendRequestRoute, async (c) => {
-  // TODO: Implement respond to friend request
-  return c.json({ message: "Not implemented" }, 501);
+  try {
+    const { userId } = c.req.valid("param");
+    const { action } = c.req.valid("json");
+    const { friendService } = c.get("services");
+    const user = c.get("user");
+    if (!user) {
+      return c.json({ message: "Not authenticated" }, 401);
+    }
+    const result = await friendService.respondToFriendRequest(
+      user,
+      Number(userId),
+      action
+    );
+    return c.json(result, 200);
+  } catch (error: any) {
+    if (error.message === "Friend request not found") {
+      return c.json({ message: error.message }, 404);
+    }
+    if (
+      error.message.includes("not pending") ||
+      error.message.includes("not authorized")
+    ) {
+      return c.json({ message: error.message }, 400);
+    }
+    return c.json({ message: error.message || "Internal server error" }, 500);
+  }
 });
 
 friendRoutes.openapi(removeFriendRoute, async (c) => {
-  // TODO: Implement remove friend
-  return c.json({ message: "Not implemented" }, 501);
+  try {
+    const { userId } = c.req.valid("param");
+    const { friendService } = c.get("services");
+    const user = c.get("user");
+    if (!user) {
+      return c.json({ message: "Not authenticated" }, 401);
+    }
+    const result = await friendService.removeFriend(user, Number(userId));
+    return c.json(result, 200);
+  } catch (error: any) {
+    if (error.message === "Friendship not found") {
+      return c.json({ message: error.message }, 404);
+    }
+    return c.json({ message: error.message || "Internal server error" }, 500);
+  }
 });
