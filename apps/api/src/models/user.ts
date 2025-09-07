@@ -7,8 +7,8 @@ import { user } from "@/db";
 // ==========================================================
 
 export const UserResponseSchema = createSelectSchema(user, {
-  id: z.string().openapi({
-    example: "1234",
+  id: z.number().openapi({
+    example: 123,
     description: "User's Id",
   }),
   name: z

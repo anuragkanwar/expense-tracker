@@ -24,8 +24,14 @@ export const authMiddeware = (): MiddlewareHandler => {
       return next();
     }
 
-    c.set("user", session.user);
-    c.set("session", session.session);
+    c.set("user", {
+      ...session.user,
+      id: Number(session.user.id),
+    });
+    c.set("session", {
+      ...session.session,
+      id: Number(session.session.id),
+    });
     return next();
   };
 };

@@ -42,6 +42,7 @@ export const auth = betterAuth({
     },
   },
   advanced: {
+    cookiePrefix: "pocket-pixie",
     database: {
       generateId: false,
       useNumberId: true,

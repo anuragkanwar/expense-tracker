@@ -21,5 +21,5 @@ export * from "./expense-split";
 export * from "./user-balance";
 export * from "./settlement";
 
-// Student model
-export * from "./student";
+// Student model - commented out as file doesn't exist
+// export * from "./student";

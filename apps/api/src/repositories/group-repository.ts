@@ -25,7 +25,7 @@ export class GroupRepository {
     }));
   }
 
-  async findById(id: string): Promise<GroupResponse | null> {
+  async findById(id: number): Promise<GroupResponse | null> {
     const result = await this.db
       .select()
       .from(group)
@@ -47,11 +47,9 @@ export class GroupRepository {
   }
 
   async create(data: GroupCreate): Promise<GroupResponse> {
-    const id = crypto.randomUUID();
     const result = await this.db
       .insert(group)
       .values({
-        id,
         createdAt: new Date(),
         updatedAt: new Date(),
         ...data,
@@ -70,13 +68,13 @@ export class GroupRepository {
     return created;
   }
 
-  async update(id: string, data: GroupUpdate): Promise<GroupResponse | null> {
+  async update(id: number, data: GroupUpdate): Promise<GroupResponse | null> {
     await this.db.update(group).set(data).where(eq(group.id, id));
 
     return this.findById(id);
   }
 
-  async delete(id: string): Promise<boolean> {
+  async delete(id: number): Promise<boolean> {
     const result = await this.db.delete(group).where(eq(group.id, id));
 
     return result.rowsAffected > 0;

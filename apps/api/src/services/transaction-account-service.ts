@@ -44,7 +44,7 @@ export class TransactionAccountService {
   }
 
   async getAll(user: UserAuth): Promise<TransactionAccountResponse[]> {
-    return this.transactionAccountRepository.findByUserId(Number(user.id));
+    return this.transactionAccountRepository.findByUserId(user.id);
   }
 
   async getById(
@@ -53,7 +53,7 @@ export class TransactionAccountService {
   ): Promise<TransactionAccountResponse> {
     const account =
       await this.transactionAccountRepository.findByUserIdAndAccountId(
-        Number(user.id),
+        user.id,
         id
       );
     if (!account) {
@@ -67,7 +67,7 @@ export class TransactionAccountService {
     user: UserAuth
   ): Promise<TransactionAccountResponse> {
     // Ensure the account belongs to the user
-    const accountData = { ...data, userId: Number(user.id) };
+    const accountData = { ...data, userId: user.id };
     return this.transactionAccountRepository.create(accountData);
   }
 
@@ -79,7 +79,7 @@ export class TransactionAccountService {
     // Check if account exists and belongs to user
     const existing =
       await this.transactionAccountRepository.findByUserIdAndAccountId(
-        Number(user.id),
+        user.id,
         id
       );
     if (!existing) {
@@ -96,7 +96,7 @@ export class TransactionAccountService {
     // Check if account exists and belongs to user
     const existing =
       await this.transactionAccountRepository.findByUserIdAndAccountId(
-        Number(user.id),
+        user.id,
         id
       );
     if (!existing) {
@@ -122,7 +122,7 @@ export class TransactionAccountService {
     friendId: number,
     user: UserAuth
   ): Promise<TransactionAccountResponse[]> {
-    const currentUserId = Number(user.id);
+    const currentUserId = user.id;
 
     // Check if they are friends
     const areFriends = await this.friendService.areFriends(

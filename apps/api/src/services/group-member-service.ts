@@ -41,8 +41,8 @@ export class GroupMemberService {
     return this.groupMemberRepository.findById(numericId);
   }
 
-  async getGroupMembers(groupId: string): Promise<GroupMemberResponse[]> {
-    if (!groupId || typeof groupId !== "string") {
+  async getGroupMembers(groupId: number): Promise<GroupMemberResponse[]> {
+    if (!groupId || typeof groupId !== "number") {
       throw new BadRequestError("Invalid group ID");
     }
 
@@ -70,11 +70,11 @@ export class GroupMemberService {
     return this.groupMemberRepository.create(data);
   }
 
-  async removeGroupMember(groupId: string, userId: string): Promise<boolean> {
-    if (!groupId || typeof groupId !== "string") {
+  async removeGroupMember(groupId: number, userId: number): Promise<boolean> {
+    if (!groupId || typeof groupId !== "number") {
       throw new BadRequestError("Invalid group ID");
     }
-    if (!userId || typeof userId !== "string") {
+    if (!userId || typeof userId !== "number") {
       throw new BadRequestError("Invalid user ID");
     }
 
@@ -94,13 +94,13 @@ export class GroupMemberService {
     return this.groupMemberRepository.deleteByGroupIdAndUserId(groupId, userId);
   }
 
-  async isUserMemberOfGroup(groupId: string, userId: string): Promise<boolean> {
+  async isUserMemberOfGroup(groupId: number, userId: number): Promise<boolean> {
     const members = await this.groupMemberRepository.findByGroupId(groupId);
     return members.some((member) => member.userId === userId);
   }
 
-  async getUserGroups(userId: string): Promise<GroupMemberResponse[]> {
-    if (!userId || typeof userId !== "string") {
+  async getUserGroups(userId: number): Promise<GroupMemberResponse[]> {
+    if (!userId || typeof userId !== "number") {
       throw new BadRequestError("Invalid user ID");
     }
 

@@ -34,8 +34,8 @@ export class GroupService {
     return this.groupRepository.findAll(limit, offset);
   }
 
-  async getGroupById(id: string): Promise<GroupResponse | null> {
-    if (!id || typeof id !== "string") {
+  async getGroupById(id: number): Promise<GroupResponse | null> {
+    if (!id || typeof id !== "number") {
       throw new BadRequestError("Invalid group ID");
     }
 
@@ -47,10 +47,10 @@ export class GroupService {
   }
 
   async updateGroup(
-    id: string,
+    id: number,
     data: GroupUpdate
   ): Promise<GroupResponse | null> {
-    if (!id || typeof id !== "string") {
+    if (!id || typeof id !== "number") {
       throw new BadRequestError("Invalid group ID");
     }
 
@@ -62,8 +62,8 @@ export class GroupService {
     return this.groupRepository.update(id, data);
   }
 
-  async deleteGroup(id: string): Promise<boolean> {
-    if (!id || typeof id !== "string") {
+  async deleteGroup(id: number): Promise<boolean> {
+    if (!id || typeof id !== "number") {
       throw new BadRequestError("Invalid group ID");
     }
 
@@ -75,23 +75,23 @@ export class GroupService {
     return this.groupRepository.delete(id);
   }
 
-  async getGroupMembers(groupId: string) {
+  async getGroupMembers(groupId: number) {
     return this.groupMemberService.getGroupMembers(groupId);
   }
 
-  async addGroupMember(groupId: string, userId: string) {
+  async addGroupMember(groupId: number, userId: number) {
     return this.groupMemberService.addGroupMember({
       groupId,
       userId,
     });
   }
 
-  async removeGroupMember(groupId: string, userId: string) {
+  async removeGroupMember(groupId: number, userId: number) {
     return this.groupMemberService.removeGroupMember(groupId, userId);
   }
 
-  async getGroupBalances(groupId: string): Promise<GroupBalancesResponse> {
-    if (!groupId || typeof groupId !== "string") {
+  async getGroupBalances(groupId: number): Promise<GroupBalancesResponse> {
+    if (!groupId || typeof groupId !== "number") {
       throw new BadRequestError("Invalid group ID");
     }
 
@@ -111,8 +111,8 @@ export class GroupService {
     return balances;
   }
 
-  async getSettlementPlan(groupId: string): Promise<SettlementPlanResponse> {
-    if (!groupId || typeof groupId !== "string") {
+  async getSettlementPlan(groupId: number): Promise<SettlementPlanResponse> {
+    if (!groupId || typeof groupId !== "number") {
       throw new BadRequestError("Invalid group ID");
     }
 

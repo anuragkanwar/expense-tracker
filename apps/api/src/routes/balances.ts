@@ -17,7 +17,7 @@ balanceRoutes.openapi(getBalanceSummaryRoute, async (c) => {
   }
 
   const { balanceService } = c.get("services");
-  const userId = parseInt(user.id, 10);
+  const userId = user.id;
   const summary = await balanceService.getBalanceSummary(userId);
 
   return c.json(summary, 200);
@@ -32,10 +32,14 @@ balanceRoutes.openapi(getFriendBalanceRoute, async (c) => {
   const { userId: friendId } = c.req.valid("param");
   const { balanceService } = c.get("services");
 
-  const userId = parseInt(user.id, 10);
+  const userId = user.id;
+  const numericFriendId = Number(friendId);
 
   try {
-    const balance = await balanceService.getFriendBalance(userId, friendId);
+    const balance = await balanceService.getFriendBalance(
+      userId,
+      numericFriendId
+    );
     return c.json(balance, 200);
   } catch {
     return c.json({ message: "Friend not found" }, 404);
@@ -51,10 +55,14 @@ balanceRoutes.openapi(getGroupBalanceRoute, async (c) => {
   const { groupId } = c.req.valid("param");
   const { balanceService } = c.get("services");
 
-  const userId = parseInt(user.id, 10);
+  const userId = user.id;
+  const numericGroupId = Number(groupId);
 
   try {
-    const balance = await balanceService.getGroupBalance(userId, groupId);
+    const balance = await balanceService.getGroupBalance(
+      userId,
+      numericGroupId
+    );
     return c.json(balance, 200);
   } catch {
     return c.json({ message: "Group not found" }, 404);
@@ -85,7 +93,7 @@ balanceRoutes.openapi(getGlobalSettlementPlanRoute, async (c) => {
   }
 
   const { balanceService } = c.get("services");
-  const userId = parseInt(user.id, 10);
+  const userId = user.id;
 
   const plan = await balanceService.getGlobalSettlementPlan(userId);
   return c.json(plan, 200);
@@ -100,10 +108,14 @@ balanceRoutes.openapi(getGroupSettlementPlanRoute, async (c) => {
   const { groupId } = c.req.valid("param");
   const { balanceService } = c.get("services");
 
-  const userId = parseInt(user.id, 10);
+  const userId = user.id;
+  const numericGroupId = Number(groupId);
 
   try {
-    const plan = await balanceService.getGroupSettlementPlan(userId, groupId);
+    const plan = await balanceService.getGroupSettlementPlan(
+      userId,
+      numericGroupId
+    );
     return c.json(plan, 200);
   } catch (error) {
     return c.json({ message: "Group not found" }, 404);

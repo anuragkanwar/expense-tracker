@@ -5,7 +5,12 @@ import { budget, TIME_PERIOD } from "@/db";
 // BUDGET SCHEMAS
 // ==========================================================
 
-export const BudgetResponseSchema = createSelectSchema(budget)
+export const BudgetResponseSchema = createSelectSchema(budget, {
+  userId: z.number().openapi({
+    example: 123,
+    description: "User ID",
+  }),
+})
   .transform((data) => ({
     ...data,
     startDate: data.startDate?.toISOString() || null,

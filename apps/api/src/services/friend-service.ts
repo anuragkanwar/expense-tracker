@@ -16,12 +16,12 @@ export class FriendService {
   }
 
   async getFriends(user: UserAuth): Promise<UserResponse[]> {
-    const userId = Number(user.id);
+    const userId = user.id;
     return this.friendRepository.findFriendsByUserId(userId);
   }
 
   async sendFriendRequest(user: UserAuth, friendId: number) {
-    const userId = Number(user.id);
+    const userId = user.id;
 
     if (userId === friendId) {
       throw new ValidationError("Cannot send friend request to yourself");
@@ -50,7 +50,7 @@ export class FriendService {
   }
 
   async getFriendRequests(user: UserAuth) {
-    const userId = Number(user.id);
+    const userId = user.id;
     return this.friendRepository.findPendingRequestsByUserId(userId);
   }
 
@@ -59,7 +59,7 @@ export class FriendService {
     fromUserId: number,
     action: "accept" | "reject"
   ) {
-    const userId = Number(user.id);
+    const userId = user.id;
 
     // Find the friend request
     const friendship =
@@ -96,7 +96,7 @@ export class FriendService {
   }
 
   async removeFriend(user: UserAuth, friendId: number) {
-    const userId = Number(user.id);
+    const userId = user.id;
 
     // Find the friendship
     const friendship =

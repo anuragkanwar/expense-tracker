@@ -12,16 +12,16 @@ export const SettlementResponseSchema = createSelectSchema(settlement)
       example: 123,
       description: "Unique settlement identifier",
     }),
-    groupId: z.string().nullable().openapi({
-      example: "uuid-string",
+    groupId: z.number().nullable().openapi({
+      example: 123,
       description: "Group ID",
     }),
-    payerId: z.string().openapi({
-      example: "uuid-string",
+    payerId: z.number().openapi({
+      example: 123,
       description: "Payer user ID",
     }),
-    payeeId: z.string().openapi({
-      example: "uuid-string",
+    payeeId: z.number().openapi({
+      example: 123,
       description: "Payee user ID",
     }),
     amount: z.number().openapi({
@@ -64,16 +64,16 @@ export const SettlementCreateSchema = createInsertSchema(settlement, {
     example: "2025-09-01T12:00:00.000Z",
     description: "Settlement date",
   }),
-  groupId: z.string().optional().openapi({
-    example: "uuid-string",
+  groupId: z.number().optional().openapi({
+    example: 123,
     description: "Group ID",
   }),
-  payerId: z.string().openapi({
-    example: "uuid-string",
+  payerId: z.number().openapi({
+    example: 123,
     description: "Payer user ID",
   }),
-  payeeId: z.string().openapi({
-    example: "uuid-string",
+  payeeId: z.number().openapi({
+    example: 123,
     description: "Payee user ID",
   }),
 })

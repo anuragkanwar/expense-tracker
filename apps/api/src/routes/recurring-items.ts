@@ -26,9 +26,8 @@ recurringItemRoutes.openapi(getRecurringItemsRoute, async (c) => {
   const recurringItems = await services.recurringService.getAllRecurringItems();
 
   // Filter recurring items by user
-  const userId = parseInt(user.id);
   const userRecurringItems = recurringItems.filter(
-    (item) => item.userId === userId
+    (item) => item.userId === user.id
   );
 
   return c.json(userRecurringItems, 200);
@@ -50,7 +49,7 @@ recurringItemRoutes.openapi(createRecurringItemRoute, async (c) => {
     period: periodMap[body.period] || TIME_PERIOD.MONTHLY,
     type:
       body.type === "income" ? RECURRENCE_TYPE.CREDIT : RECURRENCE_TYPE.DEBIT,
-    userId: parseInt(user.id),
+    userId: user.id,
     sourceTransactionAccountID: 1, // TODO: Map from accountId
     targetTransactionAccountID: 1, // TODO: Map from accountId
     nextDate: body.nextDate,
@@ -78,8 +77,7 @@ recurringItemRoutes.openapi(deleteRecurringItemRoute, async (c) => {
     return c.json({ message: "Recurring item not found" }, 404);
   }
 
-  const userId = parseInt(user.id);
-  if (existingItem.userId !== userId) {
+  if (existingItem.userId !== user.id) {
     return c.json({ message: "Forbidden" }, 403);
   }
 

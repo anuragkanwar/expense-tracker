@@ -38,9 +38,9 @@ export class SettlementService {
   }
 
   async getSettlementsByGroupId(
-    groupId: string
+    groupId: number
   ): Promise<SettlementResponse[]> {
-    if (!groupId || typeof groupId !== "string") {
+    if (!groupId || typeof groupId !== "number") {
       throw new BadRequestError("Invalid group ID");
     }
 

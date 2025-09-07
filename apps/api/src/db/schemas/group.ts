@@ -2,10 +2,10 @@ import { sqliteTable, text, integer } from "drizzle-orm/sqlite-core";
 import { user } from "./user";
 
 export const group = sqliteTable("group", {
-  id: text("id").primaryKey(),
+  id: integer("id").primaryKey({ autoIncrement: true }),
   name: text("name").notNull(),
   coverPhotoURL: text("cover_photo_url"),
-  createdBy: text("created_by")
+  createdBy: integer("created_by")
     .notNull()
     .references(() => user.id, { onDelete: "cascade" }),
   createdAt: integer("created_at", { mode: "timestamp" })
