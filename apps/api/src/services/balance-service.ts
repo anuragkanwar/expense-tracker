@@ -171,23 +171,16 @@ export class BalanceService {
       friendId
     );
 
-    let userOwes = 0;
-    let friendOwes = 0;
+    let netBalance = 0;
     let currency = "USD";
 
     for (const balance of balances) {
       if (balance.ownerId === userId && balance.counterPartyId === friendId) {
-        userOwes = balance.amount;
+        netBalance = balance.amount;
         currency = balance.currency;
-      } else if (
-        balance.ownerId === friendId &&
-        balance.counterPartyId === userId
-      ) {
-        friendOwes = balance.amount;
+        break; // Use the net balance from user's perspective
       }
     }
-
-    const netBalance = friendOwes - userOwes; // Positive means friend owes user
 
     // Get friend name
     const friend = await this.userRepository.findById(friendId);
@@ -366,7 +359,7 @@ export class BalanceService {
           await this.balanceRepository.update(
             payerBalance.id,
             {
-              amount: payerBalance.amount - data.amount,
+              amount: payerBalance.amount + data.amount,
             },
             tx
           );
@@ -376,7 +369,7 @@ export class BalanceService {
             {
               ownerId: data.payerId,
               counterPartyId: data.payeeId,
-              amount: -data.amount,
+              amount: data.amount,
               currency: data.currency,
               groupId: undefined,
             },
@@ -395,7 +388,7 @@ export class BalanceService {
           await this.balanceRepository.update(
             payeeBalance.id,
             {
-              amount: payeeBalance.amount + data.amount,
+              amount: payeeBalance.amount - data.amount,
             },
             tx
           );
@@ -404,7 +397,7 @@ export class BalanceService {
             {
               ownerId: data.payeeId,
               counterPartyId: data.payerId,
-              amount: data.amount,
+              amount: -data.amount,
               currency: data.currency,
               groupId: undefined,
             },
@@ -424,7 +417,7 @@ export class BalanceService {
             await this.balanceRepository.update(
               payerGroupBalance.id,
               {
-                amount: payerGroupBalance.amount - data.amount,
+                amount: payerGroupBalance.amount + data.amount,
               },
               tx
             );
@@ -433,7 +426,7 @@ export class BalanceService {
               {
                 ownerId: data.payerId,
                 counterPartyId: data.payeeId,
-                amount: -data.amount,
+                amount: data.amount,
                 currency: data.currency,
                 groupId: data.groupId,
               },
@@ -451,7 +444,7 @@ export class BalanceService {
             await this.balanceRepository.update(
               payeeGroupBalance.id,
               {
-                amount: payeeGroupBalance.amount + data.amount,
+                amount: payeeGroupBalance.amount - data.amount,
               },
               tx
             );
@@ -460,7 +453,7 @@ export class BalanceService {
               {
                 ownerId: data.payeeId,
                 counterPartyId: data.payerId,
-                amount: data.amount,
+                amount: -data.amount,
                 currency: data.currency,
                 groupId: data.groupId,
               },
