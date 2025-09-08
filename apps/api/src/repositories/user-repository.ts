@@ -1,7 +1,7 @@
 import { user } from "@/db";
 import { eq } from "drizzle-orm";
 import { UserResponse } from "@/models/user";
-import { type DBType } from "@/db";
+import { type DBType, type DBTransactionType } from "@/db";
 
 export class UserRepository {
   private db: DBType;
@@ -9,12 +9,12 @@ export class UserRepository {
     this.db = db;
   }
 
-  async findById(id: number): Promise<UserResponse | null> {
-    const result = await this.db
-      .select()
-      .from(user)
-      .where(eq(user.id, id))
-      .limit(1);
+  async findById(
+    id: number,
+    tx?: DBTransactionType
+  ): Promise<UserResponse | null> {
+    const db = tx ?? this.db;
+    const result = await db.select().from(user).where(eq(user.id, id)).limit(1);
 
     if (result.length === 0 || !result[0]) {
       return null;
@@ -28,8 +28,12 @@ export class UserRepository {
     } as UserResponse;
   }
 
-  async findByEmail(email: string): Promise<UserResponse | null> {
-    const result = await this.db
+  async findByEmail(
+    email: string,
+    tx?: DBTransactionType
+  ): Promise<UserResponse | null> {
+    const db = tx ?? this.db;
+    const result = await db
       .select()
       .from(user)
       .where(eq(user.email, email))

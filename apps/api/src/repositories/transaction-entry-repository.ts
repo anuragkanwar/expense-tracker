@@ -5,7 +5,7 @@ import {
   TransactionEntryCreate,
   TransactionEntryUpdate,
 } from "@/models/transaction-entry";
-import { type DBType } from "@/db";
+import { type DBType, type DBTransactionType } from "@/db";
 
 export class TransactionEntryRepository {
   private db: DBType;
@@ -15,9 +15,11 @@ export class TransactionEntryRepository {
 
   async findAll(
     limit: number = 10,
-    offset: number = 0
+    offset: number = 0,
+    tx?: DBTransactionType
   ): Promise<TransactionEntryResponse[]> {
-    const result = await this.db
+    const db = tx ?? this.db;
+    const result = await db
       .select()
       .from(transactionEntry)
       .limit(limit)
@@ -29,8 +31,12 @@ export class TransactionEntryRepository {
     })) as TransactionEntryResponse[];
   }
 
-  async findById(id: number): Promise<TransactionEntryResponse | null> {
-    const result = await this.db
+  async findById(
+    id: number,
+    tx?: DBTransactionType
+  ): Promise<TransactionEntryResponse | null> {
+    const db = tx ?? this.db;
+    const result = await db
       .select()
       .from(transactionEntry)
       .where(eq(transactionEntry.id, id))
@@ -48,9 +54,11 @@ export class TransactionEntryRepository {
   }
 
   async findByTransactionId(
-    transactionId: number
+    transactionId: number,
+    tx?: DBTransactionType
   ): Promise<TransactionEntryResponse[]> {
-    const result = await this.db
+    const db = tx ?? this.db;
+    const result = await db
       .select()
       .from(transactionEntry)
       .where(eq(transactionEntry.transactionId, transactionId));
@@ -62,9 +70,11 @@ export class TransactionEntryRepository {
   }
 
   async create(
-    data: TransactionEntryCreate
+    data: TransactionEntryCreate,
+    tx?: DBTransactionType
   ): Promise<TransactionEntryResponse> {
-    const result = await this.db
+    const db = tx ?? this.db;
+    const result = await db
       .insert(transactionEntry)
       .values({
         createdAt: new Date(),
@@ -87,18 +97,21 @@ export class TransactionEntryRepository {
 
   async update(
     id: number,
-    data: TransactionEntryUpdate
+    data: TransactionEntryUpdate,
+    tx?: DBTransactionType
   ): Promise<TransactionEntryResponse | null> {
-    await this.db
+    const db = tx ?? this.db;
+    await db
       .update(transactionEntry)
       .set(data)
       .where(eq(transactionEntry.id, id));
 
-    return this.findById(id);
+    return this.findById(id, tx);
   }
 
-  async delete(id: number): Promise<boolean> {
-    const result = await this.db
+  async delete(id: number, tx?: DBTransactionType): Promise<boolean> {
+    const db = tx ?? this.db;
+    const result = await db
       .delete(transactionEntry)
       .where(eq(transactionEntry.id, id));
 

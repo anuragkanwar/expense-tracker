@@ -5,7 +5,7 @@ import {
   TransactionCreate,
   TransactionUpdate,
 } from "@/models/transaction";
-import { type DBType } from "@/db";
+import { type DBType, type DBTransactionType } from "@/db";
 
 export class TransactionRepository {
   private db: DBType;
@@ -15,9 +15,11 @@ export class TransactionRepository {
 
   async findAll(
     limit: number = 10,
-    offset: number = 0
+    offset: number = 0,
+    tx?: DBTransactionType
   ): Promise<TransactionResponse[]> {
-    const result = await this.db
+    const db = tx ?? this.db;
+    const result = await db
       .select()
       .from(transaction)
       .limit(limit)
@@ -30,8 +32,12 @@ export class TransactionRepository {
     })) as TransactionResponse[];
   }
 
-  async findById(id: number): Promise<TransactionResponse | null> {
-    const result = await this.db
+  async findById(
+    id: number,
+    tx?: DBTransactionType
+  ): Promise<TransactionResponse | null> {
+    const db = tx ?? this.db;
+    const result = await db
       .select()
       .from(transaction)
       .where(eq(transaction.id, id))
@@ -49,8 +55,12 @@ export class TransactionRepository {
     } as TransactionResponse;
   }
 
-  async findByUserId(userId: number): Promise<TransactionResponse[]> {
-    const result = await this.db
+  async findByUserId(
+    userId: number,
+    tx?: DBTransactionType
+  ): Promise<TransactionResponse[]> {
+    const db = tx ?? this.db;
+    const result = await db
       .select()
       .from(transaction)
       .where(eq(transaction.userId, userId));
@@ -62,7 +72,11 @@ export class TransactionRepository {
     })) as TransactionResponse[];
   }
 
-  async create(data: TransactionCreate): Promise<TransactionResponse> {
+  async create(
+    data: TransactionCreate,
+    tx?: DBTransactionType
+  ): Promise<TransactionResponse> {
+    const db = tx ?? this.db;
     const insertData = {
       ...data,
       transactionDate: data.transactionDate
@@ -70,10 +84,7 @@ export class TransactionRepository {
         : undefined,
     };
 
-    const result = await this.db
-      .insert(transaction)
-      .values(insertData)
-      .returning();
+    const result = await db.insert(transaction).values(insertData).returning();
 
     if (result.length === 0) {
       throw new Error("Failed to create transaction");
@@ -90,8 +101,10 @@ export class TransactionRepository {
 
   async update(
     id: number,
-    data: TransactionUpdate
+    data: TransactionUpdate,
+    tx?: DBTransactionType
   ): Promise<TransactionResponse | null> {
+    const db = tx ?? this.db;
     const updateData = {
       ...data,
       transactionDate: data.transactionDate
@@ -99,18 +112,14 @@ export class TransactionRepository {
         : undefined,
     };
 
-    await this.db
-      .update(transaction)
-      .set(updateData)
-      .where(eq(transaction.id, id));
+    await db.update(transaction).set(updateData).where(eq(transaction.id, id));
 
-    return this.findById(id);
+    return this.findById(id, tx);
   }
 
-  async delete(id: number): Promise<boolean> {
-    const result = await this.db
-      .delete(transaction)
-      .where(eq(transaction.id, id));
+  async delete(id: number, tx?: DBTransactionType): Promise<boolean> {
+    const db = tx ?? this.db;
+    const result = await db.delete(transaction).where(eq(transaction.id, id));
 
     return result.rowsAffected > 0;
   }

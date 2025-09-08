@@ -5,7 +5,7 @@ import {
   FriendshipCreate,
   FriendshipUpdate,
 } from "@/models/friendship";
-import { type DBType } from "@/db";
+import { type DBType, type DBTransactionType } from "@/db";
 import { FRIEND_STATUS } from "@/db";
 
 export class ConnectionRepository {
@@ -16,9 +16,11 @@ export class ConnectionRepository {
 
   async findAll(
     limit: number = 10,
-    offset: number = 0
+    offset: number = 0,
+    tx?: DBTransactionType
   ): Promise<FriendshipResponse[]> {
-    const result = await this.db
+    const db = tx ?? this.db;
+    const result = await db
       .select()
       .from(friendship)
       .limit(limit)
@@ -30,8 +32,12 @@ export class ConnectionRepository {
     })) as FriendshipResponse[];
   }
 
-  async findById(id: number): Promise<FriendshipResponse | null> {
-    const result = await this.db
+  async findById(
+    id: number,
+    tx?: DBTransactionType
+  ): Promise<FriendshipResponse | null> {
+    const db = tx ?? this.db;
+    const result = await db
       .select()
       .from(friendship)
       .where(eq(friendship.id, id))
@@ -51,8 +57,12 @@ export class ConnectionRepository {
     } as FriendshipResponse;
   }
 
-  async create(data: FriendshipCreate): Promise<FriendshipResponse> {
-    const result = await this.db
+  async create(
+    data: FriendshipCreate,
+    tx?: DBTransactionType
+  ): Promise<FriendshipResponse> {
+    const db = tx ?? this.db;
+    const result = await db
       .insert(friendship)
       .values({
         createdAt: new Date(),
@@ -66,7 +76,7 @@ export class ConnectionRepository {
       throw new Error("Failed to create connection");
     }
 
-    const created = await this.findById(result[0].id);
+    const created = await this.findById(result[0].id, tx);
     if (!created) {
       throw new Error("Failed to create connection");
     }
@@ -76,9 +86,11 @@ export class ConnectionRepository {
 
   async update(
     id: number,
-    data: FriendshipUpdate
+    data: FriendshipUpdate,
+    tx?: DBTransactionType
   ): Promise<FriendshipResponse | null> {
-    await this.db
+    const db = tx ?? this.db;
+    await db
       .update(friendship)
       .set({
         ...data,
@@ -86,13 +98,12 @@ export class ConnectionRepository {
       })
       .where(eq(friendship.id, id));
 
-    return this.findById(id);
+    return this.findById(id, tx);
   }
 
-  async delete(id: number): Promise<boolean> {
-    const result = await this.db
-      .delete(friendship)
-      .where(eq(friendship.id, id));
+  async delete(id: number, tx?: DBTransactionType): Promise<boolean> {
+    const db = tx ?? this.db;
+    const result = await db.delete(friendship).where(eq(friendship.id, id));
 
     return result.rowsAffected > 0;
   }

@@ -1,7 +1,7 @@
 import { group } from "@/db";
 import { eq } from "drizzle-orm";
 import { GroupResponse, GroupCreate, GroupUpdate } from "@/models/group";
-import { type DBType } from "@/db";
+import { type DBType, type DBTransactionType } from "@/db";
 
 export class GroupRepository {
   private db: DBType;
@@ -11,13 +11,11 @@ export class GroupRepository {
 
   async findAll(
     limit: number = 10,
-    offset: number = 0
+    offset: number = 0,
+    tx?: DBTransactionType
   ): Promise<GroupResponse[]> {
-    const result = await this.db
-      .select()
-      .from(group)
-      .limit(limit)
-      .offset(offset);
+    const db = tx ?? this.db;
+    const result = await db.select().from(group).limit(limit).offset(offset);
     return result.map((row) => ({
       ...row,
       createdAt: row.createdAt.toISOString(),
@@ -25,8 +23,12 @@ export class GroupRepository {
     }));
   }
 
-  async findById(id: number): Promise<GroupResponse | null> {
-    const result = await this.db
+  async findById(
+    id: number,
+    tx?: DBTransactionType
+  ): Promise<GroupResponse | null> {
+    const db = tx ?? this.db;
+    const result = await db
       .select()
       .from(group)
       .where(eq(group.id, id))
@@ -46,8 +48,12 @@ export class GroupRepository {
     };
   }
 
-  async create(data: GroupCreate): Promise<GroupResponse> {
-    const result = await this.db
+  async create(
+    data: GroupCreate,
+    tx?: DBTransactionType
+  ): Promise<GroupResponse> {
+    const db = tx ?? this.db;
+    const result = await db
       .insert(group)
       .values({
         createdAt: new Date(),
@@ -60,7 +66,7 @@ export class GroupRepository {
       throw new Error("Failed to create group");
     }
 
-    const created = await this.findById(result[0].id);
+    const created = await this.findById(result[0].id, tx);
     if (!created) {
       throw new Error("Failed to create group");
     }
@@ -68,14 +74,20 @@ export class GroupRepository {
     return created;
   }
 
-  async update(id: number, data: GroupUpdate): Promise<GroupResponse | null> {
-    await this.db.update(group).set(data).where(eq(group.id, id));
+  async update(
+    id: number,
+    data: GroupUpdate,
+    tx?: DBTransactionType
+  ): Promise<GroupResponse | null> {
+    const db = tx ?? this.db;
+    await db.update(group).set(data).where(eq(group.id, id));
 
-    return this.findById(id);
+    return this.findById(id, tx);
   }
 
-  async delete(id: number): Promise<boolean> {
-    const result = await this.db.delete(group).where(eq(group.id, id));
+  async delete(id: number, tx?: DBTransactionType): Promise<boolean> {
+    const db = tx ?? this.db;
+    const result = await db.delete(group).where(eq(group.id, id));
 
     return result.rowsAffected > 0;
   }

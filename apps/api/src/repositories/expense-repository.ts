@@ -5,7 +5,7 @@ import {
   ExpenseCreate,
   ExpenseUpdate,
 } from "@/models/expense";
-import { type DBType } from "@/db";
+import { type DBType, type DBTransactionType } from "@/db";
 
 export class ExpenseRepository {
   private db: DBType;
@@ -15,13 +15,11 @@ export class ExpenseRepository {
 
   async findAll(
     limit: number = 10,
-    offset: number = 0
+    offset: number = 0,
+    tx?: DBTransactionType
   ): Promise<ExpenseResponse[]> {
-    const result = await this.db
-      .select()
-      .from(expense)
-      .limit(limit)
-      .offset(offset);
+    const db = tx ?? this.db;
+    const result = await db.select().from(expense).limit(limit).offset(offset);
     return result.map((item) => ({
       ...item,
       expenseDate: item.expenseDate?.toISOString(),
@@ -30,8 +28,12 @@ export class ExpenseRepository {
     })) as ExpenseResponse[];
   }
 
-  async findById(id: number): Promise<ExpenseResponse | null> {
-    const result = await this.db
+  async findById(
+    id: number,
+    tx?: DBTransactionType
+  ): Promise<ExpenseResponse | null> {
+    const db = tx ?? this.db;
+    const result = await db
       .select()
       .from(expense)
       .where(eq(expense.id, id))
@@ -49,13 +51,17 @@ export class ExpenseRepository {
     } as any;
   }
 
-  async create(data: ExpenseCreate): Promise<ExpenseResponse> {
+  async create(
+    data: ExpenseCreate,
+    tx?: DBTransactionType
+  ): Promise<ExpenseResponse> {
+    const db = tx ?? this.db;
     const insertData = {
       ...data,
       expenseDate: data.expenseDate ? new Date(data.expenseDate) : undefined,
     };
 
-    const result = await this.db.insert(expense).values(insertData).returning();
+    const result = await db.insert(expense).values(insertData).returning();
 
     if (result.length === 0) {
       throw new Error("Failed to create expense");
@@ -72,20 +78,23 @@ export class ExpenseRepository {
 
   async update(
     id: number,
-    data: ExpenseUpdate
+    data: ExpenseUpdate,
+    tx?: DBTransactionType
   ): Promise<ExpenseResponse | null> {
+    const db = tx ?? this.db;
     const updateData = {
       ...data,
       expenseDate: data.expenseDate ? new Date(data.expenseDate) : undefined,
     };
 
-    await this.db.update(expense).set(updateData).where(eq(expense.id, id));
+    await db.update(expense).set(updateData).where(eq(expense.id, id));
 
-    return await this.findById(id);
+    return await this.findById(id, tx);
   }
 
-  async delete(id: number): Promise<boolean> {
-    const result = await this.db.delete(expense).where(eq(expense.id, id));
+  async delete(id: number, tx?: DBTransactionType): Promise<boolean> {
+    const db = tx ?? this.db;
+    const result = await db.delete(expense).where(eq(expense.id, id));
 
     return result.rowsAffected > 0;
   }

@@ -5,7 +5,7 @@ import {
   SettlementCreate,
   SettlementUpdate,
 } from "@/models/settlement";
-import { type DBType } from "@/db";
+import { type DBType, type DBTransactionType } from "@/db";
 
 export class SettlementRepository {
   private db: DBType;
@@ -15,9 +15,11 @@ export class SettlementRepository {
 
   async findAll(
     limit: number = 10,
-    offset: number = 0
+    offset: number = 0,
+    tx?: DBTransactionType
   ): Promise<SettlementResponse[]> {
-    const result = await this.db
+    const db = tx ?? this.db;
+    const result = await db
       .select()
       .from(settlement)
       .limit(limit)
@@ -30,8 +32,12 @@ export class SettlementRepository {
     })) as SettlementResponse[];
   }
 
-  async findById(id: number): Promise<SettlementResponse | null> {
-    const result = await this.db
+  async findById(
+    id: number,
+    tx?: DBTransactionType
+  ): Promise<SettlementResponse | null> {
+    const db = tx ?? this.db;
+    const result = await db
       .select()
       .from(settlement)
       .where(eq(settlement.id, id))
@@ -52,8 +58,12 @@ export class SettlementRepository {
     } as SettlementResponse;
   }
 
-  async findByGroupId(groupId: number): Promise<SettlementResponse[]> {
-    const result = await this.db
+  async findByGroupId(
+    groupId: number,
+    tx?: DBTransactionType
+  ): Promise<SettlementResponse[]> {
+    const db = tx ?? this.db;
+    const result = await db
       .select()
       .from(settlement)
       .where(eq(settlement.groupId, groupId));
@@ -65,8 +75,12 @@ export class SettlementRepository {
     })) as SettlementResponse[];
   }
 
-  async findByUserId(userId: number): Promise<SettlementResponse[]> {
-    const result = await this.db
+  async findByUserId(
+    userId: number,
+    tx?: DBTransactionType
+  ): Promise<SettlementResponse[]> {
+    const db = tx ?? this.db;
+    const result = await db
       .select()
       .from(settlement)
       .where(
@@ -80,8 +94,12 @@ export class SettlementRepository {
     })) as SettlementResponse[];
   }
 
-  async create(data: SettlementCreate): Promise<SettlementResponse> {
-    const result = await this.db
+  async create(
+    data: SettlementCreate,
+    tx?: DBTransactionType
+  ): Promise<SettlementResponse> {
+    const db = tx ?? this.db;
+    const result = await db
       .insert(settlement)
       .values({
         ...data,
@@ -95,7 +113,7 @@ export class SettlementRepository {
       throw new Error("Failed to create settlement");
     }
 
-    const created = await this.findById(result[0].id);
+    const created = await this.findById(result[0].id, tx);
     if (!created) {
       throw new Error("Failed to create settlement");
     }
@@ -105,26 +123,24 @@ export class SettlementRepository {
 
   async update(
     id: number,
-    data: SettlementUpdate
+    data: SettlementUpdate,
+    tx?: DBTransactionType
   ): Promise<SettlementResponse | null> {
+    const db = tx ?? this.db;
     const updateData: any = { ...data };
     if (data.settledAt) {
       updateData.settledAt = new Date(data.settledAt);
     }
     updateData.updatedAt = new Date();
 
-    await this.db
-      .update(settlement)
-      .set(updateData)
-      .where(eq(settlement.id, id));
+    await db.update(settlement).set(updateData).where(eq(settlement.id, id));
 
-    return this.findById(id);
+    return this.findById(id, tx);
   }
 
-  async delete(id: number): Promise<boolean> {
-    const result = await this.db
-      .delete(settlement)
-      .where(eq(settlement.id, id));
+  async delete(id: number, tx?: DBTransactionType): Promise<boolean> {
+    const db = tx ?? this.db;
+    const result = await db.delete(settlement).where(eq(settlement.id, id));
 
     return result.rowsAffected > 0;
   }

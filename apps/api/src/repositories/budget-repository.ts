@@ -1,7 +1,7 @@
 import { budget } from "@/db";
 import { eq } from "drizzle-orm";
 import { BudgetResponse, BudgetCreate, BudgetUpdate } from "@/models/budget";
-import { type DBType } from "@/db";
+import { type DBType, type DBTransactionType } from "@/db";
 
 export class BudgetRepository {
   private db: DBType;
@@ -11,13 +11,11 @@ export class BudgetRepository {
 
   async findAll(
     limit: number = 10,
-    offset: number = 0
+    offset: number = 0,
+    tx?: DBTransactionType
   ): Promise<BudgetResponse[]> {
-    const result = await this.db
-      .select()
-      .from(budget)
-      .limit(limit)
-      .offset(offset);
+    const db = tx ?? this.db;
+    const result = await db.select().from(budget).limit(limit).offset(offset);
     return result.map((row) => ({
       ...row,
       startDate: row.startDate?.toISOString() || null,
@@ -26,8 +24,12 @@ export class BudgetRepository {
     }));
   }
 
-  async findById(id: number): Promise<BudgetResponse | null> {
-    const result = await this.db
+  async findById(
+    id: number,
+    tx?: DBTransactionType
+  ): Promise<BudgetResponse | null> {
+    const db = tx ?? this.db;
+    const result = await db
       .select()
       .from(budget)
       .where(eq(budget.id, id))
@@ -48,8 +50,12 @@ export class BudgetRepository {
     };
   }
 
-  async create(data: BudgetCreate): Promise<BudgetResponse> {
-    const result = await this.db
+  async create(
+    data: BudgetCreate,
+    tx?: DBTransactionType
+  ): Promise<BudgetResponse> {
+    const db = tx ?? this.db;
+    const result = await db
       .insert(budget)
       .values({
         ...data,
@@ -61,7 +67,7 @@ export class BudgetRepository {
       throw new Error("Failed to create budget");
     }
 
-    const created = await this.findById(result[0].id);
+    const created = await this.findById(result[0].id, tx);
     if (!created) {
       throw new Error("Failed to create budget");
     }
@@ -69,8 +75,13 @@ export class BudgetRepository {
     return created;
   }
 
-  async update(id: number, data: BudgetUpdate): Promise<BudgetResponse | null> {
-    await this.db
+  async update(
+    id: number,
+    data: BudgetUpdate,
+    tx?: DBTransactionType
+  ): Promise<BudgetResponse | null> {
+    const db = tx ?? this.db;
+    await db
       .update(budget)
       .set({
         ...data,
@@ -78,11 +89,12 @@ export class BudgetRepository {
       })
       .where(eq(budget.id, id));
 
-    return this.findById(id);
+    return this.findById(id, tx);
   }
 
-  async delete(id: number): Promise<boolean> {
-    const result = await this.db.delete(budget).where(eq(budget.id, id));
+  async delete(id: number, tx?: DBTransactionType): Promise<boolean> {
+    const db = tx ?? this.db;
+    const result = await db.delete(budget).where(eq(budget.id, id));
 
     return result.rowsAffected > 0;
   }

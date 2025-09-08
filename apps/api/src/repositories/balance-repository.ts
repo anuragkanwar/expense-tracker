@@ -5,7 +5,7 @@ import {
   UserBalanceCreate,
   UserBalanceUpdate,
 } from "@/models/user-balance";
-import { type DBType } from "@/db";
+import { type DBType, type DBTransactionType } from "@/db";
 
 export class BalanceRepository {
   private db: DBType;
@@ -15,9 +15,11 @@ export class BalanceRepository {
 
   async findAll(
     limit: number = 10,
-    offset: number = 0
+    offset: number = 0,
+    tx?: DBTransactionType
   ): Promise<UserBalanceResponse[]> {
-    const result = await this.db
+    const db = tx ?? this.db;
+    const result = await db
       .select()
       .from(userBalance)
       .limit(limit)
@@ -29,8 +31,12 @@ export class BalanceRepository {
     })) as UserBalanceResponse[];
   }
 
-  async findById(id: number): Promise<UserBalanceResponse | null> {
-    const result = await this.db
+  async findById(
+    id: number,
+    tx?: DBTransactionType
+  ): Promise<UserBalanceResponse | null> {
+    const db = tx ?? this.db;
+    const result = await db
       .select()
       .from(userBalance)
       .where(eq(userBalance.id, id))
@@ -50,8 +56,12 @@ export class BalanceRepository {
     } as UserBalanceResponse;
   }
 
-  async create(data: UserBalanceCreate): Promise<UserBalanceResponse> {
-    const result = await this.db
+  async create(
+    data: UserBalanceCreate,
+    tx?: DBTransactionType
+  ): Promise<UserBalanceResponse> {
+    const db = tx ?? this.db;
+    const result = await db
       .insert(userBalance)
       .values({
         createdAt: new Date(),
@@ -64,7 +74,7 @@ export class BalanceRepository {
       throw new Error("Failed to create balance");
     }
 
-    const created = await this.findById(result[0].id);
+    const created = await this.findById(result[0].id, tx);
     if (!created) {
       throw new Error("Failed to create balance");
     }
@@ -74,26 +84,31 @@ export class BalanceRepository {
 
   async update(
     id: number,
-    data: UserBalanceUpdate
+    data: UserBalanceUpdate,
+    tx?: DBTransactionType
   ): Promise<UserBalanceResponse | null> {
-    await this.db
+    const db = tx ?? this.db;
+    await db
       .update(userBalance)
       .set({ ...data, updatedAt: new Date() })
       .where(eq(userBalance.id, id));
 
-    return this.findById(id);
+    return this.findById(id, tx);
   }
 
-  async delete(id: number): Promise<boolean> {
-    const result = await this.db
-      .delete(userBalance)
-      .where(eq(userBalance.id, id));
+  async delete(id: number, tx?: DBTransactionType): Promise<boolean> {
+    const db = tx ?? this.db;
+    const result = await db.delete(userBalance).where(eq(userBalance.id, id));
 
     return result.rowsAffected > 0;
   }
 
-  async getUserBalances(userId: number): Promise<UserBalanceResponse[]> {
-    const result = await this.db
+  async getUserBalances(
+    userId: number,
+    tx?: DBTransactionType
+  ): Promise<UserBalanceResponse[]> {
+    const db = tx ?? this.db;
+    const result = await db
       .select()
       .from(userBalance)
       .where(eq(userBalance.ownerId, userId));
@@ -107,9 +122,11 @@ export class BalanceRepository {
 
   async getBalancesBetweenUsers(
     userId1: number,
-    userId2: number
+    userId2: number,
+    tx?: DBTransactionType
   ): Promise<UserBalanceResponse[]> {
-    const result = await this.db
+    const db = tx ?? this.db;
+    const result = await db
       .select()
       .from(userBalance)
       .where(
@@ -137,9 +154,11 @@ export class BalanceRepository {
 
   async getGroupBalances(
     userId: number,
-    groupId: number
+    groupId: number,
+    tx?: DBTransactionType
   ): Promise<UserBalanceResponse[]> {
-    const result = await this.db
+    const db = tx ?? this.db;
+    const result = await db
       .select()
       .from(userBalance)
       .where(
@@ -153,8 +172,12 @@ export class BalanceRepository {
     })) as UserBalanceResponse[];
   }
 
-  async getUserDebts(userId: number): Promise<UserBalanceResponse[]> {
-    const result = await this.db
+  async getUserDebts(
+    userId: number,
+    tx?: DBTransactionType
+  ): Promise<UserBalanceResponse[]> {
+    const db = tx ?? this.db;
+    const result = await db
       .select()
       .from(userBalance)
       .where(
@@ -174,9 +197,11 @@ export class BalanceRepository {
 
   async getGroupBalancesForSettlement(
     userId: number,
-    groupId: number
+    groupId: number,
+    tx?: DBTransactionType
   ): Promise<UserBalanceResponse[]> {
-    const result = await this.db
+    const db = tx ?? this.db;
+    const result = await db
       .select()
       .from(userBalance)
       .where(
@@ -199,8 +224,10 @@ export class BalanceRepository {
   async findBalance(
     ownerId: number,
     counterPartyId: number,
-    groupId?: number | null
+    groupId?: number | null,
+    tx?: DBTransactionType
   ): Promise<UserBalanceResponse | null> {
+    const db = tx ?? this.db;
     const conditions = [
       eq(userBalance.ownerId, ownerId),
       eq(userBalance.counterPartyId, counterPartyId),
@@ -214,7 +241,7 @@ export class BalanceRepository {
       }
     }
 
-    const result = await this.db
+    const result = await db
       .select()
       .from(userBalance)
       .where(and(...conditions))

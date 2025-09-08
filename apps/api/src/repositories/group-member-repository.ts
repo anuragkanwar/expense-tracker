@@ -5,7 +5,7 @@ import {
   GroupMemberCreate,
   GroupMemberUpdate,
 } from "@/models/group-member";
-import { type DBType } from "@/db";
+import { type DBType, type DBTransactionType } from "@/db";
 
 export class GroupMemberRepository {
   private db: DBType;
@@ -15,9 +15,11 @@ export class GroupMemberRepository {
 
   async findAll(
     limit: number = 10,
-    offset: number = 0
+    offset: number = 0,
+    tx?: DBTransactionType
   ): Promise<GroupMemberResponse[]> {
-    const result = await this.db
+    const db = tx ?? this.db;
+    const result = await db
       .select()
       .from(groupMember)
       .limit(limit)
@@ -29,8 +31,12 @@ export class GroupMemberRepository {
     })) as GroupMemberResponse[];
   }
 
-  async findById(id: number): Promise<GroupMemberResponse | null> {
-    const result = await this.db
+  async findById(
+    id: number,
+    tx?: DBTransactionType
+  ): Promise<GroupMemberResponse | null> {
+    const db = tx ?? this.db;
+    const result = await db
       .select()
       .from(groupMember)
       .where(eq(groupMember.id, id))
@@ -50,8 +56,12 @@ export class GroupMemberRepository {
     } as GroupMemberResponse;
   }
 
-  async findByGroupId(groupId: number): Promise<GroupMemberResponse[]> {
-    const result = await this.db
+  async findByGroupId(
+    groupId: number,
+    tx?: DBTransactionType
+  ): Promise<GroupMemberResponse[]> {
+    const db = tx ?? this.db;
+    const result = await db
       .select()
       .from(groupMember)
       .where(eq(groupMember.groupId, groupId));
@@ -62,8 +72,12 @@ export class GroupMemberRepository {
     })) as GroupMemberResponse[];
   }
 
-  async findByUserId(userId: number): Promise<GroupMemberResponse[]> {
-    const result = await this.db
+  async findByUserId(
+    userId: number,
+    tx?: DBTransactionType
+  ): Promise<GroupMemberResponse[]> {
+    const db = tx ?? this.db;
+    const result = await db
       .select()
       .from(groupMember)
       .where(eq(groupMember.userId, userId));
@@ -74,8 +88,12 @@ export class GroupMemberRepository {
     })) as GroupMemberResponse[];
   }
 
-  async create(data: GroupMemberCreate): Promise<GroupMemberResponse> {
-    const result = await this.db
+  async create(
+    data: GroupMemberCreate,
+    tx?: DBTransactionType
+  ): Promise<GroupMemberResponse> {
+    const db = tx ?? this.db;
+    const result = await db
       .insert(groupMember)
       .values({
         ...data,
@@ -88,7 +106,7 @@ export class GroupMemberRepository {
       throw new Error("Failed to create group member");
     }
 
-    const created = await this.findById(result[0].id);
+    const created = await this.findById(result[0].id, tx);
     if (!created) {
       throw new Error("Failed to create group member");
     }
@@ -98,26 +116,29 @@ export class GroupMemberRepository {
 
   async update(
     id: number,
-    data: GroupMemberUpdate
+    data: GroupMemberUpdate,
+    tx?: DBTransactionType
   ): Promise<GroupMemberResponse | null> {
-    await this.db.update(groupMember).set(data).where(eq(groupMember.id, id));
+    const db = tx ?? this.db;
+    await db.update(groupMember).set(data).where(eq(groupMember.id, id));
 
-    return this.findById(id);
+    return this.findById(id, tx);
   }
 
-  async delete(id: number): Promise<boolean> {
-    const result = await this.db
-      .delete(groupMember)
-      .where(eq(groupMember.id, id));
+  async delete(id: number, tx?: DBTransactionType): Promise<boolean> {
+    const db = tx ?? this.db;
+    const result = await db.delete(groupMember).where(eq(groupMember.id, id));
 
     return result.rowsAffected > 0;
   }
 
   async deleteByGroupIdAndUserId(
     groupId: number,
-    userId: number
+    userId: number,
+    tx?: DBTransactionType
   ): Promise<boolean> {
-    const result = await this.db
+    const db = tx ?? this.db;
+    const result = await db
       .delete(groupMember)
       .where(
         and(eq(groupMember.groupId, groupId), eq(groupMember.userId, userId))

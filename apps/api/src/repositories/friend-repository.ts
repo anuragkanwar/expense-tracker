@@ -6,7 +6,7 @@ import {
   FriendshipUpdate,
 } from "@/models/friendship";
 import { UserResponse } from "@/models/user";
-import { type DBType } from "@/db";
+import { type DBType, type DBTransactionType } from "@/db";
 import { FRIEND_STATUS } from "@/db";
 
 export class FriendRepository {
@@ -17,9 +17,11 @@ export class FriendRepository {
 
   async findAll(
     limit: number = 10,
-    offset: number = 0
+    offset: number = 0,
+    tx?: DBTransactionType
   ): Promise<FriendshipResponse[]> {
-    const result = await this.db
+    const db = tx ?? this.db;
+    const result = await db
       .select()
       .from(friendship)
       .limit(limit)
@@ -31,8 +33,12 @@ export class FriendRepository {
     })) as FriendshipResponse[];
   }
 
-  async findById(id: number): Promise<FriendshipResponse | null> {
-    const result = await this.db
+  async findById(
+    id: number,
+    tx?: DBTransactionType
+  ): Promise<FriendshipResponse | null> {
+    const db = tx ?? this.db;
+    const result = await db
       .select()
       .from(friendship)
       .where(eq(friendship.id, id))
@@ -52,8 +58,12 @@ export class FriendRepository {
     } as FriendshipResponse;
   }
 
-  async create(data: FriendshipCreate): Promise<FriendshipResponse> {
-    const result = await this.db
+  async create(
+    data: FriendshipCreate,
+    tx?: DBTransactionType
+  ): Promise<FriendshipResponse> {
+    const db = tx ?? this.db;
+    const result = await db
       .insert(friendship)
       .values({
         createdAt: new Date(),
@@ -67,7 +77,7 @@ export class FriendRepository {
       throw new Error("Failed to create friend");
     }
 
-    const created = await this.findById(result[0].id);
+    const created = await this.findById(result[0].id, tx);
     if (!created) {
       throw new Error("Failed to create friend");
     }
@@ -77,9 +87,11 @@ export class FriendRepository {
 
   async update(
     id: number,
-    data: FriendshipUpdate
+    data: FriendshipUpdate,
+    tx?: DBTransactionType
   ): Promise<FriendshipResponse | null> {
-    await this.db
+    const db = tx ?? this.db;
+    await db
       .update(friendship)
       .set({
         ...data,
@@ -87,19 +99,23 @@ export class FriendRepository {
       })
       .where(eq(friendship.id, id));
 
-    return this.findById(id);
+    return this.findById(id, tx);
   }
 
-  async delete(id: number): Promise<boolean> {
-    const result = await this.db
-      .delete(friendship)
-      .where(eq(friendship.id, id));
+  async delete(id: number, tx?: DBTransactionType): Promise<boolean> {
+    const db = tx ?? this.db;
+    const result = await db.delete(friendship).where(eq(friendship.id, id));
 
     return result.rowsAffected > 0;
   }
 
-  async areFriends(userId1: number, userId2: number): Promise<boolean> {
-    const result = await this.db
+  async areFriends(
+    userId1: number,
+    userId2: number,
+    tx?: DBTransactionType
+  ): Promise<boolean> {
+    const db = tx ?? this.db;
+    const result = await db
       .select()
       .from(friendship)
       .where(
@@ -122,8 +138,12 @@ export class FriendRepository {
     return result.length > 0;
   }
 
-  async findFriendsByUserId(userId: number): Promise<UserResponse[]> {
-    const result = await this.db
+  async findFriendsByUserId(
+    userId: number,
+    tx?: DBTransactionType
+  ): Promise<UserResponse[]> {
+    const db = tx ?? this.db;
+    const result = await db
       .select({
         id: user.id,
         name: user.name,
@@ -156,7 +176,10 @@ export class FriendRepository {
     })) as UserResponse[];
   }
 
-  async findPendingRequestsByUserId(userId: number): Promise<
+  async findPendingRequestsByUserId(
+    userId: number,
+    tx?: DBTransactionType
+  ): Promise<
     Array<{
       id: number;
       fromUserId: number;
@@ -166,7 +189,8 @@ export class FriendRepository {
       createdAt: string;
     }>
   > {
-    const result = await this.db
+    const db = tx ?? this.db;
+    const result = await db
       .select({
         id: friendship.id,
         fromUserId: user.id,
@@ -192,9 +216,11 @@ export class FriendRepository {
 
   async findFriendRequestBetweenUsers(
     userId1: number,
-    userId2: number
+    userId2: number,
+    tx?: DBTransactionType
   ): Promise<FriendshipResponse | null> {
-    const result = await this.db
+    const db = tx ?? this.db;
+    const result = await db
       .select()
       .from(friendship)
       .where(
@@ -219,9 +245,11 @@ export class FriendRepository {
 
   async findAcceptedFriendshipBetweenUsers(
     userId1: number,
-    userId2: number
+    userId2: number,
+    tx?: DBTransactionType
   ): Promise<FriendshipResponse | null> {
-    const result = await this.db
+    const db = tx ?? this.db;
+    const result = await db
       .select()
       .from(friendship)
       .where(

@@ -5,7 +5,7 @@ import {
   RecurringCreate,
   RecurringUpdate,
 } from "@/models/recurring";
-import { type DBType } from "@/db";
+import { type DBType, type DBTransactionType } from "@/db";
 
 export class RecurringRepository {
   private db: DBType;
@@ -15,9 +15,11 @@ export class RecurringRepository {
 
   async findAll(
     limit: number = 10,
-    offset: number = 0
+    offset: number = 0,
+    tx?: DBTransactionType
   ): Promise<RecurringResponse[]> {
-    const result = await this.db
+    const db = tx ?? this.db;
+    const result = await db
       .select()
       .from(recurring)
       .limit(limit)
@@ -30,8 +32,12 @@ export class RecurringRepository {
     }));
   }
 
-  async findById(id: number): Promise<RecurringResponse | null> {
-    const result = await this.db
+  async findById(
+    id: number,
+    tx?: DBTransactionType
+  ): Promise<RecurringResponse | null> {
+    const db = tx ?? this.db;
+    const result = await db
       .select()
       .from(recurring)
       .where(eq(recurring.id, id))
@@ -52,8 +58,12 @@ export class RecurringRepository {
     };
   }
 
-  async findByUserId(userId: number): Promise<RecurringResponse[]> {
-    const result = await this.db
+  async findByUserId(
+    userId: number,
+    tx?: DBTransactionType
+  ): Promise<RecurringResponse[]> {
+    const db = tx ?? this.db;
+    const result = await db
       .select()
       .from(recurring)
       .where(eq(recurring.userId, userId));
@@ -65,13 +75,17 @@ export class RecurringRepository {
     }));
   }
 
-  async create(data: RecurringCreate): Promise<RecurringResponse> {
+  async create(
+    data: RecurringCreate,
+    tx?: DBTransactionType
+  ): Promise<RecurringResponse> {
+    const db = tx ?? this.db;
     const insertData = {
       ...data,
       nextDate: data.nextDate ? new Date(data.nextDate) : undefined,
     };
 
-    const result = await this.db
+    const result = await db
       .insert(recurring)
       .values(insertData as any)
       .returning();
@@ -91,20 +105,23 @@ export class RecurringRepository {
 
   async update(
     id: number,
-    data: RecurringUpdate
+    data: RecurringUpdate,
+    tx?: DBTransactionType
   ): Promise<RecurringResponse | null> {
+    const db = tx ?? this.db;
     const updateData = {
       ...data,
       nextDate: data.nextDate ? new Date(data.nextDate) : undefined,
     };
 
-    await this.db.update(recurring).set(updateData).where(eq(recurring.id, id));
+    await db.update(recurring).set(updateData).where(eq(recurring.id, id));
 
-    return await this.findById(id);
+    return await this.findById(id, tx);
   }
 
-  async delete(id: number): Promise<boolean> {
-    const result = await this.db.delete(recurring).where(eq(recurring.id, id));
+  async delete(id: number, tx?: DBTransactionType): Promise<boolean> {
+    const db = tx ?? this.db;
+    const result = await db.delete(recurring).where(eq(recurring.id, id));
 
     return result.rowsAffected > 0;
   }

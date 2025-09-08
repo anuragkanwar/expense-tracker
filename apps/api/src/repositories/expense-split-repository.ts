@@ -5,7 +5,7 @@ import {
   ExpenseSplitCreate,
   ExpenseSplitUpdate,
 } from "@/models/expense-split";
-import { type DBType } from "@/db";
+import { type DBType, type DBTransactionType } from "@/db";
 
 export class ExpenseSplitRepository {
   private db: DBType;
@@ -15,9 +15,11 @@ export class ExpenseSplitRepository {
 
   async findAll(
     limit: number = 10,
-    offset: number = 0
+    offset: number = 0,
+    tx?: DBTransactionType
   ): Promise<ExpenseSplitResponse[]> {
-    const result = await this.db
+    const db = tx ?? this.db;
+    const result = await db
       .select()
       .from(expenseSplit)
       .limit(limit)
@@ -29,8 +31,12 @@ export class ExpenseSplitRepository {
     })) as ExpenseSplitResponse[];
   }
 
-  async findById(id: number): Promise<ExpenseSplitResponse | null> {
-    const result = await this.db
+  async findById(
+    id: number,
+    tx?: DBTransactionType
+  ): Promise<ExpenseSplitResponse | null> {
+    const db = tx ?? this.db;
+    const result = await db
       .select()
       .from(expenseSplit)
       .where(eq(expenseSplit.id, id))
@@ -47,8 +53,12 @@ export class ExpenseSplitRepository {
     } as ExpenseSplitResponse;
   }
 
-  async findByExpenseId(expenseId: number): Promise<ExpenseSplitResponse[]> {
-    const result = await this.db
+  async findByExpenseId(
+    expenseId: number,
+    tx?: DBTransactionType
+  ): Promise<ExpenseSplitResponse[]> {
+    const db = tx ?? this.db;
+    const result = await db
       .select()
       .from(expenseSplit)
       .where(eq(expenseSplit.expenseId, expenseId));
@@ -59,8 +69,12 @@ export class ExpenseSplitRepository {
     })) as ExpenseSplitResponse[];
   }
 
-  async create(data: ExpenseSplitCreate): Promise<ExpenseSplitResponse> {
-    const result = await this.db.insert(expenseSplit).values(data).returning();
+  async create(
+    data: ExpenseSplitCreate,
+    tx?: DBTransactionType
+  ): Promise<ExpenseSplitResponse> {
+    const db = tx ?? this.db;
+    const result = await db.insert(expenseSplit).values(data).returning();
 
     if (result.length === 0) {
       throw new Error("Failed to create expense split");
@@ -76,17 +90,18 @@ export class ExpenseSplitRepository {
 
   async update(
     id: number,
-    data: ExpenseSplitUpdate
+    data: ExpenseSplitUpdate,
+    tx?: DBTransactionType
   ): Promise<ExpenseSplitResponse | null> {
-    await this.db.update(expenseSplit).set(data).where(eq(expenseSplit.id, id));
+    const db = tx ?? this.db;
+    await db.update(expenseSplit).set(data).where(eq(expenseSplit.id, id));
 
-    return this.findById(id);
+    return this.findById(id, tx);
   }
 
-  async delete(id: number): Promise<boolean> {
-    const result = await this.db
-      .delete(expenseSplit)
-      .where(eq(expenseSplit.id, id));
+  async delete(id: number, tx?: DBTransactionType): Promise<boolean> {
+    const db = tx ?? this.db;
+    const result = await db.delete(expenseSplit).where(eq(expenseSplit.id, id));
 
     return result.rowsAffected > 0;
   }

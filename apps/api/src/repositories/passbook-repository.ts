@@ -1,6 +1,6 @@
 import { transaction, transactionEntry, transactionAccount } from "@/db";
 import { eq, and, gte, lte, desc, sql } from "drizzle-orm";
-import { type DBType } from "@/db";
+import { type DBType, type DBTransactionType } from "@/db";
 import { TransactionResponse } from "@/models/transaction";
 import { TransactionAccountResponse } from "@/models/transaction-account";
 
@@ -40,8 +40,10 @@ export class PassbookRepository {
     userId: number,
     page: number = 1,
     limit: number = 20,
-    filters: PassbookFilters = {}
+    filters: PassbookFilters = {},
+    tx?: DBTransactionType
   ): Promise<PassbookQueryResult> {
+    const db = tx ?? this.db;
     const offset = (page - 1) * limit;
 
     // Build where conditions
@@ -64,7 +66,7 @@ export class PassbookRepository {
     }
 
     // Get total count for pagination
-    const totalResult = await this.db
+    const totalResult = await db
       .select({ count: sql<number>`COUNT(*)` })
       .from(transactionEntry)
       .innerJoin(
@@ -80,7 +82,7 @@ export class PassbookRepository {
     const total = totalResult[0]?.count || 0;
 
     // Get paginated entries
-    const entriesResult = await this.db
+    const entriesResult = await db
       .select({
         // Transaction Entry fields
         id: transactionEntry.id,
@@ -160,9 +162,11 @@ export class PassbookRepository {
 
   async getPassbookEntryById(
     userId: number,
-    entryId: number
+    entryId: number,
+    tx?: DBTransactionType
   ): Promise<PassbookEntryResponse | null> {
-    const result = await this.db
+    const db = tx ?? this.db;
+    const result = await db
       .select({
         // Transaction Entry fields
         id: transactionEntry.id,

@@ -612,6 +612,7 @@ The API includes comprehensive monitoring and logging:
    - Verify the mobile app is using the correct API URL
 
 4. **Module resolution errors:**
+
    ```bash
    # Reinstall workspace dependencies
    pnpm install

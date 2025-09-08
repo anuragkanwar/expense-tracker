@@ -1,4 +1,4 @@
-import { type DBType } from "@/db";
+import { type DBType, type DBTransactionType } from "@/db";
 import {
   budget,
   transaction,
@@ -19,9 +19,11 @@ export class DashboardRepository {
   async getMonthlyExpenses(
     userId: number,
     startDate: Date,
-    endDate: Date
+    endDate: Date,
+    tx?: DBTransactionType
   ): Promise<number> {
-    const result = await this.db
+    const db = tx ?? this.db;
+    const result = await db
       .select({ total: sql<number>`SUM(${transactionEntry.amount})` })
       .from(transactionEntry)
       .innerJoin(
@@ -48,9 +50,11 @@ export class DashboardRepository {
   async getMonthlyIncome(
     userId: number,
     startDate: Date,
-    endDate: Date
+    endDate: Date,
+    tx?: DBTransactionType
   ): Promise<number> {
-    const result = await this.db
+    const db = tx ?? this.db;
+    const result = await db
       .select({ total: sql<number>`SUM(${transactionEntry.amount})` })
       .from(transactionEntry)
       .innerJoin(
@@ -77,10 +81,12 @@ export class DashboardRepository {
   async getBudgetUtilization(
     userId: number,
     startDate: Date,
-    endDate: Date
+    endDate: Date,
+    tx?: DBTransactionType
   ): Promise<number> {
+    const db = tx ?? this.db;
     // Get budgets linked to EXPENSE type accounts
-    const budgetData = await this.db
+    const budgetData = await db
       .select({
         budgetAmount: budget.amount,
         accountId: budget.transactionAccountId,
@@ -105,7 +111,7 @@ export class DashboardRepository {
     }
 
     const accountIds = budgetData.map((b) => b.accountId);
-    const expenseResult = await this.db
+    const expenseResult = await db
       .select({ total: sql<number>`SUM(${transactionEntry.amount})` })
       .from(transactionEntry)
       .innerJoin(
@@ -130,13 +136,16 @@ export class DashboardRepository {
   async getTopExpenseCategory(
     userId: number,
     startDate: Date,
-    endDate: Date
+    endDate: Date,
+    tx?: DBTransactionType
   ): Promise<{ name: string; amount: number; percentage: number } | null> {
+    const db = tx ?? this.db;
     // Get total expenses for percentage calculation
     const totalExpenses = await this.getMonthlyExpenses(
       userId,
       startDate,
-      endDate
+      endDate,
+      tx
     );
 
     if (totalExpenses === 0) {
@@ -144,7 +153,7 @@ export class DashboardRepository {
     }
 
     // Get spending by category (grouped by transaction account name)
-    const categorySpending = await this.db
+    const categorySpending = await db
       .select({
         categoryName: transactionAccount.name,
         totalAmount: sql<number>`SUM(${transactionEntry.amount})`,
@@ -192,7 +201,8 @@ export class DashboardRepository {
   async getSpendingAnalytics(
     userId: number,
     startDate: Date,
-    endDate: Date
+    endDate: Date,
+    tx?: DBTransactionType
   ): Promise<{
     totalSpending: number;
     categories: Array<{
@@ -213,11 +223,13 @@ export class DashboardRepository {
       standardDeviation: number;
     };
   } | null> {
+    const db = tx ?? this.db;
     // Get total spending
     const totalSpending = await this.getMonthlyExpenses(
       userId,
       startDate,
-      endDate
+      endDate,
+      tx
     );
 
     if (totalSpending === 0) {
@@ -225,7 +237,7 @@ export class DashboardRepository {
     }
 
     // Get spending by category with transaction counts
-    const categoryData = await this.db
+    const categoryData = await db
       .select({
         categoryId: transactionAccount.id,
         categoryName: transactionAccount.name,
@@ -264,7 +276,7 @@ export class DashboardRepository {
     prevMonthEnd.setMonth(prevMonthEnd.getMonth() - 1);
 
     // Get previous month spending by category
-    const prevMonthData = await this.db
+    const prevMonthData = await db
       .select({
         categoryId: transactionAccount.id,
         totalAmount: sql<number>`SUM(${transactionEntry.amount})`,
@@ -362,7 +374,8 @@ export class DashboardRepository {
   async getSpendingByCategory(
     userId: number,
     startDate: Date,
-    endDate: Date
+    endDate: Date,
+    tx?: DBTransactionType
   ): Promise<
     Array<{
       categoryId: number;
@@ -373,11 +386,13 @@ export class DashboardRepository {
       trend: "up" | "down" | "stable";
     }>
   > {
+    const db = tx ?? this.db;
     // Get total spending for percentage calculation
     const totalSpending = await this.getMonthlyExpenses(
       userId,
       startDate,
-      endDate
+      endDate,
+      tx
     );
 
     if (totalSpending === 0) {
@@ -385,7 +400,7 @@ export class DashboardRepository {
     }
 
     // Get spending by category with transaction counts
-    const categoryData = await this.db
+    const categoryData = await db
       .select({
         categoryId: transactionAccount.id,
         categoryName: transactionAccount.name,
@@ -424,7 +439,7 @@ export class DashboardRepository {
     prevMonthEnd.setMonth(prevMonthEnd.getMonth() - 1);
 
     // Get previous month spending by category
-    const prevMonthData = await this.db
+    const prevMonthData = await db
       .select({
         categoryId: transactionAccount.id,
         totalAmount: sql<number>`SUM(${transactionEntry.amount})`,
@@ -486,7 +501,8 @@ export class DashboardRepository {
 
   async getUpcomingBills(
     userId: number,
-    daysAhead: number = 30
+    daysAhead: number = 30,
+    tx?: DBTransactionType
   ): Promise<
     Array<{
       id: number;
@@ -498,12 +514,13 @@ export class DashboardRepository {
       priority: "high" | "medium" | "low";
     }>
   > {
+    const db = tx ?? this.db;
     const now = new Date();
     const futureDate = new Date();
     futureDate.setDate(now.getDate() + daysAhead);
 
     // Get recurring items due within the specified days
-    const upcomingRecurring = await this.db
+    const upcomingRecurring = await db
       .select({
         id: recurring.id,
         description: recurring.description,
@@ -558,7 +575,8 @@ export class DashboardRepository {
 
   async getNetWorthTrend(
     userId: number,
-    months: number = 12
+    months: number = 12,
+    tx?: DBTransactionType
   ): Promise<
     Array<{
       date: string;
@@ -569,6 +587,7 @@ export class DashboardRepository {
       changePercentage: number;
     }>
   > {
+    const db = tx ?? this.db;
     const startDate = new Date();
     startDate.setMonth(startDate.getMonth() - months + 1); // Include current month
 
@@ -592,7 +611,7 @@ export class DashboardRepository {
       monthEnd.setDate(0); // Last day of month
 
       // Calculate assets: INCOME + LOAN_GIVEN + SAVING accounts
-      const assetsResult = await this.db
+      const assetsResult = await db
         .select({ total: sql<number>`SUM(${transactionEntry.amount})` })
         .from(transactionEntry)
         .innerJoin(
@@ -614,7 +633,7 @@ export class DashboardRepository {
         );
 
       // Calculate liabilities: LOAN_TAKEN accounts
-      const liabilitiesResult = await this.db
+      const liabilitiesResult = await db
         .select({ total: sql<number>`SUM(${transactionEntry.amount})` })
         .from(transactionEntry)
         .innerJoin(
