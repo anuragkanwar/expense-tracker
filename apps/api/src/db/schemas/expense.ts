@@ -1,6 +1,7 @@
 import { sqliteTable, text, integer, real } from "drizzle-orm/sqlite-core";
 import { group } from "./group";
 import { user } from "./user";
+import { transaction } from "./transaction";
 
 export const expense = sqliteTable("expense", {
   id: integer("id").primaryKey({ autoIncrement: true }),
@@ -13,6 +14,9 @@ export const expense = sqliteTable("expense", {
   createdBy: integer("created_by")
     .notNull()
     .references(() => user.id, { onDelete: "cascade" }),
+  transactionId: integer("transaction_id")
+    .notNull()
+    .references(() => transaction.id, { onDelete: "cascade" }),
   expenseDate: integer("expense_date", { mode: "timestamp" })
     .$defaultFn(() => /* @__PURE__ */ new Date())
     .notNull(),

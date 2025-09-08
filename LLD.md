@@ -45,7 +45,7 @@ Pocket Pixie is a comprehensive financial management application supporting indi
 2. **Income Recording**: `EXTERNAL (-) → INCOME (+)`
 3. **Saving**: `OUTGOING (-) → SAVING (+)`
 4. **Loan Creation**: `LOAN_GIVEN (-) → LOAN_TAKEN (+)`
-5. **Settlement**: Reverses loan relationships + records payment
+5. **Settlement**: Reverses loan relationships (+ records expense cash flow for group settlements)
 
 ### Loan Transaction Validation Rules
 
@@ -125,9 +125,24 @@ Pocket Pixie is a comprehensive financial management application supporting indi
 
 ### Settlement Flow
 
+#### Direct Debt Settlement
+
 1. **Debt Reversal**: `LOAN_TAKEN (-) → LOAN_GIVEN (+)` to negate original loan
-2. **Payment Recording**: `OUTGOING (-) → EXPENSE (+)` to record cash movement
+2. **Settlement Record**: Stored for audit trail
+
+#### Group Debt Settlement
+
+1. **Debt Reversal**: `LOAN_TAKEN (-) → LOAN_GIVEN (+)` to negate original loan
+2. **Expense Cash Flow**: `OUTGOING (-) → EXPENSE (+)` to record the underlying shared expense payment
 3. **Settlement Record**: Stored for audit trail
+
+### Detailed Direct Settlement Database Operations
+
+1. **Transaction Header**: Created with settlement description
+2. **Transaction Entries**: 2 entries (double-entry) - payer's `LOAN_TAKEN (-)` and payee's `LOAN_GIVEN (+)`
+3. **Account Balance Updates**: 2 updates - payer's `LOAN_TAKEN` balance decreases, payee's `LOAN_GIVEN` balance increases
+4. **User Balance Table Updates**: 2 rows affected - payer's balance with payee decreases, payee's balance with payer increases
+5. **Settlement Table**: 1 record created for audit trail
 
 ### Balance Update Flow
 
@@ -168,7 +183,8 @@ For each participant in a shared expense:
 **Resolution**: Ensured both transaction entries and user_balance updates for all financial activities:
 
 - **Direct loans**: Create `LOAN_GIVEN (-) → LOAN_TAKEN (+)` entries + update user_balance
-- **Direct settlements**: Create payment + loan reversal entries + update user_balance
+- **Direct settlements**: Create loan reversal entries + update user_balance
+- **Group settlements**: Create expense cash flow + loan reversal entries + update user_balance
 - **Shared expenses**: Create `LOAN_GIVEN (-) → LOAN_TAKEN (+)` entries + update user_balance
 - **Consistent aggregation**: All activities now maintain both transaction integrity and balance consistency
 

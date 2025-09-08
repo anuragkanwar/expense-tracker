@@ -48,6 +48,10 @@ export const ExpenseCreateSchema = createInsertSchema(expense, {
     example: 123,
     description: "User ID who created the expense",
   }),
+  transactionId: z.number().openapi({
+    example: 123,
+    description: "Transaction ID",
+  }),
 })
   .omit({
     id: true,

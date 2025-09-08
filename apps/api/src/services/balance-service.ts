@@ -26,7 +26,15 @@ import { TransactionRepository } from "@/repositories/transaction-repository";
 import { TransactionEntryRepository } from "@/repositories/transaction-entry-repository";
 import { TransactionAccountRepository } from "@/repositories/transaction-account-repository";
 import { TransactionHelperService } from "./transaction-helper-service";
-import { ACCOUNT_TYPE, type DBType } from "@/db";
+import { and, eq, gt } from "drizzle-orm";
+import {
+  ACCOUNT_TYPE,
+  type DBType,
+  expense,
+  expenseSplit,
+  transactionEntry,
+  transactionAccount,
+} from "@/db";
 
 export class BalanceService {
   private readonly balanceRepository;
@@ -242,96 +250,109 @@ export class BalanceService {
           throw new BadRequestError("Cannot settle with self");
         }
 
-        const payer = await this.userRepository.findById(data.payerId, tx);
-        const payee = await this.userRepository.findById(data.payeeId, tx);
+        const payer = await this.userRepository.findById(data.payerId);
+        const payee = await this.userRepository.findById(data.payeeId);
 
         if (!payer || !payee) {
           throw new BadRequestError("Invalid payer or payee");
         }
 
-        // Create transaction header for the settlement
-        const transaction = await this.transactionRepository.create(
-          {
-            description: `Direct settlement: ${payer.name} paid ${data.amount} ${data.currency} to ${payee.name}`,
-            userId: data.payerId,
-          },
-          tx
-        );
-
-        // Get payer's OUTGOING account (money going out)
-        const payerOutgoingAcc =
-          await this.transactionAccountRepository.getSpecialAccountByUserIdAndAccountType(
-            data.payerId,
-            ACCOUNT_TYPE.OUTGOING,
-            tx
-          );
-
-        if (!payerOutgoingAcc) {
-          throw new BadRequestError("Payer's outgoing account not found");
-        }
-
-        // Get payee's EXPENSE account (money coming in as income)
-        const payeeExpenseAcc =
-          await this.transactionAccountRepository.getSpecialAccountByUserIdAndAccountType(
-            data.payeeId,
-            ACCOUNT_TYPE.EXPENSE,
-            tx
-          );
-
-        if (!payeeExpenseAcc) {
-          throw new BadRequestError("Payee's expense account not found");
-        }
-
-        // Record the actual payment: OUTGOING (-) → EXPENSE (+)
-        await this.transactionHelperService.updateAccountsAndCreateEntries(
-          [
-            {
-              srcAcc: payerOutgoingAcc,
-              dstAcc: payeeExpenseAcc,
-              amount: data.amount,
-              txnId: transaction.id,
-            },
-          ],
-          tx
-        );
-
-        // Also reverse the loan relationship: LOAN_TAKEN (-) → LOAN_GIVEN (+)
+        // Reverse the loan relationship: LOAN_TAKEN (-) → LOAN_GIVEN (+)
         // This represents the debt being settled
         const payerLoanTakenAcc =
           await this.transactionAccountRepository.getSpecialAccountByUserIdAndAccountType(
             data.payerId,
-            ACCOUNT_TYPE.LOAN_TAKEN,
-            tx
+            ACCOUNT_TYPE.LOAN_TAKEN
           );
 
         const payeeLoanGivenAcc =
           await this.transactionAccountRepository.getSpecialAccountByUserIdAndAccountType(
             data.payeeId,
-            ACCOUNT_TYPE.LOAN_GIVEN,
-            tx
+            ACCOUNT_TYPE.LOAN_GIVEN
           );
 
-        if (payerLoanTakenAcc && payeeLoanGivenAcc) {
-          // Create another transaction for the loan reversal
-          const loanReversalTxn = await this.transactionRepository.create(
-            {
-              description: `Loan reversal: Debt between ${payer.name} and ${payee.name} settled`,
+        if (!payerLoanTakenAcc || !payeeLoanGivenAcc) {
+          throw new BadRequestError("Loan accounts not found for settlement");
+        }
+
+        // Create transaction for the loan reversal
+        const transaction = await this.transactionRepository.create({
+          description: `Direct settlement: ${payer.name} settled ${data.amount} ${data.currency} with ${payee.name}`,
+          userId: data.payerId,
+        });
+
+        await this.transactionHelperService.updateAccountsAndCreateEntries([
+          {
+            srcAcc: payerLoanTakenAcc,
+            dstAcc: payeeLoanGivenAcc,
+            amount: data.amount,
+            txnId: transaction.id,
+          },
+        ]);
+
+        // For group settlements, also create the expense transaction
+        if (data.groupId) {
+          // Find the underlying expense category
+          const expenseQuery = await this.db
+            .select({ category: expense.category })
+            .from(expense)
+            .innerJoin(expenseSplit, eq(expense.id, expenseSplit.expenseId))
+            .where(
+              and(
+                eq(expense.groupId, data.groupId),
+                eq(expense.userId, data.payerId),
+                eq(expenseSplit.userId, data.payeeId)
+              )
+            )
+            .limit(1);
+
+          const category =
+            expenseQuery.length > 0 ? expenseQuery[0].category : "GENERAL";
+
+          // Create transaction for the expense
+          const expenseTxn = await this.transactionRepository.create({
+            description: `Group settlement expense: ${data.amount} ${data.currency} for ${category}`,
+            userId: data.payerId,
+          });
+
+          // Get payer's OUTGOING account
+          const payerOutgoingAcc =
+            await this.transactionAccountRepository.getSpecialAccountByUserIdAndAccountType(
+              data.payerId,
+              ACCOUNT_TYPE.OUTGOING
+            );
+
+          if (!payerOutgoingAcc) {
+            throw new BadRequestError("Payer's outgoing account not found");
+          }
+
+          // Get or create payer's EXPENSE account for the category
+          let payerExpenseAcc =
+            await this.transactionAccountRepository.findByUserIdAndCategoryName(
+              data.payerId,
+              category
+            );
+
+          if (!payerExpenseAcc) {
+            payerExpenseAcc = await this.transactionAccountRepository.create({
+              name: category,
+              type: ACCOUNT_TYPE.EXPENSE,
               userId: data.payerId,
-            },
-            tx
-          );
+              balance: 0,
+              currency: data.currency,
+              isPaymentSource: false,
+            });
+          }
 
-          await this.transactionHelperService.updateAccountsAndCreateEntries(
-            [
-              {
-                srcAcc: payerLoanTakenAcc,
-                dstAcc: payeeLoanGivenAcc,
-                amount: data.amount,
-                txnId: loanReversalTxn.id,
-              },
-            ],
-            tx
-          );
+          // Create entries
+          await this.transactionHelperService.updateAccountsAndCreateEntries([
+            {
+              srcAcc: payerOutgoingAcc,
+              dstAcc: payerExpenseAcc,
+              amount: data.amount,
+              txnId: expenseTxn.id,
+            },
+          ]);
         }
 
         // Update overall balances for both sides
@@ -339,57 +360,41 @@ export class BalanceService {
         const payerBalance = await this.balanceRepository.findBalance(
           data.payerId,
           data.payeeId,
-          undefined,
-          tx
+          undefined
         );
         if (payerBalance) {
-          await this.balanceRepository.update(
-            payerBalance.id,
-            {
-              amount: payerBalance.amount - data.amount,
-            },
-            tx
-          );
+          await this.balanceRepository.update(payerBalance.id, {
+            amount: payerBalance.amount - data.amount,
+          });
         } else {
           // If no balance, create with -amount (payer now owes less or is owed more)
-          await this.balanceRepository.create(
-            {
-              ownerId: data.payerId,
-              counterPartyId: data.payeeId,
-              amount: -data.amount,
-              currency: data.currency,
-              groupId: undefined,
-            },
-            tx
-          );
+          await this.balanceRepository.create({
+            ownerId: data.payerId,
+            counterPartyId: data.payeeId,
+            amount: -data.amount,
+            currency: data.currency,
+            groupId: undefined,
+          });
         }
 
         // Payee's balance with payer: payee (owner) receives from payer (counterparty) +amount
         const payeeBalance = await this.balanceRepository.findBalance(
           data.payeeId,
           data.payerId,
-          undefined,
-          tx
+          undefined
         );
         if (payeeBalance) {
-          await this.balanceRepository.update(
-            payeeBalance.id,
-            {
-              amount: payeeBalance.amount + data.amount,
-            },
-            tx
-          );
+          await this.balanceRepository.update(payeeBalance.id, {
+            amount: payeeBalance.amount + data.amount,
+          });
         } else {
-          await this.balanceRepository.create(
-            {
-              ownerId: data.payeeId,
-              counterPartyId: data.payerId,
-              amount: data.amount,
-              currency: data.currency,
-              groupId: undefined,
-            },
-            tx
-          );
+          await this.balanceRepository.create({
+            ownerId: data.payeeId,
+            counterPartyId: data.payerId,
+            amount: data.amount,
+            currency: data.currency,
+            groupId: undefined,
+          });
         }
 
         // If groupId provided, also update group-specific balances
@@ -397,55 +402,39 @@ export class BalanceService {
           const payerGroupBalance = await this.balanceRepository.findBalance(
             data.payerId,
             data.payeeId,
-            data.groupId,
-            tx
+            data.groupId
           );
           if (payerGroupBalance) {
-            await this.balanceRepository.update(
-              payerGroupBalance.id,
-              {
-                amount: payerGroupBalance.amount - data.amount,
-              },
-              tx
-            );
+            await this.balanceRepository.update(payerGroupBalance.id, {
+              amount: payerGroupBalance.amount - data.amount,
+            });
           } else {
-            await this.balanceRepository.create(
-              {
-                ownerId: data.payerId,
-                counterPartyId: data.payeeId,
-                amount: -data.amount,
-                currency: data.currency,
-                groupId: data.groupId,
-              },
-              tx
-            );
+            await this.balanceRepository.create({
+              ownerId: data.payerId,
+              counterPartyId: data.payeeId,
+              amount: -data.amount,
+              currency: data.currency,
+              groupId: data.groupId,
+            });
           }
 
           const payeeGroupBalance = await this.balanceRepository.findBalance(
             data.payeeId,
             data.payerId,
-            data.groupId,
-            tx
+            data.groupId
           );
           if (payeeGroupBalance) {
-            await this.balanceRepository.update(
-              payeeGroupBalance.id,
-              {
-                amount: payeeGroupBalance.amount + data.amount,
-              },
-              tx
-            );
+            await this.balanceRepository.update(payeeGroupBalance.id, {
+              amount: payeeGroupBalance.amount + data.amount,
+            });
           } else {
-            await this.balanceRepository.create(
-              {
-                ownerId: data.payeeId,
-                counterPartyId: data.payerId,
-                amount: data.amount,
-                currency: data.currency,
-                groupId: data.groupId,
-              },
-              tx
-            );
+            await this.balanceRepository.create({
+              ownerId: data.payeeId,
+              counterPartyId: data.payerId,
+              amount: data.amount,
+              currency: data.currency,
+              groupId: data.groupId,
+            });
           }
         }
 
@@ -454,7 +443,7 @@ export class BalanceService {
           ...data,
           settledAt: data.settledAt || new Date().toISOString(),
         };
-        await this.settlementRepository.create(settlementData, tx);
+        await this.settlementRepository.create(settlementData);
       } catch (error: any) {
         console.log(error);
         tx.rollback();

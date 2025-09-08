@@ -253,6 +253,7 @@ export class ExpenseService {
         currency: "INR",
         description: expenseCreateWithDetails.description,
         groupId: expenseCreateWithDetails.groupId,
+        transactionId: txnId,
       },
       tx
     );
