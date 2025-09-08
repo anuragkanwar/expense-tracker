@@ -9,6 +9,7 @@ import { GroupMemberService } from "./group-member-service";
 import { ExpenseService } from "./expense-service";
 import { FriendService } from "./friend-service";
 import { type DBType } from "@/db";
+import type { GroupMemberBulkResponse } from "@/models/group-member";
 
 export class GroupService {
   private readonly groupRepository;
@@ -180,6 +181,66 @@ export class GroupService {
       groupId,
       userId: memberId,
     });
+  }
+
+  async addGroupMembersBulk(
+    ownerId: number,
+    groupId: number,
+    memberIds: number[]
+  ): Promise<GroupMemberBulkResponse> {
+    await this.getGroupByIdAndUser(ownerId, groupId);
+
+    const results: GroupMemberBulkResponse = {
+      added: [],
+      failed: [],
+    };
+
+    // Process each member ID
+    for (const memberId of memberIds) {
+      try {
+        // Check if users are friends before adding to group
+        const areFriends = await this.friendService.areFriends(
+          ownerId,
+          memberId
+        );
+        if (!areFriends) {
+          results.failed.push({
+            userId: memberId,
+            reason: "You can only add friends to groups",
+          });
+          continue;
+        }
+
+        // Check if user is already a member
+        const existingMembers =
+          await this.groupMemberService.getGroupMembers(groupId);
+        const isAlreadyMember = existingMembers.some(
+          (member) => member.userId === memberId
+        );
+        if (isAlreadyMember) {
+          results.failed.push({
+            userId: memberId,
+            reason: "User is already a member of this group",
+          });
+          continue;
+        }
+
+        // Add the member
+        await this.groupMemberService.addGroupMember({
+          groupId,
+          userId: memberId,
+        });
+
+        results.added.push(memberId);
+      } catch (error: any) {
+        results.failed.push({
+          userId: memberId,
+          reason: error.message || "Failed to add member",
+        });
+      }
+    }
+
+    return results;
   }
 
   async removeGroupMember(groupId: number, userId: number) {

@@ -161,12 +161,26 @@ groupRoutes.openapi(addGroupMemberRoute, async (c) => {
   const body = c.req.valid("json");
 
   try {
-    await services.groupService.addGroupMemberByUser(
-      user.id,
-      groupId,
-      body.userId
-    );
-    return c.json({ message: "Member added successfully" }, 201);
+    // Check if it's a bulk operation or single operation
+    if ("userIds" in body && Array.isArray(body.userIds)) {
+      // Bulk operation
+      const result = await services.groupService.addGroupMembersBulk(
+        user.id,
+        groupId,
+        body.userIds as number[]
+      );
+      return c.json(result, 201);
+    } else if ("userId" in body && typeof body.userId === "number") {
+      // Single operation
+      await services.groupService.addGroupMemberByUser(
+        user.id,
+        groupId,
+        body.userId
+      );
+      return c.json({ message: "Member added successfully" }, 201);
+    } else {
+      return c.json({ message: "Invalid request body" }, 400);
+    }
   } catch (error: any) {
     if (error.message === "Group not found") {
       return c.json({ message: "Group not found" }, 404);

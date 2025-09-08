@@ -22,7 +22,6 @@ export enum TIME_PERIOD {
 export enum FRIEND_STATUS {
   PENDING = "PENDING",
   ACCEPTED = "ACCEPTED",
-  BLOCKED = "BLOCKED",
 }
 
 export enum RECURRENCE_TYPE {

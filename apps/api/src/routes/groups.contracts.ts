@@ -3,7 +3,11 @@ import {
   GroupCreateSchema,
   GroupUpdateSchema,
 } from "@/models/group";
-import { GroupMemberCreateSchema } from "@/models/group-member";
+import {
+  GroupMemberCreateSchema,
+  GroupMemberBulkCreateSchema,
+  GroupMemberBulkResponseSchema,
+} from "@/models/group-member";
 import { SettlementCreateSchema } from "@/models/settlement";
 import { createRoute, z } from "@hono/zod-openapi";
 import {
@@ -129,20 +133,24 @@ export const updateGroupRoute = createRoute({
 export const addGroupMemberRoute = createRoute({
   method: "post",
   path: "/{groupId}/members",
-  summary: "Add group member",
-  description: "Adds a new member to a group.",
+  summary: "Add group member(s)",
+  description:
+    "Adds one or more members to a group. Supports both single member and bulk addition.",
   tags: ["Groups"],
   request: {
     params: z.object({
-      groupId: z.string().transform(Number).pipe(z.number()).openapi({
-        example: "123",
+      groupId: z.number().openapi({
+        example: 123,
         description: "Group ID",
       }),
     }),
     body: {
       content: {
         "application/json": {
-          schema: GroupMemberCreateSchema.omit({ groupId: true }), // groupId from path
+          schema: z.union([
+            GroupMemberCreateSchema.omit({ groupId: true }), // Single member
+            GroupMemberBulkCreateSchema, // Bulk members
+          ]),
         },
       },
     },
@@ -151,19 +159,21 @@ export const addGroupMemberRoute = createRoute({
     201: {
       content: {
         "application/json": {
-          schema: z.object({
-            message: z
-              .string()
-              .openapi({ example: "Member added successfully" }),
-          }),
+          schema: z.union([
+            z.object({
+              message: z
+                .string()
+                .openapi({ example: "Member added successfully" }),
+            }),
+            GroupMemberBulkResponseSchema,
+          ]),
         },
       },
-      description: "Member added successfully",
+      description: "Member(s) added successfully",
     },
     400: { description: "Validation Error" },
     401: { description: "Unauthorized" },
     404: { description: "Group not found" },
-    409: { description: "User already a member" },
   },
 });
 

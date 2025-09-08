@@ -5,8 +5,6 @@ import {
   getFriendRequestsRoute,
   respondToFriendRequestRoute,
   removeFriendRoute,
-  blockUserRoute,
-  unblockUserRoute,
 } from "./friends.contracts";
 
 export const friendRoutes = new OpenAPIHono();
@@ -101,45 +99,6 @@ friendRoutes.openapi(removeFriendRoute, async (c) => {
     return c.json(result, 200);
   } catch (error: any) {
     if (error.message === "Friendship not found") {
-      return c.json({ message: error.message }, 404);
-    }
-    return c.json({ message: error.message || "Internal server error" }, 500);
-  }
-});
-
-friendRoutes.openapi(blockUserRoute, async (c) => {
-  try {
-    const { userId } = c.req.valid("param");
-    const { friendService } = c.get("services");
-    const user = c.get("user");
-    if (!user) {
-      return c.json({ message: "Not authenticated" }, 401);
-    }
-    const result = await friendService.blockUser(user, userId);
-    return c.json(result, 200);
-  } catch (error: any) {
-    if (error.message.includes("not found")) {
-      return c.json({ message: error.message }, 404);
-    }
-    if (error.message.includes("yourself")) {
-      return c.json({ message: error.message }, 400);
-    }
-    return c.json({ message: error.message || "Internal server error" }, 500);
-  }
-});
-
-friendRoutes.openapi(unblockUserRoute, async (c) => {
-  try {
-    const { userId } = c.req.valid("param");
-    const { friendService } = c.get("services");
-    const user = c.get("user");
-    if (!user) {
-      return c.json({ message: "Not authenticated" }, 401);
-    }
-    const result = await friendService.unblockUser(user, userId);
-    return c.json(result, 200);
-  } catch (error: any) {
-    if (error.message.includes("not found")) {
       return c.json({ message: error.message }, 404);
     }
     return c.json({ message: error.message || "Internal server error" }, 500);

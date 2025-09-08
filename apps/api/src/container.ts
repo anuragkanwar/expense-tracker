@@ -97,7 +97,26 @@ container.register({
   budgetService: asClass(BudgetService, { lifetime: Lifetime.SCOPED }),
   connectionService: asClass(ConnectionService, { lifetime: Lifetime.SCOPED }),
   dashboardService: asClass(DashboardService, { lifetime: Lifetime.SCOPED }),
-  expenseService: asClass(ExpenseService, { lifetime: Lifetime.SCOPED }),
+  expenseService: asClass(ExpenseService, { lifetime: Lifetime.SCOPED }).inject(
+    () => ({
+      balanceRepository: container.resolve("balanceRepository"),
+      db: container.resolve("db"),
+      expensePayerRepository: container.resolve("expensePayerRepository"),
+      expenseRepository: container.resolve("expenseRepository"),
+      expenseSplitRepository: container.resolve("expenseSplitRepository"),
+      groupMemberRepository: container.resolve("groupMemberRepository"),
+      groupRepository: container.resolve("groupRepository"),
+      transactionAccountRepository: container.resolve(
+        "transactionAccountRepository"
+      ),
+      transactionEntryRepository: container.resolve(
+        "transactionEntryRepository"
+      ),
+      transactionRepository: container.resolve("transactionRepository"),
+      transactionHelperService: container.resolve("transactionHelperService"),
+      friendService: container.resolve("friendService"),
+    })
+  ),
   friendService: asClass(FriendService, { lifetime: Lifetime.SCOPED }),
   groupService: asClass(GroupService, { lifetime: Lifetime.SCOPED }),
   groupMemberService: asClass(GroupMemberService, {

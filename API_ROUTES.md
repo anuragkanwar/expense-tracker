@@ -10,7 +10,7 @@ GET /api/v1/friends Returns a list of the current user's friends.
 POST /api/v1/friends Sends a friend request to another user by email or user ID.
 GET /api/v1/friends/requests Lists all pending friend requests for the current user.
 PUT /api/v1/friends/requests/{userId} Accepts or rejects a pending friend request from a specific user.
-DELETE /api/v1/friends/{userId} Removes a friend.
+DELETE /api/v1/friends/{userId} Removes a friend or cancels a pending friend request.
 
 Group Management
 POST /api/v1/groups Creates a new expense-sharing group.
@@ -19,7 +19,7 @@ GET /api/v1/groups/{groupId} Retrieves detailed information about a specific gro
 PUT /api/v1/groups/{groupId} Updates a group's details (e.g., name, cover photo).
 DELETE /api/v1/groups/{groupId} Deletes a group.
 GET /api/v1/groups/{groupId}/members Lists all members of a specific group.
-POST /api/v1/groups/{groupId}/members Adds a new member to a group.
+POST /api/v1/groups/{groupId}/members Adds one or more members to a group (supports both single and bulk addition).
 DELETE /api/v1/groups/{groupId}/members/{userId} Removes a member from a group.
 
 Expense and transaction management

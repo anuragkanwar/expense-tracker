@@ -170,39 +170,6 @@ export const removeFriendRoute = createRoute({
   },
 });
 
-export const blockUserRoute = createRoute({
-  method: "post",
-  path: "/{userId}/block",
-  summary: "Block user",
-  description: "Blocks a user, preventing them from sending friend requests.",
-  tags: ["Friends"],
-  request: {
-    params: z.object({
-      userId: z.number().openapi({
-        example: 456,
-        description: "ID of the user to block",
-      }),
-    }),
-  },
-  responses: {
-    200: {
-      content: {
-        "application/json": {
-          schema: z.object({
-            message: z
-              .string()
-              .openapi({ example: "User blocked successfully" }),
-          }),
-        },
-      },
-      description: "User blocked successfully",
-    },
-    400: { description: "Validation Error" },
-    401: { description: "Unauthorized" },
-    404: { description: "User not found" },
-  },
-});
-
 export const unblockUserRoute = createRoute({
   method: "delete",
   path: "/{userId}/block",

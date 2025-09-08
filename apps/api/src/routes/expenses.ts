@@ -15,49 +15,200 @@ import { ExpenseCreateWithDetails } from "@/dto/expenses.dto";
 export const expenseRoutes = new OpenAPIHono();
 
 expenseRoutes.openapi(createExpenseRoute, async (c) => {
-  // TODO: Implement create expense
   try {
     const data = c.req.valid("json") as ExpenseCreateWithDetails;
     const { expenseService } = c.get("services");
     const user = c.get("user");
     if (!user) {
-      return c.json({ message: "Not Authenticated" }, 401);
+      return c.json({ message: "Not authenticated" }, 401);
     }
+
+    // For now, we'll return a placeholder response since createExpense doesn't return data
+    // In a full implementation, createExpense should return the created expense
     await expenseService.createExpense(data);
+
+    return c.json(
+      {
+        message: "Expense created successfully",
+        // TODO: Return the created expense data when createExpense method is updated
+      },
+      201
+    );
   } catch (error: any) {
-    return c.json({ message: error }, 400);
+    if (error.message.includes("not found")) {
+      return c.json({ message: error.message }, 404);
+    }
+    if (error.message.includes("Validation")) {
+      return c.json({ message: error.message }, 400);
+    }
+    return c.json({ message: error.message || "Internal server error" }, 500);
   }
-  return c.json({ message: "success" }, 200);
 });
 
 expenseRoutes.openapi(getExpensesRoute, async (c) => {
-  // TODO: Implement get user expenses
-  return c.json({ message: "Not implemented" }, 501);
+  try {
+    const { expenseService } = c.get("services");
+    const user = c.get("user");
+    if (!user) {
+      return c.json({ message: "Not authenticated" }, 401);
+    }
+
+    const { page, limit, type } = c.req.valid("query");
+
+    const result = await expenseService.getExpenses(user.id, {
+      page: page ? Number(page) : undefined,
+      limit: limit ? Number(limit) : undefined,
+      type: type || undefined,
+    });
+
+    return c.json(result, 200);
+  } catch (error: any) {
+    return c.json({ message: error.message || "Internal server error" }, 500);
+  }
 });
 
 expenseRoutes.openapi(getExpenseRoute, async (c) => {
-  // TODO: Implement get expense details
-  return c.json({ message: "Not implemented" }, 501);
+  try {
+    const { expenseService } = c.get("services");
+    const user = c.get("user");
+    if (!user) {
+      return c.json({ message: "Not authenticated" }, 401);
+    }
+
+    const { expenseId } = c.req.valid("param");
+
+    const expense = await expenseService.getExpenseById(
+      Number(expenseId),
+      user.id
+    );
+
+    return c.json(expense, 200);
+  } catch (error: any) {
+    if (error.message === "Expense not found") {
+      return c.json({ message: error.message }, 404);
+    }
+    if (error.message.includes("access")) {
+      return c.json({ message: error.message }, 403);
+    }
+    return c.json({ message: error.message || "Internal server error" }, 500);
+  }
 });
 
 expenseRoutes.openapi(getGroupExpensesRoute, async (c) => {
-  // TODO: Implement get group expenses
-  return c.json({ message: "Not implemented" }, 501);
+  try {
+    const { expenseService } = c.get("services");
+    const user = c.get("user");
+    if (!user) {
+      return c.json({ message: "Not authenticated" }, 401);
+    }
+
+    const { groupId } = c.req.valid("param");
+    const { page, limit } = c.req.valid("query");
+
+    const result = await expenseService.getGroupExpenses(
+      Number(groupId),
+      user.id,
+      {
+        page: page ? Number(page) : undefined,
+        limit: limit ? Number(limit) : undefined,
+      }
+    );
+
+    return c.json(result, 200);
+  } catch (error: any) {
+    if (error.message === "Group not found") {
+      return c.json({ message: error.message }, 404);
+    }
+    if (error.message.includes("access")) {
+      return c.json({ message: error.message }, 403);
+    }
+    return c.json({ message: error.message || "Internal server error" }, 500);
+  }
 });
 
 expenseRoutes.openapi(getFriendExpensesRoute, async (c) => {
-  // TODO: Implement get friend expenses
-  return c.json({ message: "Not implemented" }, 501);
+  try {
+    const { expenseService } = c.get("services");
+    const user = c.get("user");
+    if (!user) {
+      return c.json({ message: "Not authenticated" }, 401);
+    }
+
+    const { userId } = c.req.valid("param");
+    const { page, limit } = c.req.valid("query");
+
+    const result = await expenseService.getFriendExpenses(
+      Number(userId),
+      user.id,
+      {
+        page: page ? Number(page) : undefined,
+        limit: limit ? Number(limit) : undefined,
+      }
+    );
+
+    return c.json(result, 200);
+  } catch (error: any) {
+    if (error.message.includes("friends")) {
+      return c.json({ message: error.message }, 403);
+    }
+    return c.json({ message: error.message || "Internal server error" }, 500);
+  }
 });
 
 expenseRoutes.openapi(updateExpenseRoute, async (c) => {
-  // TODO: Implement update expense
-  return c.json({ message: "Not implemented" }, 501);
+  try {
+    const { expenseService } = c.get("services");
+    const user = c.get("user");
+    if (!user) {
+      return c.json({ message: "Not authenticated" }, 401);
+    }
+
+    const { expenseId } = c.req.valid("param");
+    const updateData = c.req.valid("json");
+
+    const updatedExpense = await expenseService.updateExpense(
+      Number(expenseId),
+      user.id,
+      updateData
+    );
+
+    return c.json(updatedExpense, 200);
+  } catch (error: any) {
+    if (error.message === "Expense not found") {
+      return c.json({ message: error.message }, 404);
+    }
+    if (error.message.includes("access")) {
+      return c.json({ message: error.message }, 403);
+    }
+    return c.json({ message: error.message || "Internal server error" }, 500);
+  }
 });
 
 expenseRoutes.openapi(deleteExpenseRoute, async (c) => {
-  // TODO: Implement delete expense
-  return c.json({ message: "Not implemented" }, 501);
+  try {
+    const { expenseService } = c.get("services");
+    const user = c.get("user");
+    if (!user) {
+      return c.json({ message: "Not authenticated" }, 401);
+    }
+
+    const { expenseId } = c.req.valid("param");
+
+    const result = await expenseService.deleteExpense(
+      Number(expenseId),
+      user.id
+    );
+
+    return c.json(result, 200);
+  } catch (error: any) {
+    if (error.message === "Expense not found") {
+      return c.json({ message: error.message }, 404);
+    }
+    if (error.message.includes("access")) {
+      return c.json({ message: error.message }, 403);
+    }
+    return c.json({ message: error.message || "Internal server error" }, 500);
+  }
 });
 
 // NOTE: DO NOT IMPLEMENT THIS, THIS IS JUST FUTURE NOT IMPLEMENT NOW

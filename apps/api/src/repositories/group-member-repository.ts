@@ -146,4 +146,30 @@ export class GroupMemberRepository {
 
     return result.rowsAffected > 0;
   }
+
+  async findByGroupIdAndUserId(
+    groupId: number,
+    userId: number,
+    tx?: DBTransactionType
+  ): Promise<GroupMemberResponse | null> {
+    const db = tx ?? this.db;
+    const result = await db
+      .select()
+      .from(groupMember)
+      .where(
+        and(eq(groupMember.groupId, groupId), eq(groupMember.userId, userId))
+      )
+      .limit(1);
+
+    if (result.length === 0) {
+      return null;
+    }
+
+    const row = result[0]!;
+    return {
+      ...row,
+      createdAt: row.createdAt.toISOString(),
+      updatedAt: row.updatedAt.toISOString(),
+    } as GroupMemberResponse;
+  }
 }

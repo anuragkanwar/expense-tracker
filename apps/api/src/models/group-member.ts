@@ -51,9 +51,45 @@ export const GroupMemberCreateSchema = createInsertSchema(groupMember, {
 export const GroupMemberUpdateSchema =
   GroupMemberCreateSchema.partial().openapi("GroupMemberUpdate");
 
+// Bulk member addition schema
+export const GroupMemberBulkCreateSchema = z
+  .object({
+    userIds: z
+      .array(z.number())
+      .min(1)
+      .max(50)
+      .openapi({
+        example: [456, 789, 101],
+        description: "Array of user IDs to add to the group (max 50 at once)",
+      }),
+  })
+  .openapi("GroupMemberBulkCreate");
+
+export const GroupMemberBulkResponseSchema = z
+  .object({
+    added: z.array(z.number()).openapi({
+      description: "User IDs that were successfully added",
+    }),
+    failed: z
+      .array(
+        z.object({
+          userId: z.number(),
+          reason: z.string(),
+        })
+      )
+      .openapi({
+        description: "User IDs that failed to be added with reasons",
+      }),
+  })
+  .openapi("GroupMemberBulkResponse");
+
 // ==========================================
 // TYPE EXPORTS
 // ==========================================
 export type GroupMemberResponse = z.infer<typeof GroupMemberResponseSchema>;
 export type GroupMemberCreate = z.infer<typeof GroupMemberCreateSchema>;
 export type GroupMemberUpdate = z.infer<typeof GroupMemberUpdateSchema>;
+export type GroupMemberBulkCreate = z.infer<typeof GroupMemberBulkCreateSchema>;
+export type GroupMemberBulkResponse = z.infer<
+  typeof GroupMemberBulkResponseSchema
+>;

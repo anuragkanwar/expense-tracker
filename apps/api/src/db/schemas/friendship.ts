@@ -17,11 +17,7 @@ export const friendship = sqliteTable("friendship", {
     .notNull()
     .references(() => user.id, { onDelete: "cascade" }),
   status: text({
-    enum: [
-      FRIEND_STATUS.ACCEPTED,
-      FRIEND_STATUS.BLOCKED,
-      FRIEND_STATUS.PENDING,
-    ],
+    enum: [FRIEND_STATUS.ACCEPTED, FRIEND_STATUS.PENDING],
   }).notNull(),
   createdAt: integer("created_at", { mode: "timestamp" })
     .$defaultFn(() => /* @__PURE__ */ new Date())
