@@ -24,6 +24,7 @@ import { NotFoundError, ValidationError } from "@/errors/base-error";
 import { GroupNotFoundError } from "@/errors/group-errors";
 import { mathOperationAndGetFixedNumber } from "@/utils/mathUtils";
 import { TransactionAccountResponse } from "@/models";
+import { LoanUpdate } from "@/models/loan";
 import { TransactionHelperService } from "./transaction-helper-service";
 
 export class LoanService {
@@ -582,7 +583,7 @@ export class LoanService {
     };
   }
 
-  async updateLoan(loanId: number, userId: number, updateData: any) {
+  async updateLoan(loanId: number, userId: number, updateData: LoanUpdate) {
     // Verify expense exists and user has access
     await this.getLoanById(loanId, userId);
 

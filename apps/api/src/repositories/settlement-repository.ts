@@ -127,11 +127,13 @@ export class SettlementRepository {
     tx?: DBTransactionType
   ): Promise<SettlementResponse | null> {
     const db = tx ?? this.db;
-    const updateData: any = { ...data };
+    const updateData: any = {
+      ...data,
+      updatedAt: new Date(),
+    };
     if (data.settledAt) {
       updateData.settledAt = new Date(data.settledAt);
     }
-    updateData.updatedAt = new Date();
 
     await db.update(settlement).set(updateData).where(eq(settlement.id, id));
 

@@ -77,6 +77,7 @@ export class LoanRepository {
     const updateData = {
       ...data,
       loanDate: data.loanDate ? new Date(data.loanDate) : undefined,
+      updatedAt: new Date(),
     };
 
     await db.update(loan).set(updateData).where(eq(loan.id, id));

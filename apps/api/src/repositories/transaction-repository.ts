@@ -110,6 +110,7 @@ export class TransactionRepository {
       transactionDate: data.transactionDate
         ? new Date(data.transactionDate)
         : undefined,
+      updatedAt: new Date(),
     };
 
     await db.update(transaction).set(updateData).where(eq(transaction.id, id));

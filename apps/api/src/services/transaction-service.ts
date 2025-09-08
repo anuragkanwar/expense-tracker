@@ -19,6 +19,7 @@ import {
 } from "@/db";
 import { NotFoundError, ValidationError } from "@/errors/base-error";
 import { GroupNotFoundError } from "@/errors/group-errors";
+import { TransactionUpdateWithDetails } from "@/dto/transactions.dto";
 import { mathOperationAndGetFixedNumber } from "@/utils/mathUtils";
 import { TransactionAccountResponse } from "@/models";
 import { TransactionHelperService } from "./transaction-helper-service";
@@ -569,7 +570,7 @@ export class TransactionService {
   async updateTransaction(
     transactionId: number,
     userId: number,
-    updateData: any
+    updateData: TransactionUpdateWithDetails
   ) {
     // Verify transaction exists and user has access
     const existingTransaction = await this.getTransactionById(
