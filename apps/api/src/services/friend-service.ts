@@ -3,6 +3,7 @@ import { UserResponse } from "@/models/user";
 import { FRIEND_STATUS } from "@/db";
 import { NotFoundError, ValidationError } from "@/errors/base-error";
 import { UserAuth } from "@/models/auth";
+import { type DBTransactionType } from "@/db";
 
 export class FriendService {
   private readonly friendRepository;
@@ -20,7 +21,11 @@ export class FriendService {
     return this.friendRepository.findFriendsByUserId(userId);
   }
 
-  async sendFriendRequest(user: UserAuth, friendId: number) {
+  async sendFriendRequest(
+    user: UserAuth,
+    friendId: number,
+    tx?: DBTransactionType
+  ) {
     const userId = user.id;
 
     if (userId === friendId) {
@@ -31,7 +36,8 @@ export class FriendService {
     const existingFriendship =
       await this.friendRepository.findFriendRequestBetweenUsers(
         userId,
-        friendId
+        friendId,
+        tx
       );
     if (existingFriendship) {
       if (existingFriendship.status === FRIEND_STATUS.ACCEPTED) {
@@ -42,11 +48,14 @@ export class FriendService {
     }
 
     // Create new friend request
-    return this.friendRepository.create({
-      userId1: userId,
-      userId2: friendId,
-      status: FRIEND_STATUS.PENDING,
-    });
+    return this.friendRepository.create(
+      {
+        userId1: userId,
+        userId2: friendId,
+        status: FRIEND_STATUS.PENDING,
+      },
+      tx
+    );
   }
 
   async getFriendRequests(user: UserAuth) {
@@ -57,7 +66,8 @@ export class FriendService {
   async respondToFriendRequest(
     user: UserAuth,
     fromUserId: number,
-    action: "accept" | "reject"
+    action: "accept" | "reject",
+    tx?: DBTransactionType
   ) {
     const userId = user.id;
 
@@ -65,7 +75,8 @@ export class FriendService {
     const friendship =
       await this.friendRepository.findFriendRequestBetweenUsers(
         fromUserId,
-        userId
+        userId,
+        tx
       );
     if (!friendship) {
       throw new NotFoundError("Friend request not found");
@@ -84,42 +95,57 @@ export class FriendService {
 
     if (action === "reject") {
       // Delete the friend request
-      await this.friendRepository.delete(friendship.id);
+      await this.friendRepository.delete(friendship.id, tx);
       return { message: "Friend request rejected" };
     } else {
       // Accept the friend request
-      const updated = await this.friendRepository.update(friendship.id, {
-        status: FRIEND_STATUS.ACCEPTED,
-      });
+      const updated = await this.friendRepository.update(
+        friendship.id,
+        {
+          status: FRIEND_STATUS.ACCEPTED,
+        },
+        tx
+      );
       return { message: "Friend request accepted", friendship: updated };
     }
   }
 
-  async removeFriend(user: UserAuth, friendId: number) {
+  async removeFriend(user: UserAuth, friendId: number, tx?: DBTransactionType) {
     const userId = user.id;
 
     // Find the friendship
     const friendship =
       await this.friendRepository.findAcceptedFriendshipBetweenUsers(
         userId,
-        friendId
+        friendId,
+        tx
       );
     if (!friendship) {
       // Check if there's a pending request to cancel
       const pendingRequest =
         await this.friendRepository.findFriendRequestBetweenUsers(
           userId,
-          friendId
+          friendId,
+          tx
         );
       if (pendingRequest && pendingRequest.status === FRIEND_STATUS.PENDING) {
-        await this.friendRepository.delete(pendingRequest.id);
-        return { message: "Friend request cancelled" };
+        // Only allow cancellation if current user sent the request (is userId1)
+        // or if current user received the request (is userId2)
+        const canCancel =
+          pendingRequest.userId1 === userId ||
+          pendingRequest.userId2 === userId;
+        if (canCancel) {
+          await this.friendRepository.delete(pendingRequest.id, tx);
+          const action =
+            pendingRequest.userId1 === userId ? "cancelled" : "rejected";
+          return { message: `Friend request ${action}` };
+        }
       }
       throw new NotFoundError("Friendship not found");
     }
 
     // Delete the friendship
-    await this.friendRepository.delete(friendship.id);
+    await this.friendRepository.delete(friendship.id, tx);
     return { message: "Friend removed successfully" };
   }
 }

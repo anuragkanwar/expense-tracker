@@ -7,24 +7,29 @@ import { BadRequestError } from "../errors/base-error";
 import { GroupRepository } from "@/repositories/group-repository";
 import { GroupMemberService } from "./group-member-service";
 import { ExpenseService } from "./expense-service";
+import { type DBType } from "@/db";
 
 export class GroupService {
   private readonly groupRepository;
   private readonly groupMemberService;
   private readonly expenseService;
+  private readonly db: DBType;
 
   constructor({
     groupRepository,
     groupMemberService,
     expenseService,
+    db,
   }: {
     groupRepository: GroupRepository;
     groupMemberService: GroupMemberService;
     expenseService: ExpenseService;
+    db: DBType;
   }) {
     this.groupRepository = groupRepository;
     this.groupMemberService = groupMemberService;
     this.expenseService = expenseService;
+    this.db = db;
   }
 
   async getAllGroups(
@@ -72,7 +77,26 @@ export class GroupService {
   }
 
   async createGroup(data: GroupCreate): Promise<GroupResponse> {
-    return this.groupRepository.create(data);
+    return this.db.transaction(async (tx) => {
+      try {
+        // Create the group
+        const group = await this.groupRepository.create(data, tx);
+
+        // Add the creator as a member
+        await this.groupMemberService.addGroupMember(
+          {
+            groupId: group.id,
+            userId: data.createdBy,
+          },
+          tx
+        );
+
+        return group;
+      } catch (error: any) {
+        console.error("Failed to create group:", error);
+        throw new BadRequestError("Failed to create group");
+      }
+    });
   }
 
   async updateGroup(

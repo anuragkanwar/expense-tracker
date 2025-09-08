@@ -5,6 +5,7 @@ import type {
 import { BadRequestError, NotFoundError } from "../errors/base-error";
 import { GroupMemberRepository } from "@/repositories/group-member-repository";
 import { GroupRepository } from "@/repositories/group-repository";
+import { type DBTransactionType } from "@/db";
 
 export class GroupMemberService {
   private readonly groupMemberRepository;
@@ -49,16 +50,20 @@ export class GroupMemberService {
     return this.groupMemberRepository.findByGroupId(groupId);
   }
 
-  async addGroupMember(data: GroupMemberCreate): Promise<GroupMemberResponse> {
+  async addGroupMember(
+    data: GroupMemberCreate,
+    tx?: DBTransactionType
+  ): Promise<GroupMemberResponse> {
     // Validate that group exists
-    const group = await this.groupRepository.findById(data.groupId);
+    const group = await this.groupRepository.findById(data.groupId, tx);
     if (!group) {
       throw new NotFoundError("Group not found");
     }
 
     // Check if user is already a member
     const existingMembers = await this.groupMemberRepository.findByGroupId(
-      data.groupId
+      data.groupId,
+      tx
     );
     const isAlreadyMember = existingMembers.some(
       (member) => member.userId === data.userId
@@ -67,7 +72,7 @@ export class GroupMemberService {
       throw new BadRequestError("User is already a member of this group");
     }
 
-    return this.groupMemberRepository.create(data);
+    return this.groupMemberRepository.create(data, tx);
   }
 
   async removeGroupMember(groupId: number, userId: number): Promise<boolean> {

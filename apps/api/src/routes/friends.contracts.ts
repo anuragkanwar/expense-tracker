@@ -1,8 +1,4 @@
-import {
-  FriendshipResponseSchema,
-  FriendshipCreateSchema,
-  FriendshipUpdateSchema,
-} from "@/models/friendship";
+import { FriendshipResponseSchema } from "@/models/friendship";
 import { UserResponseSchema } from "@/models/user";
 import { createRoute, z } from "@hono/zod-openapi";
 
@@ -94,11 +90,7 @@ export const respondToFriendRequestRoute = createRoute({
       content: {
         "application/json": {
           schema: z.object({
-            message: z
-              .string()
-              .transform(Number)
-              .pipe(z.number())
-              .openapi({ example: "Friend request accepted" }),
+            message: z.string().openapi({ example: "Friend request accepted" }),
           }),
         },
       },
@@ -125,19 +117,11 @@ export const getFriendRequestsRoute = createRoute({
               z.object({
                 id: z.number().openapi({ example: 123 }),
                 fromUserId: z.number().openapi({ example: 456 }),
-                fromUserName: z
-                  .string()
-                  .transform(Number)
-                  .pipe(z.number())
-                  .openapi({ example: "Jane Doe" }),
+                fromUserName: z.string().openapi({ example: "Jane Doe" }),
                 fromUserEmail: z
                   .string()
                   .openapi({ example: "jane@example.com" }),
-                status: z
-                  .string()
-                  .transform(Number)
-                  .pipe(z.number())
-                  .openapi({ example: "pending" }),
+                status: z.string().openapi({ example: "pending" }),
                 createdAt: z
                   .string()
                   .openapi({ example: "2025-09-01T12:00:00.000Z" }),
@@ -151,54 +135,6 @@ export const getFriendRequestsRoute = createRoute({
       description: "Friend requests retrieved successfully",
     },
     401: { description: "Unauthorized" },
-  },
-});
-
-export const updateFriendRequestRoute = createRoute({
-  method: "put",
-  path: "/requests/{userId}",
-  summary: "Accept or reject friend request",
-  description:
-    "Accepts or rejects a pending friend request from a specific user.",
-  tags: ["Friends"],
-  request: {
-    params: z.object({
-      userId: z.string().transform(Number).pipe(z.number()).openapi({
-        example: 456,
-        description: "ID of the user who sent the request",
-      }),
-    }),
-    body: {
-      content: {
-        "application/json": {
-          schema: z.object({
-            action: z.enum(["accept", "reject"]).openapi({
-              example: "accept",
-              description: "Action to take on the friend request",
-            }),
-          }),
-        },
-      },
-    },
-  },
-  responses: {
-    200: {
-      content: {
-        "application/json": {
-          schema: z.object({
-            message: z
-              .string()
-              .transform(Number)
-              .pipe(z.number())
-              .openapi({ example: "Friend request accepted" }),
-          }),
-        },
-      },
-      description: "Friend request updated successfully",
-    },
-    400: { description: "Validation Error" },
-    401: { description: "Unauthorized" },
-    404: { description: "Friend request not found" },
   },
 });
 
