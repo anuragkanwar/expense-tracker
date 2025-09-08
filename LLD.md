@@ -128,10 +128,22 @@ Pocket Pixie is a comprehensive financial management application supporting indi
 
 ### Expense Creation Flow
 
-1. **Payer Expense**: `OUTGOING (-) → EXPENSE (+)` for payer's share
-2. **Loan Generation**: `LOAN_GIVEN (-) → LOAN_TAKEN (+)` for each participant
-3. **Balance Updates**: Update user_balance table to reflect loan relationships
-4. **Metadata Storage**: Expense and split records in relational tables
+#### For Regular Expenses (TXN_TYPE.EXPENSE):
+
+1. **Payer Expense**: `OUTGOING (-) → EXPENSE (+)` for payer's share (when payerTotal > 0)
+2. **No Payer Expense**: When payerTotal = 0 (payer's share fully covered by splits)
+3. **Error Condition**: When payerTotal < 0 (splits exceed total amount)
+4. **Loan Generation**: `LOAN_GIVEN (-) → LOAN_TAKEN (+)` for each participant
+5. **Balance Updates**: Update user_balance table to reflect loan relationships
+6. **Metadata Storage**: Expense and split records in relational tables
+
+#### For Loan Transactions (TXN_TYPE.LOAN_GIVEN/LOAN_TAKEN):
+
+1. **No Payer Expense**: Loans don't create expense transactions
+2. **Direct Loan Transfer**: `LOAN_GIVEN (-) → LOAN_TAKEN (+)` for the full amount
+3. **Validation**: Split amount must equal total amount (ensures payerTotal = 0)
+4. **Balance Updates**: Update user_balance table to reflect loan relationships
+5. **Metadata Storage**: Expense and split records in relational tables (for tracking)
 
 ### Settlement Flow
 

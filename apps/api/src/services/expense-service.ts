@@ -371,7 +371,7 @@ export class ExpenseService {
       if (member.id === payerId) {
         continue;
       }
-      splits.concat({
+      splits.push({
         userId: member.id,
         amountOwed: splitPrice,
       });
@@ -509,6 +509,27 @@ export class ExpenseService {
               0
             );
             const payerTotal = expenseCreateWithDetails.amount - splitTotal;
+
+            // Validate payerTotal based on transaction type
+            if (
+              expenseCreateWithDetails.type === TXN_TYPE.LOAN_GIVEN ||
+              expenseCreateWithDetails.type === TXN_TYPE.LOAN_TAKEN
+            ) {
+              // For loans, payerTotal must be exactly 0
+              if (payerTotal !== 0) {
+                throw new ValidationError(
+                  `For loan transactions, payer total must be 0, got ${payerTotal}`
+                );
+              }
+            } else if (expenseCreateWithDetails.type === TXN_TYPE.EXPENSE) {
+              // For expenses, payerTotal must be >= 0
+              if (payerTotal < 0) {
+                throw new ValidationError(
+                  `Split amounts (${splitTotal}) cannot exceed total expense amount (${expenseCreateWithDetails.amount})`
+                );
+              }
+            }
+
             await this.transactionHelperService.updateAccountsAndCreateEntries(
               [
                 {

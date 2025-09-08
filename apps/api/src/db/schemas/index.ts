@@ -3,7 +3,12 @@ export { user } from "./user";
 export { session } from "./session";
 export { account } from "./account";
 export { verification } from "./verification";
-export { friendship } from "./friendship";
+export {
+  friendship,
+  friendshipUniqueIndex,
+  friendshipUserIndex,
+  friendshipStatusIndex,
+} from "./friendship";
 
 // Personal finance schemas
 export { transactionAccount } from "./transaction-account";

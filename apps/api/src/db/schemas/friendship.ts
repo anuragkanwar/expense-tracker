@@ -1,4 +1,10 @@
-import { sqliteTable, text, integer } from "drizzle-orm/sqlite-core";
+import {
+  sqliteTable,
+  text,
+  integer,
+  uniqueIndex,
+  index,
+} from "drizzle-orm/sqlite-core";
 import { user } from "./user";
 import { FRIEND_STATUS } from "../constants";
 
@@ -24,3 +30,20 @@ export const friendship = sqliteTable("friendship", {
     .$defaultFn(() => /* @__PURE__ */ new Date())
     .notNull(),
 });
+
+// Unique index to prevent duplicate friendships between same users
+export const friendshipUniqueIndex = uniqueIndex("friendship_unique_idx").on(
+  friendship.userId1,
+  friendship.userId2,
+  friendship.status
+);
+
+// Performance index for common friendship queries
+export const friendshipUserIndex = index("friendship_user_idx").on(
+  friendship.userId1,
+  friendship.userId2
+);
+
+export const friendshipStatusIndex = index("friendship_status_idx").on(
+  friendship.status
+);

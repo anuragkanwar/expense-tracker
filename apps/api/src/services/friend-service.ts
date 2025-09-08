@@ -44,6 +44,15 @@ export class FriendService {
         throw new ValidationError("You are already friends");
       } else if (existingFriendship.status === FRIEND_STATUS.PENDING) {
         throw new ValidationError("Friend request already exists");
+      } else if (existingFriendship.status === FRIEND_STATUS.BLOCKED) {
+        // Check if current user is the blocker or the blocked
+        if (existingFriendship.userId1 === userId) {
+          throw new ValidationError("You have blocked this user");
+        } else {
+          throw new ValidationError(
+            "You cannot send friend requests to blocked users"
+          );
+        }
       }
     }
 
@@ -83,6 +92,9 @@ export class FriendService {
     }
 
     if (friendship.status !== FRIEND_STATUS.PENDING) {
+      if (friendship.status === FRIEND_STATUS.BLOCKED) {
+        throw new ValidationError("Cannot respond to blocked user requests");
+      }
       throw new ValidationError("Friend request is not pending");
     }
 
@@ -147,5 +159,83 @@ export class FriendService {
     // Delete the friendship
     await this.friendRepository.delete(friendship.id, tx);
     return { message: "Friend removed successfully" };
+  }
+
+  async blockUser(
+    user: UserAuth,
+    targetUserId: number,
+    tx?: DBTransactionType
+  ) {
+    const userId = user.id;
+
+    if (userId === targetUserId) {
+      throw new ValidationError("Cannot block yourself");
+    }
+
+    // Check if there's an existing friendship
+    const existingFriendship =
+      await this.friendRepository.findFriendRequestBetweenUsers(
+        userId,
+        targetUserId,
+        tx
+      );
+
+    if (existingFriendship) {
+      if (existingFriendship.status === FRIEND_STATUS.BLOCKED) {
+        throw new ValidationError("User is already blocked");
+      }
+
+      // Update existing friendship to blocked status
+      await this.friendRepository.update(
+        existingFriendship.id,
+        { status: FRIEND_STATUS.BLOCKED },
+        tx
+      );
+    } else {
+      // Create new blocked relationship
+      await this.friendRepository.create(
+        {
+          userId1: userId,
+          userId2: targetUserId,
+          status: FRIEND_STATUS.BLOCKED,
+        },
+        tx
+      );
+    }
+
+    return { message: "User blocked successfully" };
+  }
+
+  async unblockUser(
+    user: UserAuth,
+    targetUserId: number,
+    tx?: DBTransactionType
+  ) {
+    const userId = user.id;
+
+    // Find the blocked relationship
+    const blockedFriendship =
+      await this.friendRepository.findFriendRequestBetweenUsers(
+        userId,
+        targetUserId,
+        tx
+      );
+
+    if (
+      !blockedFriendship ||
+      blockedFriendship.status !== FRIEND_STATUS.BLOCKED
+    ) {
+      throw new NotFoundError("Blocked relationship not found");
+    }
+
+    // Check if the current user is the one who blocked
+    if (blockedFriendship.userId1 !== userId) {
+      throw new ValidationError("You can only unblock users you have blocked");
+    }
+
+    // Delete the blocked relationship
+    await this.friendRepository.delete(blockedFriendship.id, tx);
+
+    return { message: "User unblocked successfully" };
   }
 }
