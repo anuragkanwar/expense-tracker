@@ -53,8 +53,54 @@ export class RecurringService {
     return this.recurringRepository.findById(id);
   }
 
+  async getRecurringItemByIdAndUser(
+    userId: number,
+    itemId: number
+  ): Promise<RecurringResponse> {
+    if (!itemId || typeof itemId !== "number") {
+      throw new BadRequestError("Invalid recurring item ID");
+    }
+
+    const item = await this.recurringRepository.findById(itemId);
+    if (!item) {
+      throw new BadRequestError("Recurring item not found");
+    }
+
+    if (item.userId !== userId) {
+      throw new BadRequestError("Forbidden");
+    }
+
+    return item;
+  }
+
   async createRecurringItem(data: RecurringCreate): Promise<RecurringResponse> {
     return this.recurringRepository.create(data);
+  }
+
+  async createRecurringItemWithResolution(
+    userId: number,
+    data: any, // DTO data
+    recurrenceType: RECURRENCE_TYPE,
+    categoryName?: string,
+    accountType?: ACCOUNT_TYPE
+  ): Promise<RecurringResponse> {
+    const resolvedAccounts = await this.resolveAccountsForRecurringItem(
+      userId,
+      recurrenceType,
+      categoryName,
+      accountType
+    );
+
+    await this.validateResolvedAccounts(userId, resolvedAccounts);
+
+    const recurringData = {
+      ...data,
+      userId,
+      sourceTransactionAccountID: resolvedAccounts.sourceAccountId,
+      targetTransactionAccountID: resolvedAccounts.targetAccountId,
+    };
+
+    return this.recurringRepository.create(recurringData);
   }
 
   async updateRecurringItem(
@@ -73,6 +119,43 @@ export class RecurringService {
     return this.recurringRepository.update(id, data);
   }
 
+  async updateRecurringItemByUser(
+    userId: number,
+    itemId: number,
+    data: RecurringUpdate
+  ): Promise<RecurringResponse | null> {
+    await this.getRecurringItemByIdAndUser(userId, itemId);
+    return this.recurringRepository.update(itemId, data);
+  }
+
+  async updateRecurringItemWithResolution(
+    userId: number,
+    itemId: number,
+    data: any, // DTO data
+    recurrenceType: RECURRENCE_TYPE,
+    categoryName?: string,
+    accountType?: ACCOUNT_TYPE
+  ): Promise<RecurringResponse | null> {
+    await this.getRecurringItemByIdAndUser(userId, itemId);
+
+    const resolvedAccounts = await this.resolveAccountsForRecurringItem(
+      userId,
+      recurrenceType,
+      categoryName,
+      accountType
+    );
+
+    await this.validateResolvedAccounts(userId, resolvedAccounts);
+
+    const recurringData = {
+      ...data,
+      sourceTransactionAccountID: resolvedAccounts.sourceAccountId,
+      targetTransactionAccountID: resolvedAccounts.targetAccountId,
+    };
+
+    return this.recurringRepository.update(itemId, recurringData);
+  }
+
   async deleteRecurringItem(id: number): Promise<boolean> {
     if (!id || typeof id !== "number") {
       throw new BadRequestError("Invalid recurring item ID");
@@ -84,6 +167,14 @@ export class RecurringService {
     }
 
     return this.recurringRepository.delete(id);
+  }
+
+  async deleteRecurringItemByUser(
+    userId: number,
+    itemId: number
+  ): Promise<boolean> {
+    await this.getRecurringItemByIdAndUser(userId, itemId);
+    return this.recurringRepository.delete(itemId);
   }
 
   /**

@@ -34,12 +34,41 @@ export class GroupService {
     return this.groupRepository.findAll(limit, offset);
   }
 
+  async getGroupsByUser(
+    userId: number,
+    limit: number = 10,
+    offset: number = 0
+  ): Promise<GroupResponse[]> {
+    const allGroups = await this.groupRepository.findAll(limit, offset);
+    return allGroups.filter((group) => group.createdBy === userId);
+  }
+
   async getGroupById(id: number): Promise<GroupResponse | null> {
     if (!id || typeof id !== "number") {
       throw new BadRequestError("Invalid group ID");
     }
 
     return this.groupRepository.findById(id);
+  }
+
+  async getGroupByIdAndUser(
+    userId: number,
+    groupId: number
+  ): Promise<GroupResponse> {
+    if (!groupId || typeof groupId !== "number") {
+      throw new BadRequestError("Invalid group ID");
+    }
+
+    const group = await this.groupRepository.findById(groupId);
+    if (!group) {
+      throw new BadRequestError("Group not found");
+    }
+
+    if (group.createdBy !== userId) {
+      throw new BadRequestError("Forbidden");
+    }
+
+    return group;
   }
 
   async createGroup(data: GroupCreate): Promise<GroupResponse> {
@@ -62,6 +91,15 @@ export class GroupService {
     return this.groupRepository.update(id, data);
   }
 
+  async updateGroupByUser(
+    userId: number,
+    groupId: number,
+    data: GroupUpdate
+  ): Promise<GroupResponse | null> {
+    await this.getGroupByIdAndUser(userId, groupId);
+    return this.groupRepository.update(groupId, data);
+  }
+
   async deleteGroup(id: number): Promise<boolean> {
     if (!id || typeof id !== "number") {
       throw new BadRequestError("Invalid group ID");
@@ -75,7 +113,17 @@ export class GroupService {
     return this.groupRepository.delete(id);
   }
 
+  async deleteGroupByUser(userId: number, groupId: number): Promise<boolean> {
+    await this.getGroupByIdAndUser(userId, groupId);
+    return this.groupRepository.delete(groupId);
+  }
+
   async getGroupMembers(groupId: number) {
+    return this.groupMemberService.getGroupMembers(groupId);
+  }
+
+  async getGroupMembersByUser(userId: number, groupId: number) {
+    await this.getGroupByIdAndUser(userId, groupId);
     return this.groupMemberService.getGroupMembers(groupId);
   }
 
@@ -86,8 +134,29 @@ export class GroupService {
     });
   }
 
+  async addGroupMemberByUser(
+    ownerId: number,
+    groupId: number,
+    memberId: number
+  ) {
+    await this.getGroupByIdAndUser(ownerId, groupId);
+    return this.groupMemberService.addGroupMember({
+      groupId,
+      userId: memberId,
+    });
+  }
+
   async removeGroupMember(groupId: number, userId: number) {
     return this.groupMemberService.removeGroupMember(groupId, userId);
+  }
+
+  async removeGroupMemberByUser(
+    ownerId: number,
+    groupId: number,
+    memberId: number
+  ) {
+    await this.getGroupByIdAndUser(ownerId, groupId);
+    return this.groupMemberService.removeGroupMember(groupId, memberId);
   }
 
   async getGroupBalances(groupId: number): Promise<GroupBalancesResponse> {
@@ -111,6 +180,14 @@ export class GroupService {
     return balances;
   }
 
+  async getGroupBalancesByUser(
+    userId: number,
+    groupId: number
+  ): Promise<GroupBalancesResponse> {
+    await this.getGroupByIdAndUser(userId, groupId);
+    return this.getGroupBalances(groupId);
+  }
+
   async getSettlementPlan(groupId: number): Promise<SettlementPlanResponse> {
     if (!groupId || typeof groupId !== "number") {
       throw new BadRequestError("Invalid group ID");
@@ -129,6 +206,14 @@ export class GroupService {
     const settlementPlan = this.calculateSettlementPlan(balances);
 
     return settlementPlan;
+  }
+
+  async getSettlementPlanByUser(
+    userId: number,
+    groupId: number
+  ): Promise<SettlementPlanResponse> {
+    await this.getGroupByIdAndUser(userId, groupId);
+    return this.getSettlementPlan(groupId);
   }
 
   private calculateGroupBalances(

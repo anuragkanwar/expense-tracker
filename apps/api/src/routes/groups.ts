@@ -39,12 +39,9 @@ groupRoutes.openapi(getGroupsRoute, async (c) => {
   }
 
   const services = c.get("services");
-  const groups = await services.groupService.getAllGroups();
+  const groups = await services.groupService.getGroupsByUser(user.id);
 
-  // Filter groups by user (groups created by user)
-  const userGroups = groups.filter((group) => group.createdBy === user.id);
-
-  return c.json(userGroups, 200);
+  return c.json(groups, 200);
 });
 
 groupRoutes.openapi(getGroupRoute, async (c) => {
@@ -56,17 +53,52 @@ groupRoutes.openapi(getGroupRoute, async (c) => {
   const services = c.get("services");
   const { groupId } = c.req.valid("param");
 
-  // First check if group exists and belongs to user
-  const existingGroup = await services.groupService.getGroupById(groupId);
-  if (!existingGroup) {
-    return c.json({ message: "Group not found" }, 404);
+  try {
+    const group = await services.groupService.getGroupByIdAndUser(
+      user.id,
+      groupId
+    );
+    return c.json(group, 200);
+  } catch (error: any) {
+    if (error.message === "Group not found" || error.message === "Forbidden") {
+      return c.json(
+        { message: error.message },
+        error.message === "Group not found" ? 404 : 403
+      );
+    }
+    return c.json({ message: "Internal server error" }, 500);
+  }
+});
+
+groupRoutes.openapi(updateGroupRoute, async (c) => {
+  const user = c.get("user");
+  if (!user) {
+    return c.json({ message: "Unauthorized" }, 401);
   }
 
-  if (existingGroup.createdBy !== user.id) {
-    return c.json({ message: "Forbidden" }, 403);
-  }
+  const services = c.get("services");
+  const { groupId } = c.req.valid("param");
+  const body = c.req.valid("json");
 
-  return c.json(existingGroup, 200);
+  try {
+    const updatedGroup = await services.groupService.updateGroupByUser(
+      user.id,
+      groupId,
+      body
+    );
+    if (!updatedGroup) {
+      return c.json({ message: "Group not found" }, 404);
+    }
+    return c.json(updatedGroup, 200);
+  } catch (error: any) {
+    if (error.message === "Group not found") {
+      return c.json({ message: "Group not found" }, 404);
+    }
+    if (error.message === "Forbidden") {
+      return c.json({ message: "Forbidden" }, 403);
+    }
+    return c.json({ message: "Internal server error" }, 500);
+  }
 });
 
 groupRoutes.openapi(deleteGroupRoute, async (c) => {
@@ -78,23 +110,18 @@ groupRoutes.openapi(deleteGroupRoute, async (c) => {
   const services = c.get("services");
   const { groupId } = c.req.valid("param");
 
-  // First check if group exists and belongs to user
-  const existingGroup = await services.groupService.getGroupById(groupId);
-  if (!existingGroup) {
-    return c.json({ message: "Group not found" }, 404);
+  try {
+    await services.groupService.deleteGroupByUser(user.id, groupId);
+    return c.json({ message: "Group deleted successfully" }, 200);
+  } catch (error: any) {
+    if (error.message === "Group not found" || error.message === "Forbidden") {
+      return c.json(
+        { message: error.message },
+        error.message === "Group not found" ? 404 : 403
+      );
+    }
+    return c.json({ message: "Internal server error" }, 500);
   }
-
-  if (existingGroup.createdBy !== user.id) {
-    return c.json({ message: "Forbidden" }, 403);
-  }
-
-  const deleted = await services.groupService.deleteGroup(groupId);
-
-  if (!deleted) {
-    return c.json({ message: "Group not found" }, 404);
-  }
-
-  return c.json({ message: "Group deleted successfully" }, 200);
 });
 
 groupRoutes.openapi(getGroupMembersRoute, async (c) => {
@@ -106,18 +133,21 @@ groupRoutes.openapi(getGroupMembersRoute, async (c) => {
   const services = c.get("services");
   const { groupId } = c.req.valid("param");
 
-  // First check if group exists and belongs to user
-  const existingGroup = await services.groupService.getGroupById(groupId);
-  if (!existingGroup) {
-    return c.json({ message: "Group not found" }, 404);
+  try {
+    const members = await services.groupService.getGroupMembersByUser(
+      user.id,
+      groupId
+    );
+    return c.json(members, 200);
+  } catch (error: any) {
+    if (error.message === "Group not found" || error.message === "Forbidden") {
+      return c.json(
+        { message: error.message },
+        error.message === "Group not found" ? 404 : 403
+      );
+    }
+    return c.json({ message: "Internal server error" }, 500);
   }
-
-  if (existingGroup.createdBy !== user.id) {
-    return c.json({ message: "Forbidden" }, 403);
-  }
-
-  const members = await services.groupService.getGroupMembers(groupId);
-  return c.json(members, 200);
 });
 
 groupRoutes.openapi(addGroupMemberRoute, async (c) => {
@@ -130,20 +160,20 @@ groupRoutes.openapi(addGroupMemberRoute, async (c) => {
   const { groupId } = c.req.valid("param");
   const body = c.req.valid("json");
 
-  // First check if group exists and belongs to user
-  const existingGroup = await services.groupService.getGroupById(groupId);
-  if (!existingGroup) {
-    return c.json({ message: "Group not found" }, 404);
-  }
-
-  if (existingGroup.createdBy !== user.id) {
-    return c.json({ message: "Forbidden" }, 403);
-  }
-
   try {
-    await services.groupService.addGroupMember(groupId, body.userId);
+    await services.groupService.addGroupMemberByUser(
+      user.id,
+      groupId,
+      body.userId
+    );
     return c.json({ message: "Member added successfully" }, 201);
   } catch (error: any) {
+    if (error.message === "Group not found") {
+      return c.json({ message: "Group not found" }, 404);
+    }
+    if (error.message === "Forbidden") {
+      return c.json({ message: "Forbidden" }, 403);
+    }
     if (error.message.includes("already a member")) {
       return c.json({ message: "User is already a member of this group" }, 409);
     }
@@ -160,20 +190,20 @@ groupRoutes.openapi(removeGroupMemberRoute, async (c) => {
   const services = c.get("services");
   const { groupId, userId } = c.req.valid("param");
 
-  // First check if group exists and belongs to user
-  const existingGroup = await services.groupService.getGroupById(groupId);
-  if (!existingGroup) {
-    return c.json({ message: "Group not found" }, 404);
-  }
-
-  if (existingGroup.createdBy !== user.id) {
-    return c.json({ message: "Forbidden" }, 403);
-  }
-
   try {
-    await services.groupService.removeGroupMember(groupId, userId);
+    await services.groupService.removeGroupMemberByUser(
+      user.id,
+      groupId,
+      userId
+    );
     return c.json({ message: "Member removed successfully" }, 200);
   } catch (error: any) {
+    if (error.message === "Group not found") {
+      return c.json({ message: "Group not found" }, 404);
+    }
+    if (error.message === "Forbidden") {
+      return c.json({ message: "Forbidden" }, 403);
+    }
     return c.json({ message: "Failed to remove member" }, 400);
   }
 });
@@ -187,20 +217,19 @@ groupRoutes.openapi(getGroupBalancesRoute, async (c) => {
   const services = c.get("services");
   const { groupId } = c.req.valid("param");
 
-  // First check if group exists and belongs to user
-  const existingGroup = await services.groupService.getGroupById(groupId);
-  if (!existingGroup) {
-    return c.json({ message: "Group not found" }, 404);
-  }
-
-  if (existingGroup.createdBy !== user.id) {
-    return c.json({ message: "Forbidden" }, 403);
-  }
-
   try {
-    const balances = await services.groupService.getGroupBalances(groupId);
+    const balances = await services.groupService.getGroupBalancesByUser(
+      user.id,
+      groupId
+    );
     return c.json(balances, 200);
   } catch (error: any) {
+    if (error.message === "Group not found") {
+      return c.json({ message: "Group not found" }, 404);
+    }
+    if (error.message === "Forbidden") {
+      return c.json({ message: "Forbidden" }, 403);
+    }
     return c.json({ message: "Failed to calculate balances" }, 400);
   }
 });
@@ -214,21 +243,19 @@ groupRoutes.openapi(getSettlementPlanRoute, async (c) => {
   const services = c.get("services");
   const { groupId } = c.req.valid("param");
 
-  // First check if group exists and belongs to user
-  const existingGroup = await services.groupService.getGroupById(groupId);
-  if (!existingGroup) {
-    return c.json({ message: "Group not found" }, 404);
-  }
-
-  if (existingGroup.createdBy !== user.id) {
-    return c.json({ message: "Forbidden" }, 403);
-  }
-
   try {
-    const settlementPlan =
-      await services.groupService.getSettlementPlan(groupId);
+    const settlementPlan = await services.groupService.getSettlementPlanByUser(
+      user.id,
+      groupId
+    );
     return c.json(settlementPlan, 200);
   } catch (error: any) {
+    if (error.message === "Group not found") {
+      return c.json({ message: "Group not found" }, 404);
+    }
+    if (error.message === "Forbidden") {
+      return c.json({ message: "Forbidden" }, 403);
+    }
     return c.json({ message: "Failed to calculate settlement plan" }, 400);
   }
 });

@@ -6,38 +6,13 @@ import {
   updateRecurringItemRoute,
   deleteRecurringItemRoute,
 } from "./recurring-items.contracts";
-import { RECURRENCE_TYPE, TIME_PERIOD } from "@/db/constants";
+import { RECURRENCE_TYPE, TIME_PERIOD, ACCOUNT_TYPE } from "@/db/constants";
 
 const periodMap: Record<string, TIME_PERIOD> = {
   monthly: TIME_PERIOD.MONTHLY,
   weekly: TIME_PERIOD.WEEKLY,
   yearly: TIME_PERIOD.YEARLY,
 };
-
-// Helper function to resolve accounts for recurring items
-async function resolveAccountsForRecurringItem(
-  services: any,
-  userId: number,
-  recurrenceType: RECURRENCE_TYPE,
-  categoryName?: string,
-  accountType?: string
-): Promise<{ sourceAccountId: number; targetAccountId: number }> {
-  const resolvedAccounts =
-    await services.recurringService.resolveAccountsForRecurringItem(
-      userId,
-      recurrenceType,
-      categoryName,
-      accountType as any
-    );
-
-  // Validate that the resolved accounts exist and belong to the user
-  await services.recurringService.validateResolvedAccounts(
-    userId,
-    resolvedAccounts
-  );
-
-  return resolvedAccounts;
-}
 
 export const recurringItemRoutes = new OpenAPIHono();
 
@@ -67,32 +42,29 @@ recurringItemRoutes.openapi(createRecurringItemRoute, async (c) => {
   const recurrenceType =
     body.type === "income" ? RECURRENCE_TYPE.CREDIT : RECURRENCE_TYPE.DEBIT;
 
-  // Resolve appropriate accounts for this recurring item
-  const { sourceAccountId: srcAccId, targetAccountId: tgtAccId } =
-    await resolveAccountsForRecurringItem(
-      services,
-      user.id,
-      recurrenceType,
-      body.categoryId, // Optional category for account resolution
-      body.type === "expense" ? "EXPENSE" : undefined // Account type for DEBIT transactions
-    );
-
-  // Map DTO to model - need to convert type and handle account mappings
+  // Map DTO to model
   const recurringData = {
     description: body.description,
     amount: body.amount,
     period: periodMap[body.period] || TIME_PERIOD.MONTHLY,
     type: recurrenceType,
-    userId: user.id,
-    sourceTransactionAccountID: srcAccId,
-    targetTransactionAccountID: tgtAccId,
     nextDate: body.nextDate,
-  } as any;
+  };
 
-  const recurringItem =
-    await services.recurringService.createRecurringItem(recurringData);
+  try {
+    const recurringItem =
+      await services.recurringService.createRecurringItemWithResolution(
+        user.id,
+        recurringData,
+        recurrenceType,
+        body.categoryId,
+        body.type === "expense" ? ACCOUNT_TYPE.EXPENSE : undefined
+      );
 
-  return c.json(recurringItem, 201);
+    return c.json(recurringItem, 201);
+  } catch (error: any) {
+    return c.json({ message: error.message || "Internal server error" }, 500);
+  }
 });
 
 recurringItemRoutes.openapi(getRecurringItemRoute, async (c) => {
@@ -104,18 +76,22 @@ recurringItemRoutes.openapi(getRecurringItemRoute, async (c) => {
   const services = c.get("services");
   const { itemId } = c.req.valid("param");
 
-  const recurringItem =
-    await services.recurringService.getRecurringItemById(itemId);
-
-  if (!recurringItem) {
-    return c.json({ message: "Recurring item not found" }, 404);
+  try {
+    const recurringItem =
+      await services.recurringService.getRecurringItemByIdAndUser(
+        user.id,
+        itemId
+      );
+    return c.json(recurringItem, 200);
+  } catch (error: any) {
+    if (error.message === "Recurring item not found") {
+      return c.json({ message: "Recurring item not found" }, 404);
+    }
+    if (error.message === "Forbidden") {
+      return c.json({ message: "Forbidden" }, 403);
+    }
+    return c.json({ message: "Internal server error" }, 500);
   }
-
-  if (recurringItem.userId !== user.id) {
-    return c.json({ message: "Forbidden" }, 403);
-  }
-
-  return c.json(recurringItem, 200);
 });
 
 recurringItemRoutes.openapi(updateRecurringItemRoute, async (c) => {
@@ -128,32 +104,11 @@ recurringItemRoutes.openapi(updateRecurringItemRoute, async (c) => {
   const { itemId } = c.req.valid("param");
   const body = c.req.valid("json");
 
-  // First check if recurring item exists and belongs to user
-  const existingItem =
-    await services.recurringService.getRecurringItemById(itemId);
-  if (!existingItem) {
-    return c.json({ message: "Recurring item not found" }, 404);
-  }
-
-  if (existingItem.userId !== user.id) {
-    return c.json({ message: "Forbidden" }, 403);
-  }
-
   // Determine recurrence type
   const recurrenceType =
     body.type === "income" ? RECURRENCE_TYPE.CREDIT : RECURRENCE_TYPE.DEBIT;
 
-  // Resolve appropriate accounts for this recurring item
-  const { sourceAccountId: srcAccId, targetAccountId: tgtAccId } =
-    await resolveAccountsForRecurringItem(
-      services,
-      user.id,
-      recurrenceType,
-      body.categoryId, // Optional category for account resolution
-      body.type === "expense" ? "EXPENSE" : undefined // Account type for DEBIT transactions
-    );
-
-  // Map DTO to model - need to convert type and handle account mappings
+  // Map DTO to model
   const recurringData = {
     description: body.description,
     amount: body.amount,
@@ -161,21 +116,34 @@ recurringItemRoutes.openapi(updateRecurringItemRoute, async (c) => {
       ? periodMap[body.period] || TIME_PERIOD.MONTHLY
       : TIME_PERIOD.MONTHLY,
     type: recurrenceType,
-    sourceTransactionAccountID: srcAccId,
-    targetTransactionAccountID: tgtAccId,
     nextDate: body.nextDate,
-  } as any;
+  };
 
-  const updatedItem = await services.recurringService.updateRecurringItem(
-    itemId,
-    recurringData
-  );
+  try {
+    const updatedItem =
+      await services.recurringService.updateRecurringItemWithResolution(
+        user.id,
+        itemId,
+        recurringData,
+        recurrenceType,
+        body.categoryId,
+        body.type === "expense" ? ACCOUNT_TYPE.EXPENSE : undefined
+      );
 
-  if (!updatedItem) {
-    return c.json({ message: "Recurring item not found" }, 404);
+    if (!updatedItem) {
+      return c.json({ message: "Recurring item not found" }, 404);
+    }
+
+    return c.json(updatedItem, 200);
+  } catch (error: any) {
+    if (error.message === "Recurring item not found") {
+      return c.json({ message: "Recurring item not found" }, 404);
+    }
+    if (error.message === "Forbidden") {
+      return c.json({ message: "Forbidden" }, 403);
+    }
+    return c.json({ message: error.message || "Internal server error" }, 500);
   }
-
-  return c.json(updatedItem, 200);
 });
 
 recurringItemRoutes.openapi(deleteRecurringItemRoute, async (c) => {
@@ -187,22 +155,16 @@ recurringItemRoutes.openapi(deleteRecurringItemRoute, async (c) => {
   const services = c.get("services");
   const { itemId } = c.req.valid("param");
 
-  // First check if recurring item exists and belongs to user
-  const existingItem =
-    await services.recurringService.getRecurringItemById(itemId);
-  if (!existingItem) {
-    return c.json({ message: "Recurring item not found" }, 404);
+  try {
+    await services.recurringService.deleteRecurringItemByUser(user.id, itemId);
+    return c.json({ message: "Recurring item deleted successfully" }, 200);
+  } catch (error: any) {
+    if (error.message === "Recurring item not found") {
+      return c.json({ message: "Recurring item not found" }, 404);
+    }
+    if (error.message === "Forbidden") {
+      return c.json({ message: "Forbidden" }, 403);
+    }
+    return c.json({ message: "Internal server error" }, 500);
   }
-
-  if (existingItem.userId !== user.id) {
-    return c.json({ message: "Forbidden" }, 403);
-  }
-
-  const deleted = await services.recurringService.deleteRecurringItem(itemId);
-
-  if (!deleted) {
-    return c.json({ message: "Recurring item not found" }, 404);
-  }
-
-  return c.json({ message: "Recurring item deleted successfully" }, 200);
 });

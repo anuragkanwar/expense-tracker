@@ -16,12 +16,9 @@ budgetRoutes.openapi(getBudgetsRoute, async (c) => {
   }
 
   const services = c.get("services");
-  const budgets = await services.budgetService.getAllBudgets();
+  const budgets = await services.budgetService.getBudgetsByUser(user.id);
 
-  // Filter budgets by user
-  const userBudgets = budgets.filter((budget) => budget.userId === user.id);
-
-  return c.json(userBudgets, 200);
+  return c.json(budgets, 200);
 });
 
 budgetRoutes.openapi(createBudgetRoute, async (c) => {
@@ -50,18 +47,21 @@ budgetRoutes.openapi(getBudgetRoute, async (c) => {
   const services = c.get("services");
   const { budgetId } = c.req.valid("param");
 
-  const budget = await services.budgetService.getBudgetById(budgetId);
-
-  if (!budget) {
-    return c.json({ message: "Budget not found" }, 404);
+  try {
+    const budget = await services.budgetService.getBudgetByIdAndUser(
+      user.id,
+      budgetId
+    );
+    return c.json(budget, 200);
+  } catch (error: any) {
+    if (error.message === "Budget not found") {
+      return c.json({ message: "Budget not found" }, 404);
+    }
+    if (error.message === "Forbidden") {
+      return c.json({ message: "Forbidden" }, 403);
+    }
+    return c.json({ message: "Internal server error" }, 500);
   }
-
-  // Check if budget belongs to user
-  if (budget.userId !== user.id) {
-    return c.json({ message: "Forbidden" }, 403);
-  }
-
-  return c.json(budget, 200);
 });
 
 budgetRoutes.openapi(updateBudgetRoute, async (c) => {
@@ -74,23 +74,25 @@ budgetRoutes.openapi(updateBudgetRoute, async (c) => {
   const { budgetId } = c.req.valid("param");
   const body = c.req.valid("json");
 
-  // First check if budget exists and belongs to user
-  const existingBudget = await services.budgetService.getBudgetById(budgetId);
-  if (!existingBudget) {
-    return c.json({ message: "Budget not found" }, 404);
+  try {
+    const budget = await services.budgetService.updateBudgetByUser(
+      user.id,
+      budgetId,
+      body
+    );
+    if (!budget) {
+      return c.json({ message: "Budget not found" }, 404);
+    }
+    return c.json(budget, 200);
+  } catch (error: any) {
+    if (error.message === "Budget not found") {
+      return c.json({ message: "Budget not found" }, 404);
+    }
+    if (error.message === "Forbidden") {
+      return c.json({ message: "Forbidden" }, 403);
+    }
+    return c.json({ message: "Internal server error" }, 500);
   }
-
-  if (existingBudget.userId !== user.id) {
-    return c.json({ message: "Forbidden" }, 403);
-  }
-
-  const budget = await services.budgetService.updateBudget(budgetId, body);
-
-  if (!budget) {
-    return c.json({ message: "Budget not found" }, 404);
-  }
-
-  return c.json(budget, 200);
 });
 
 budgetRoutes.openapi(deleteBudgetRoute, async (c) => {
@@ -102,21 +104,16 @@ budgetRoutes.openapi(deleteBudgetRoute, async (c) => {
   const services = c.get("services");
   const { budgetId } = c.req.valid("param");
 
-  // First check if budget exists and belongs to user
-  const existingBudget = await services.budgetService.getBudgetById(budgetId);
-  if (!existingBudget) {
-    return c.json({ message: "Budget not found" }, 404);
+  try {
+    await services.budgetService.deleteBudgetByUser(user.id, budgetId);
+    return c.json({ message: "Budget deleted successfully" }, 200);
+  } catch (error: any) {
+    if (error.message === "Budget not found") {
+      return c.json({ message: "Budget not found" }, 404);
+    }
+    if (error.message === "Forbidden") {
+      return c.json({ message: "Forbidden" }, 403);
+    }
+    return c.json({ message: "Internal server error" }, 500);
   }
-
-  if (existingBudget.userId !== user.id) {
-    return c.json({ message: "Forbidden" }, 403);
-  }
-
-  const deleted = await services.budgetService.deleteBudget(budgetId);
-
-  if (!deleted) {
-    return c.json({ message: "Budget not found" }, 404);
-  }
-
-  return c.json({ message: "Budget deleted successfully" }, 200);
 });
