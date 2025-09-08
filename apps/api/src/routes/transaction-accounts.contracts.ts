@@ -65,7 +65,7 @@ export const getAccountRoute = createRoute({
   tags: ["Accounts"],
   request: {
     params: z.object({
-      accountId: z.number().openapi({
+      accountId: z.string().transform(Number).pipe(z.number()).openapi({
         example: 123,
         description: "Account ID",
       }),
@@ -93,7 +93,7 @@ export const updateAccountRoute = createRoute({
   tags: ["Accounts"],
   request: {
     params: z.object({
-      accountId: z.number().openapi({
+      accountId: z.string().transform(Number).pipe(z.number()).openapi({
         example: 123,
         description: "Account ID",
       }),
@@ -129,7 +129,7 @@ export const deleteAccountRoute = createRoute({
   tags: ["Accounts"],
   request: {
     params: z.object({
-      accountId: z.number().openapi({
+      accountId: z.string().transform(Number).pipe(z.number()).openapi({
         example: 123,
         description: "Account ID",
       }),
@@ -189,7 +189,7 @@ export const getFriendsLoanAccountsRoute = createRoute({
   tags: ["Accounts"],
   request: {
     params: z.object({
-      friendId: z.number().openapi({
+      friendId: z.string().transform(Number).pipe(z.number()).openapi({
         example: 123,
         description: "Friend user ID",
       }),

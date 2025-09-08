@@ -104,9 +104,8 @@ recurringItemRoutes.openapi(getRecurringItemRoute, async (c) => {
   const services = c.get("services");
   const { itemId } = c.req.valid("param");
 
-  const recurringItem = await services.recurringService.getRecurringItemById(
-    Number(itemId)
-  );
+  const recurringItem =
+    await services.recurringService.getRecurringItemById(itemId);
 
   if (!recurringItem) {
     return c.json({ message: "Recurring item not found" }, 404);
@@ -130,9 +129,8 @@ recurringItemRoutes.openapi(updateRecurringItemRoute, async (c) => {
   const body = c.req.valid("json");
 
   // First check if recurring item exists and belongs to user
-  const existingItem = await services.recurringService.getRecurringItemById(
-    Number(itemId)
-  );
+  const existingItem =
+    await services.recurringService.getRecurringItemById(itemId);
   if (!existingItem) {
     return c.json({ message: "Recurring item not found" }, 404);
   }
@@ -169,7 +167,7 @@ recurringItemRoutes.openapi(updateRecurringItemRoute, async (c) => {
   } as any;
 
   const updatedItem = await services.recurringService.updateRecurringItem(
-    Number(itemId),
+    itemId,
     recurringData
   );
 
@@ -190,9 +188,8 @@ recurringItemRoutes.openapi(deleteRecurringItemRoute, async (c) => {
   const { itemId } = c.req.valid("param");
 
   // First check if recurring item exists and belongs to user
-  const existingItem = await services.recurringService.getRecurringItemById(
-    Number(itemId)
-  );
+  const existingItem =
+    await services.recurringService.getRecurringItemById(itemId);
   if (!existingItem) {
     return c.json({ message: "Recurring item not found" }, 404);
   }
@@ -201,9 +198,7 @@ recurringItemRoutes.openapi(deleteRecurringItemRoute, async (c) => {
     return c.json({ message: "Forbidden" }, 403);
   }
 
-  const deleted = await services.recurringService.deleteRecurringItem(
-    Number(itemId)
-  );
+  const deleted = await services.recurringService.deleteRecurringItem(itemId);
 
   if (!deleted) {
     return c.json({ message: "Recurring item not found" }, 404);

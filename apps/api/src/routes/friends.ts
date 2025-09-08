@@ -69,7 +69,7 @@ friendRoutes.openapi(respondToFriendRequestRoute, async (c) => {
     }
     const result = await friendService.respondToFriendRequest(
       user,
-      Number(userId),
+      userId,
       action
     );
     return c.json(result, 200);
@@ -95,7 +95,7 @@ friendRoutes.openapi(removeFriendRoute, async (c) => {
     if (!user) {
       return c.json({ message: "Not authenticated" }, 401);
     }
-    const result = await friendService.removeFriend(user, Number(userId));
+    const result = await friendService.removeFriend(user, userId);
     return c.json(result, 200);
   } catch (error: any) {
     if (error.message === "Friendship not found") {

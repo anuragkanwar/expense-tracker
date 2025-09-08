@@ -60,7 +60,7 @@ export const getRecurringItemRoute = createRoute({
   tags: ["Recurring Items"],
   request: {
     params: z.object({
-      itemId: z.number().openapi({
+      itemId: z.string().transform(Number).pipe(z.number()).openapi({
         example: 123,
         description: "Recurring item ID",
       }),
@@ -88,7 +88,7 @@ export const updateRecurringItemRoute = createRoute({
   tags: ["Recurring Items"],
   request: {
     params: z.object({
-      itemId: z.number().openapi({
+      itemId: z.string().transform(Number).pipe(z.number()).openapi({
         example: 123,
         description: "Recurring item ID",
       }),
@@ -124,7 +124,7 @@ export const deleteRecurringItemRoute = createRoute({
   tags: ["Recurring Items"],
   request: {
     params: z.object({
-      itemId: z.number().openapi({
+      itemId: z.string().transform(Number).pipe(z.number()).openapi({
         example: 123,
         description: "Recurring item ID",
       }),

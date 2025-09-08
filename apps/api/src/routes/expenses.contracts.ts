@@ -47,7 +47,7 @@ export const getExpenseRoute = createRoute({
   tags: ["Expenses"],
   request: {
     params: z.object({
-      expenseId: z.number().openapi({
+      expenseId: z.string().openapi({
         example: 123,
         description: "Expense ID",
       }),
@@ -76,7 +76,7 @@ export const getGroupExpensesRoute = createRoute({
   tags: ["Expenses"],
   request: {
     params: z.object({
-      groupId: z.number().openapi({
+      groupId: z.string().openapi({
         example: 123,
         description: "Group ID",
       }),
@@ -115,7 +115,7 @@ export const updateExpenseRoute = createRoute({
   tags: ["Expenses"],
   request: {
     params: z.object({
-      expenseId: z.number().openapi({
+      expenseId: z.string().openapi({
         example: 123,
         description: "Expense ID",
       }),
@@ -152,12 +152,12 @@ export const getExpensesRoute = createRoute({
   tags: ["Expenses"],
   request: {
     query: z.object({
-      page: z.string().optional().openapi({
-        example: "1",
+      page: z.string().transform(Number).pipe(z.number()).optional().openapi({
+        example: 1,
         description: "Page number",
       }),
-      limit: z.string().optional().openapi({
-        example: "20",
+      limit: z.string().transform(Number).pipe(z.number()).optional().openapi({
+        example: 20,
         description: "Items per page",
       }),
       type: z.string().optional().openapi({
@@ -195,18 +195,18 @@ export const getFriendExpensesRoute = createRoute({
   tags: ["Expenses"],
   request: {
     params: z.object({
-      userId: z.number().openapi({
+      userId: z.string().openapi({
         example: 456,
         description: "Friend's user ID",
       }),
     }),
     query: z.object({
-      page: z.string().optional().openapi({
-        example: "1",
+      page: z.string().transform(Number).pipe(z.number()).optional().openapi({
+        example: 1,
         description: "Page number",
       }),
-      limit: z.string().optional().openapi({
-        example: "20",
+      limit: z.string().transform(Number).pipe(z.number()).optional().openapi({
+        example: 20,
         description: "Items per page",
       }),
     }),
@@ -241,7 +241,7 @@ export const deleteExpenseRoute = createRoute({
   tags: ["Expenses"],
   request: {
     params: z.object({
-      expenseId: z.number().openapi({
+      expenseId: z.string().openapi({
         example: 123,
         description: "Expense ID",
       }),

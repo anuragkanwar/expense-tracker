@@ -35,7 +35,7 @@ export const getFriendBalanceRoute = createRoute({
   tags: ["Balances"],
   request: {
     params: z.object({
-      userId: z.number().openapi({
+      userId: z.string().transform(Number).pipe(z.number()).openapi({
         example: 456,
         description: "Friend's user ID",
       }),
@@ -63,7 +63,7 @@ export const getGroupBalanceRoute = createRoute({
   tags: ["Balances"],
   request: {
     params: z.object({
-      groupId: z.number().openapi({
+      groupId: z.string().transform(Number).pipe(z.number()).openapi({
         example: 123,
         description: "Group ID",
       }),
@@ -143,7 +143,7 @@ export const getGroupSettlementPlanRoute = createRoute({
   tags: ["Settlements"],
   request: {
     params: z.object({
-      groupId: z.number().openapi({
+      groupId: z.string().transform(Number).pipe(z.number()).openapi({
         example: 123,
         description: "Group ID",
       }),

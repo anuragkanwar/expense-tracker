@@ -33,13 +33,9 @@ balanceRoutes.openapi(getFriendBalanceRoute, async (c) => {
   const { balanceService } = c.get("services");
 
   const userId = user.id;
-  const numericFriendId = Number(friendId);
 
   try {
-    const balance = await balanceService.getFriendBalance(
-      userId,
-      numericFriendId
-    );
+    const balance = await balanceService.getFriendBalance(userId, friendId);
     return c.json(balance, 200);
   } catch {
     return c.json({ message: "Friend not found" }, 404);
@@ -56,13 +52,9 @@ balanceRoutes.openapi(getGroupBalanceRoute, async (c) => {
   const { balanceService } = c.get("services");
 
   const userId = user.id;
-  const numericGroupId = Number(groupId);
 
   try {
-    const balance = await balanceService.getGroupBalance(
-      userId,
-      numericGroupId
-    );
+    const balance = await balanceService.getGroupBalance(userId, groupId);
     return c.json(balance, 200);
   } catch {
     return c.json({ message: "Group not found" }, 404);
@@ -109,13 +101,9 @@ balanceRoutes.openapi(getGroupSettlementPlanRoute, async (c) => {
   const { balanceService } = c.get("services");
 
   const userId = user.id;
-  const numericGroupId = Number(groupId);
 
   try {
-    const plan = await balanceService.getGroupSettlementPlan(
-      userId,
-      numericGroupId
-    );
+    const plan = await balanceService.getGroupSettlementPlan(userId, groupId);
     return c.json(plan, 200);
   } catch (error) {
     return c.json({ message: "Group not found" }, 404);

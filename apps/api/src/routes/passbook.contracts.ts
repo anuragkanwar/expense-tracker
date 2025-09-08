@@ -26,14 +26,24 @@ export const getPassbookRoute = createRoute({
         example: "2025-12-31T23:59:59.999Z",
         description: "Filter by end date",
       }),
-      categoryId: z.number().optional().openapi({
-        example: 123,
-        description: "Filter by category",
-      }),
-      accountId: z.number().optional().openapi({
-        example: 123,
-        description: "Filter by account",
-      }),
+      categoryId: z
+        .string()
+        .transform(Number)
+        .pipe(z.number())
+        .optional()
+        .openapi({
+          example: 123,
+          description: "Filter by category",
+        }),
+      accountId: z
+        .string()
+        .transform(Number)
+        .pipe(z.number())
+        .optional()
+        .openapi({
+          example: 123,
+          description: "Filter by account",
+        }),
     }),
   },
   responses: {

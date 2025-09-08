@@ -55,11 +55,9 @@ groupRoutes.openapi(getGroupRoute, async (c) => {
 
   const services = c.get("services");
   const { groupId } = c.req.valid("param");
-  const numericGroupId = Number(groupId);
 
   // First check if group exists and belongs to user
-  const existingGroup =
-    await services.groupService.getGroupById(numericGroupId);
+  const existingGroup = await services.groupService.getGroupById(groupId);
   if (!existingGroup) {
     return c.json({ message: "Group not found" }, 404);
   }
@@ -107,11 +105,9 @@ groupRoutes.openapi(getGroupMembersRoute, async (c) => {
 
   const services = c.get("services");
   const { groupId } = c.req.valid("param");
-  const numericGroupId = Number(groupId);
 
   // First check if group exists and belongs to user
-  const existingGroup =
-    await services.groupService.getGroupById(numericGroupId);
+  const existingGroup = await services.groupService.getGroupById(groupId);
   if (!existingGroup) {
     return c.json({ message: "Group not found" }, 404);
   }
@@ -120,7 +116,7 @@ groupRoutes.openapi(getGroupMembersRoute, async (c) => {
     return c.json({ message: "Forbidden" }, 403);
   }
 
-  const members = await services.groupService.getGroupMembers(numericGroupId);
+  const members = await services.groupService.getGroupMembers(groupId);
   return c.json(members, 200);
 });
 
@@ -133,11 +129,9 @@ groupRoutes.openapi(addGroupMemberRoute, async (c) => {
   const services = c.get("services");
   const { groupId } = c.req.valid("param");
   const body = c.req.valid("json");
-  const numericGroupId = Number(groupId);
 
   // First check if group exists and belongs to user
-  const existingGroup =
-    await services.groupService.getGroupById(numericGroupId);
+  const existingGroup = await services.groupService.getGroupById(groupId);
   if (!existingGroup) {
     return c.json({ message: "Group not found" }, 404);
   }
@@ -147,7 +141,7 @@ groupRoutes.openapi(addGroupMemberRoute, async (c) => {
   }
 
   try {
-    await services.groupService.addGroupMember(numericGroupId, body.userId);
+    await services.groupService.addGroupMember(groupId, body.userId);
     return c.json({ message: "Member added successfully" }, 201);
   } catch (error: any) {
     if (error.message.includes("already a member")) {

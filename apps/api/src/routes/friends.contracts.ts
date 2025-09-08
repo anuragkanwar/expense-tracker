@@ -38,7 +38,7 @@ export const sendFriendRequestRoute = createRoute({
       content: {
         "application/json": {
           schema: z.object({
-            friendId: z.number().openapi({
+            friendId: z.string().transform(Number).pipe(z.number()).openapi({
               example: 456,
               description: "ID of the user to send friend request to",
             }),
@@ -71,7 +71,7 @@ export const respondToFriendRequestRoute = createRoute({
   tags: ["Friends"],
   request: {
     params: z.object({
-      userId: z.number().openapi({
+      userId: z.string().transform(Number).pipe(z.number()).openapi({
         example: 456,
         description: "ID of the user who sent the request",
       }),
@@ -94,7 +94,11 @@ export const respondToFriendRequestRoute = createRoute({
       content: {
         "application/json": {
           schema: z.object({
-            message: z.string().openapi({ example: "Friend request accepted" }),
+            message: z
+              .string()
+              .transform(Number)
+              .pipe(z.number())
+              .openapi({ example: "Friend request accepted" }),
           }),
         },
       },
@@ -121,11 +125,19 @@ export const getFriendRequestsRoute = createRoute({
               z.object({
                 id: z.number().openapi({ example: 123 }),
                 fromUserId: z.number().openapi({ example: 456 }),
-                fromUserName: z.string().openapi({ example: "Jane Doe" }),
+                fromUserName: z
+                  .string()
+                  .transform(Number)
+                  .pipe(z.number())
+                  .openapi({ example: "Jane Doe" }),
                 fromUserEmail: z
                   .string()
                   .openapi({ example: "jane@example.com" }),
-                status: z.string().openapi({ example: "pending" }),
+                status: z
+                  .string()
+                  .transform(Number)
+                  .pipe(z.number())
+                  .openapi({ example: "pending" }),
                 createdAt: z
                   .string()
                   .openapi({ example: "2025-09-01T12:00:00.000Z" }),
@@ -151,7 +163,7 @@ export const updateFriendRequestRoute = createRoute({
   tags: ["Friends"],
   request: {
     params: z.object({
-      userId: z.number().openapi({
+      userId: z.string().transform(Number).pipe(z.number()).openapi({
         example: 456,
         description: "ID of the user who sent the request",
       }),
@@ -174,7 +186,11 @@ export const updateFriendRequestRoute = createRoute({
       content: {
         "application/json": {
           schema: z.object({
-            message: z.string().openapi({ example: "Friend request accepted" }),
+            message: z
+              .string()
+              .transform(Number)
+              .pipe(z.number())
+              .openapi({ example: "Friend request accepted" }),
           }),
         },
       },
@@ -194,7 +210,7 @@ export const removeFriendRoute = createRoute({
   tags: ["Friends"],
   request: {
     params: z.object({
-      userId: z.number().openapi({
+      userId: z.string().transform(Number).pipe(z.number()).openapi({
         example: 456,
         description: "ID of the friend to remove",
       }),

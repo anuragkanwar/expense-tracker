@@ -69,7 +69,7 @@ export const getGroupRoute = createRoute({
   tags: ["Groups"],
   request: {
     params: z.object({
-      groupId: z.number().openapi({
+      groupId: z.string().transform(Number).pipe(z.number()).openapi({
         example: 123,
         description: "Group ID",
       }),
@@ -98,7 +98,7 @@ export const updateGroupRoute = createRoute({
   tags: ["Groups"],
   request: {
     params: z.object({
-      groupId: z.number().openapi({
+      groupId: z.string().transform(Number).pipe(z.number()).openapi({
         example: 123,
         description: "Group ID",
       }),
@@ -134,7 +134,7 @@ export const addGroupMemberRoute = createRoute({
   tags: ["Groups"],
   request: {
     params: z.object({
-      groupId: z.string().openapi({
+      groupId: z.string().transform(Number).pipe(z.number()).openapi({
         example: "123",
         description: "Group ID",
       }),
@@ -175,11 +175,11 @@ export const removeGroupMemberRoute = createRoute({
   tags: ["Groups"],
   request: {
     params: z.object({
-      groupId: z.number().openapi({
+      groupId: z.string().transform(Number).pipe(z.number()).openapi({
         example: 123,
         description: "Group ID",
       }),
-      userId: z.number().openapi({
+      userId: z.string().transform(Number).pipe(z.number()).openapi({
         example: 456,
         description: "User ID to remove",
       }),
@@ -212,7 +212,7 @@ export const getGroupBalancesRoute = createRoute({
   tags: ["Groups"],
   request: {
     params: z.object({
-      groupId: z.number().openapi({
+      groupId: z.string().transform(Number).pipe(z.number()).openapi({
         example: 123,
         description: "Group ID",
       }),
@@ -241,7 +241,7 @@ export const getSettlementPlanRoute = createRoute({
   tags: ["Groups"],
   request: {
     params: z.object({
-      groupId: z.number().openapi({
+      groupId: z.string().transform(Number).pipe(z.number()).openapi({
         example: 123,
         description: "Group ID",
       }),
@@ -269,7 +269,7 @@ export const deleteGroupRoute = createRoute({
   tags: ["Groups"],
   request: {
     params: z.object({
-      groupId: z.number().openapi({
+      groupId: z.string().transform(Number).pipe(z.number()).openapi({
         example: 123,
         description: "Group ID",
       }),
@@ -302,7 +302,7 @@ export const getGroupMembersRoute = createRoute({
   tags: ["Groups"],
   request: {
     params: z.object({
-      groupId: z.string().openapi({
+      groupId: z.string().transform(Number).pipe(z.number()).openapi({
         example: "123",
         description: "Group ID",
       }),
@@ -316,8 +316,16 @@ export const getGroupMembersRoute = createRoute({
             .array(
               z.object({
                 userId: z.number().openapi({ example: 123 }),
-                name: z.string().openapi({ example: "John Doe" }),
-                email: z.string().openapi({ example: "john@example.com" }),
+                name: z
+                  .string()
+                  .transform(Number)
+                  .pipe(z.number())
+                  .openapi({ example: "John Doe" }),
+                email: z
+                  .string()
+                  .transform(Number)
+                  .pipe(z.number())
+                  .openapi({ example: "john@example.com" }),
                 joinedAt: z
                   .string()
                   .openapi({ example: "2025-09-01T12:00:00.000Z" }),
