@@ -47,6 +47,26 @@ Pocket Pixie is a comprehensive financial management application supporting indi
 4. **Loan Creation**: `LOAN_GIVEN (-) → LOAN_TAKEN (+)`
 5. **Settlement**: Reverses loan relationships + records payment
 
+### Loan Transaction Validation Rules
+
+**For LOAN_GIVEN and LOAN_TAKEN transactions, strict validation is applied:**
+
+1. **Split Requirements**:
+   - Must have exactly one split entry in the `splits` array
+   - The split amount must exactly match the transaction amount
+
+2. **Account Validation**:
+   - **Source Account**: Must be the payer's `LOAN_GIVEN` account
+   - **Destination Account**: Must be the split user's `LOAN_TAKEN` account
+
+3. **Transaction Type Specific Rules**:
+   - **LOAN_GIVEN**: Source account belongs to payer, destination account belongs to split user
+   - **LOAN_TAKEN**: Source account belongs to split user, destination account belongs to payer
+
+4. **Business Logic**:
+   - Loans can only be created between two users (payer and one split user)
+   - Prevents invalid account combinations and ensures proper loan relationship tracking
+
 ### Recurring Item Flows
 
 1. **Income (CREDIT)**: `EXTERNAL (-) → INCOME (+)`
@@ -100,7 +120,8 @@ Pocket Pixie is a comprehensive financial management application supporting indi
 
 1. **Payer Expense**: `OUTGOING (-) → EXPENSE (+)` for payer's share
 2. **Loan Generation**: `LOAN_GIVEN (-) → LOAN_TAKEN (+)` for each participant
-3. **Metadata Storage**: Expense and split records in relational tables
+3. **Balance Updates**: Update user_balance table to reflect loan relationships
+4. **Metadata Storage**: Expense and split records in relational tables
 
 ### Settlement Flow
 
@@ -108,11 +129,21 @@ Pocket Pixie is a comprehensive financial management application supporting indi
 2. **Payment Recording**: `OUTGOING (-) → EXPENSE (+)` to record cash movement
 3. **Settlement Record**: Stored for audit trail
 
+### Balance Update Flow
+
+For each participant in a shared expense:
+
+1. **Payee Balance**: `payee (owner) owes payer (counterparty) -amount`
+2. **Payer Balance**: `payer (owner) is owed by payee (counterparty) +amount`
+3. **Group Context**: If expense is group-based, balances are tracked per group
+4. **Overall Balance**: Non-group balances are also maintained for cross-context settlements
+
 ### Key Features
 
 - **Multi-party splits**: Complex group expense distribution
 - **Flexible settlements**: Partial and full debt resolution
 - **Direct loan support**: Non-group loan scenarios
+- **Consistent Balance Tracking**: Both transaction entries and user balances updated
 
 ## Implementation Architecture
 
@@ -132,13 +163,14 @@ Pocket Pixie is a comprehensive financial management application supporting indi
 
 ### Critical Integration Fix
 
-**Issue**: Direct loans/settlements only updated user_balance table, breaking aggregation consistency.
+**Issue**: Direct loans/settlements and shared expenses only updated user_balance table or transaction entries respectively, breaking aggregation consistency.
 
-**Resolution**: Modified `BalanceService` to create transaction entries for all direct activities, ensuring:
+**Resolution**: Ensured both transaction entries and user_balance updates for all financial activities:
 
-- Direct loans create `LOAN_GIVEN (-) → LOAN_TAKEN (+)` entries
-- Direct settlements create payment + loan reversal entries
-- Consistent aggregation across group and direct activities
+- **Direct loans**: Create `LOAN_GIVEN (-) → LOAN_TAKEN (+)` entries + update user_balance
+- **Direct settlements**: Create payment + loan reversal entries + update user_balance
+- **Shared expenses**: Create `LOAN_GIVEN (-) → LOAN_TAKEN (+)` entries + update user_balance
+- **Consistent aggregation**: All activities now maintain both transaction integrity and balance consistency
 
 ## Current Implementation Status
 
