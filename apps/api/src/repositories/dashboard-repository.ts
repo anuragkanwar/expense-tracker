@@ -6,7 +6,7 @@ import {
   transactionAccount,
   recurring,
 } from "@/db";
-import { sql, eq, and, gte, lte, inArray } from "drizzle-orm";
+import { sql, eq, and, gte, lte, inArray, or } from "drizzle-orm";
 import { ACCOUNT_TYPE } from "@/db/constants";
 
 export class DashboardRepository {
@@ -611,6 +611,8 @@ export class DashboardRepository {
       monthEnd.setDate(0); // Last day of month
 
       // Calculate assets: INCOME + LOAN_GIVEN + SAVING accounts
+      // For loan accounts, sum all amounts (positive + negative) to get net position
+      // For income/saving accounts, sum only positive amounts (inflows)
       const assetsResult = await db
         .select({ total: sql<number>`SUM(${transactionEntry.amount})` })
         .from(transactionEntry)
@@ -628,11 +630,20 @@ export class DashboardRepository {
             sql`${transactionAccount.type} IN ('INCOME', 'LOAN_GIVEN', 'SAVING')`,
             gte(transaction.transactionDate, monthStart),
             lte(transaction.transactionDate, monthEnd),
-            sql`${transactionEntry.amount} > 0`
+            // For LOAN_GIVEN: sum all amounts (net position)
+            // For INCOME/SAVING: sum only positive amounts (inflows)
+            or(
+              eq(transactionAccount.type, ACCOUNT_TYPE.LOAN_GIVEN),
+              and(
+                sql`${transactionAccount.type} IN ('INCOME', 'SAVING')`,
+                sql`${transactionEntry.amount} > 0`
+              )
+            )
           )
         );
 
       // Calculate liabilities: LOAN_TAKEN accounts
+      // Sum all amounts (positive + negative) to get net position
       const liabilitiesResult = await db
         .select({ total: sql<number>`SUM(${transactionEntry.amount})` })
         .from(transactionEntry)
@@ -649,8 +660,8 @@ export class DashboardRepository {
             eq(transaction.userId, userId),
             eq(transactionAccount.type, ACCOUNT_TYPE.LOAN_TAKEN),
             gte(transaction.transactionDate, monthStart),
-            lte(transaction.transactionDate, monthEnd),
-            sql`${transactionEntry.amount} > 0`
+            lte(transaction.transactionDate, monthEnd)
+            // For LOAN_TAKEN: sum all amounts (net position)
           )
         );
 

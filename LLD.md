@@ -91,12 +91,14 @@ Pocket Pixie is a comprehensive financial management application supporting indi
 
 ### Aggregation Logic
 
-- **Income**: `SUM(amount > 0)` from INCOME accounts
-- **Expenses**: `SUM(amount > 0)` from EXPENSE accounts
-- **Savings**: `SUM(amount > 0)` from SAVING accounts
-- **Assets**: `SUM(amount > 0)` from LOAN_GIVEN accounts
-- **Liabilities**: `SUM(amount > 0)` from LOAN_TAKEN accounts
+- **Income**: `SUM(amount > 0)` from INCOME accounts (inflows only)
+- **Expenses**: `SUM(amount > 0)` from EXPENSE accounts (inflows only)
+- **Savings**: `SUM(amount > 0)` from SAVING accounts (inflows only)
+- **Assets**: `SUM(all amounts)` from LOAN_GIVEN accounts (net position)
+- **Liabilities**: `SUM(all amounts)` from LOAN_TAKEN accounts (net position)
 - **Net Worth**: Assets - Liabilities
+
+**Note**: Loan accounts (LOAN_GIVEN, LOAN_TAKEN) use net aggregation because settlements create both positive and negative entries that must be summed together to get the correct outstanding balance.
 
 ## User Balance System
 
