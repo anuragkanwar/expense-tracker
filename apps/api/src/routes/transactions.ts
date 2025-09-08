@@ -12,7 +12,7 @@ import {
 
 import { TransactionCreateWithDetails } from "@/dto/transactions.dto";
 import { requireAuthMiddleware } from "@/middleware/require-auth-middleware";
-import { handleRouteError } from "@/utils/error-response-handler";
+import { handleRouteError, AppError } from "@/utils/error-response-handler";
 
 export const transactionRoutesExport = new OpenAPIHono();
 
@@ -22,8 +22,9 @@ transactionRoutesExport.openapi(createTransactionRoute, async (c) => {
   try {
     const data = c.req.valid("json") as TransactionCreateWithDetails;
     const { transactionService } = c.get("services");
+    const user = c.get("user");
 
-    await transactionService.createTransaction(data);
+    await transactionService.createTransaction(data, user?.currency || "INR");
 
     return c.json(
       {
@@ -31,7 +32,7 @@ transactionRoutesExport.openapi(createTransactionRoute, async (c) => {
       },
       201
     );
-  } catch (error: any) {
+  } catch (error: AppError) {
     const { json, status } = handleRouteError(error);
     return c.json(json, status as any);
   }
@@ -54,7 +55,7 @@ transactionRoutesExport.openapi(getTransactionsRoute, async (c) => {
     });
 
     return c.json(result, 200);
-  } catch (error: any) {
+  } catch (error: AppError) {
     return c.json({ message: error.message || "Internal server error" }, 500);
   }
 });
@@ -75,7 +76,7 @@ transactionRoutesExport.openapi(getTransactionRoute, async (c) => {
     );
 
     return c.json(transaction, 200);
-  } catch (error: any) {
+  } catch (error: AppError) {
     if (error.message === "Transaction not found") {
       return c.json({ message: error.message }, 404);
     }
@@ -107,7 +108,7 @@ transactionRoutesExport.openapi(getGroupTransactionsRoute, async (c) => {
     );
 
     return c.json(result, 200);
-  } catch (error: any) {
+  } catch (error: AppError) {
     if (error.message === "Group not found") {
       return c.json({ message: error.message }, 404);
     }
@@ -139,7 +140,7 @@ transactionRoutesExport.openapi(getFriendTransactionsRoute, async (c) => {
     );
 
     return c.json(result, 200);
-  } catch (error: any) {
+  } catch (error: AppError) {
     if (error.message.includes("friends")) {
       return c.json({ message: error.message }, 403);
     }
@@ -165,7 +166,7 @@ transactionRoutesExport.openapi(updateTransactionRoute, async (c) => {
     );
 
     return c.json(updatedTransaction, 200);
-  } catch (error: any) {
+  } catch (error: AppError) {
     if (error.message === "Transaction not found") {
       return c.json({ message: error.message }, 404);
     }
@@ -192,7 +193,7 @@ transactionRoutesExport.openapi(deleteTransactionRoute, async (c) => {
     );
 
     return c.json(result, 200);
-  } catch (error: any) {
+  } catch (error: AppError) {
     if (error.message === "Transaction not found") {
       return c.json({ message: error.message }, 404);
     }

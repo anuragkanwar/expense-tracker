@@ -195,6 +195,7 @@ export class TransactionService {
     payerId: number,
     payeeId: number,
     amount: number,
+    currency: string,
     groupId?: number,
     tx?: DBTransactionType
   ) {
@@ -219,7 +220,7 @@ export class TransactionService {
           ownerId: payeeId,
           counterPartyId: payerId,
           amount: amount,
-          currency: "INR",
+          currency,
           groupId: groupId,
         },
         tx
@@ -247,7 +248,7 @@ export class TransactionService {
           ownerId: payerId,
           counterPartyId: payeeId,
           amount: -amount,
-          currency: "INR",
+          currency,
           groupId: groupId,
         },
         tx
@@ -256,7 +257,8 @@ export class TransactionService {
   }
 
   async createTransaction(
-    transactionCreateWithDetails: TransactionCreateWithDetails
+    transactionCreateWithDetails: TransactionCreateWithDetails,
+    userCurrency: string = "INR"
   ) {
     const payerId = transactionCreateWithDetails.payer;
 
@@ -385,6 +387,7 @@ export class TransactionService {
                   payerId,
                   split.userId,
                   split.amountOwed,
+                  userCurrency,
                   transactionCreateWithDetails.groupId,
                   tx
                 );

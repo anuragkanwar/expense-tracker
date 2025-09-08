@@ -8,6 +8,7 @@ import {
   LoanPayerRepository,
   LoanSplitsRepository,
   GroupMemberRepository,
+  UserRepository,
 } from "@/repositories";
 import { FriendService } from "./friend-service";
 import { TransactionService } from "./transaction-service";
@@ -32,6 +33,7 @@ export class LoanService {
   private readonly groupMemberRepository;
   private readonly groupRepository;
   private readonly transactionAccountRepository;
+  private readonly userRepository;
 
   private readonly transactionService;
   private readonly friendService;
@@ -44,6 +46,7 @@ export class LoanService {
     groupMemberRepository,
     groupRepository,
     transactionAccountRepository,
+    userRepository,
 
     transactionService,
     friendService,
@@ -55,6 +58,7 @@ export class LoanService {
     groupMemberRepository: GroupMemberRepository;
     groupRepository: GroupRepository;
     transactionAccountRepository: TransactionAccountRepository;
+    userRepository: UserRepository;
 
     transactionService: TransactionService;
     friendService: FriendService;
@@ -66,6 +70,7 @@ export class LoanService {
     this.groupMemberRepository = groupMemberRepository;
     this.groupRepository = groupRepository;
     this.transactionAccountRepository = transactionAccountRepository;
+    this.userRepository = userRepository;
 
     this.transactionService = transactionService;
     this.friendService = friendService;
@@ -167,13 +172,14 @@ export class LoanService {
       userId: number;
       amountOwed: number;
     }[],
+    currency: string,
     tx?: DBTransactionType
   ) {
     const loan = await this.loanRepository.create(
       {
         amount: loanCreateWithDetails.amount,
         createdBy: payerId,
-        currency: "INR",
+        currency,
         description: loanCreateWithDetails.description,
         groupId: loanCreateWithDetails.groupId,
         transactionId: txnId,
@@ -234,6 +240,7 @@ export class LoanService {
         payerId,
         split.userId,
         split.amountOwed,
+        currency,
         loanCreateWithDetails.groupId,
         tx
       );
@@ -403,11 +410,16 @@ export class LoanService {
               tx
             );
 
+            // Get user's currency preference
+            const user = await this.userRepository.findById(payerId);
+            const userCurrency = user?.currency || "INR";
+
             await this.createLoanAndHandleSplits(
               payerId,
               loanCreateWithDetails,
               txnHeader.id,
               splits,
+              userCurrency,
               tx
             );
           } else {

@@ -189,3 +189,26 @@ export const CURRENCY_SYMBOL_MAP = {
 };
 
 export const CURRENCIES = Object.keys(CURRENCY_SYMBOL_MAP);
+
+import { UserAuth } from "@/models/auth";
+
+/**
+ * Get the user's default currency from their preferences
+ * Falls back to 'INR' if not set
+ */
+export const getUserCurrency = (user: UserAuth): string => {
+  return user.currency || "INR";
+};
+
+/**
+ * Get the user's default currency with fallback
+ * This is a convenience function for cases where user might be null
+ */
+export const getUserCurrencySafe = (
+  user: UserAuth | null | undefined
+): string => {
+  if (!user || !user.currency) {
+    return "INR";
+  }
+  return user.currency;
+};

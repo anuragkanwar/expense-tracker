@@ -1,13 +1,17 @@
 import { BaseError, NotFoundError, ForbiddenError } from "@/errors/base-error";
 
-export const handleRouteError = (error: any): { json: any; status: number } => {
+export type AppError = BaseError | Error | unknown;
+
+export const handleRouteError = (
+  error: AppError
+): { json: any; status: number } => {
   // Handle custom BaseError instances
   if (error instanceof BaseError) {
     return { json: error.toJSON(), status: error.statusCode };
   }
 
-  // Handle specific error messages
-  if (error.message) {
+  // Handle Error instances
+  if (error instanceof Error) {
     if (error.message.includes("not found")) {
       const notFound = new NotFoundError("Resource");
       return { json: notFound.toJSON(), status: notFound.statusCode };
@@ -31,9 +35,24 @@ export const handleRouteError = (error: any): { json: any; status: number } => {
         status: 400,
       };
     }
+
+    // Generic internal server error for Error instances
+    return {
+      json: {
+        success: false,
+        error: {
+          code: "INTERNAL_ERROR",
+          message:
+            process.env.NODE_ENV === "production"
+              ? "An unexpected error occurred"
+              : error.message,
+        },
+      },
+      status: 500,
+    };
   }
 
-  // Generic internal server error
+  // Handle unknown errors
   return {
     json: {
       success: false,
@@ -42,7 +61,7 @@ export const handleRouteError = (error: any): { json: any; status: number } => {
         message:
           process.env.NODE_ENV === "production"
             ? "An unexpected error occurred"
-            : error.message || "Unknown error",
+            : "Unknown error",
       },
     },
     status: 500,
