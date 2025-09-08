@@ -28,7 +28,8 @@ export class AuthService {
           },
         });
         await this.transactionAccountService.seedInitialAccounts(
-          Number(response.user.id)
+          Number(response.user.id),
+          tx
         );
         return { headers, response };
       } catch (error: any) {

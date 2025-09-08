@@ -13,7 +13,13 @@ import {
   GroupMemberRepository,
 } from "@/repositories";
 
-import { ACCOUNT_TYPE, type DBType, SHARE_TYPE, TXN_TYPE } from "@/db";
+import {
+  ACCOUNT_TYPE,
+  type DBType,
+  type DBTransactionType,
+  SHARE_TYPE,
+  TXN_TYPE,
+} from "@/db";
 import { NotFoundError, ValidationError } from "@/errors/base-error";
 import { GroupNotFoundError } from "@/errors/group-errors";
 import { mathOperationAndGetFixedNumber } from "@/utils/mathUtils";
@@ -46,7 +52,7 @@ export class ExpenseService {
     transactionHelperService,
   }: {
     balanceRepository: BalanceRepository;
-    db: DBType
+    db: DBType;
     expensePayerRepository: ExpensePayerRepository;
     expenseRepository: ExpenseRepository;
     expenseSplitRepository: ExpenseSplitRepository;
@@ -162,7 +168,8 @@ export class ExpenseService {
     payerId: number,
     srcAccId: number,
     dstAccId: number,
-    txnType: TXN_TYPE
+    txnType: TXN_TYPE,
+    tx?: DBTransactionType
   ): Promise<{
     srcAcc: TransactionAccountResponse;
     dstAcc: TransactionAccountResponse;
@@ -170,14 +177,18 @@ export class ExpenseService {
     // For loan transactions, use specialized validation
     if (txnType === TXN_TYPE.LOAN_GIVEN || txnType === TXN_TYPE.LOAN_TAKEN) {
       // For loans, we need to find accounts by ID directly since they may belong to different users
-      const txnSrcAcc =
-        await this.transactionAccountRepository.findById(srcAccId);
+      const txnSrcAcc = await this.transactionAccountRepository.findById(
+        srcAccId,
+        tx
+      );
       if (!txnSrcAcc) {
         throw new TransactionAccountNotFoundError("`From` account");
       }
 
-      const txnDstAcc =
-        await this.transactionAccountRepository.findById(dstAccId);
+      const txnDstAcc = await this.transactionAccountRepository.findById(
+        dstAccId,
+        tx
+      );
       if (!txnDstAcc) {
         throw new TransactionAccountNotFoundError("`to` account");
       }
@@ -188,7 +199,8 @@ export class ExpenseService {
       const txnSrcAcc =
         await this.transactionAccountRepository.findByUserIdAndAccountId(
           payerId,
-          srcAccId
+          srcAccId,
+          tx
         );
 
       if (!txnSrcAcc) {
@@ -198,7 +210,8 @@ export class ExpenseService {
       const txnDstAcc =
         await this.transactionAccountRepository.findByUserIdAndAccountId(
           payerId,
-          dstAccId
+          dstAccId,
+          tx
         );
 
       if (!txnDstAcc) {
@@ -209,11 +222,18 @@ export class ExpenseService {
     }
   }
 
-  private async createTransactionHeader(payerId: number, description: string) {
-    return await this.transactionRepository.create({
-      description,
-      userId: payerId,
-    });
+  private async createTransactionHeader(
+    payerId: number,
+    description: string,
+    tx?: DBTransactionType
+  ) {
+    return await this.transactionRepository.create(
+      {
+        description,
+        userId: payerId,
+      },
+      tx
+    );
   }
 
   private async createExpenseAndHandleSplits(
@@ -223,21 +243,28 @@ export class ExpenseService {
     splits: {
       userId: number;
       amountOwed: number;
-    }[]
+    }[],
+    tx?: DBTransactionType
   ) {
-    const expense = await this.expenseRepository.create({
-      amount: expenseCreateWithDetails.amount,
-      createdBy: payerId,
-      currency: "INR",
-      description: expenseCreateWithDetails.description,
-      groupId: expenseCreateWithDetails.groupId,
-    });
+    const expense = await this.expenseRepository.create(
+      {
+        amount: expenseCreateWithDetails.amount,
+        createdBy: payerId,
+        currency: "INR",
+        description: expenseCreateWithDetails.description,
+        groupId: expenseCreateWithDetails.groupId,
+      },
+      tx
+    );
 
-    await this.expensePayerRepository.create({
-      amountPaid: expenseCreateWithDetails.amount,
-      expenseId: expense.id,
-      userId: payerId,
-    });
+    await this.expensePayerRepository.create(
+      {
+        amountPaid: expenseCreateWithDetails.amount,
+        expenseId: expense.id,
+        userId: payerId,
+      },
+      tx
+    );
 
     if (splits.length === 0) {
       throw new ValidationError("expected splits length > 0");
@@ -247,7 +274,8 @@ export class ExpenseService {
       const payeeLoanTakenAcc =
         await this.transactionAccountRepository.findByUserIdAndCategoryName(
           split.userId,
-          ACCOUNT_TYPE.LOAN_TAKEN
+          ACCOUNT_TYPE.LOAN_TAKEN,
+          tx
         );
 
       if (!payeeLoanTakenAcc) {
@@ -258,36 +286,44 @@ export class ExpenseService {
       const payerLoanGiveAcc =
         await this.transactionAccountRepository.findByUserIdAndCategoryName(
           payerId,
-          ACCOUNT_TYPE.LOAN_GIVEN
+          ACCOUNT_TYPE.LOAN_GIVEN,
+          tx
         );
 
       if (!payerLoanGiveAcc) {
         throw new TransactionAccountNotFoundError(`${payerId} ,  LOAN_GIVEN`);
       }
 
-      await this.transactionHelperService.updateAccountsAndCreateEntries([
-        {
-          srcAcc: payerLoanGiveAcc,
-          dstAcc: payeeLoanTakenAcc,
-          amount: split.amountOwed,
-          txnId: txnId,
-        },
-      ]);
+      await this.transactionHelperService.updateAccountsAndCreateEntries(
+        [
+          {
+            srcAcc: payerLoanGiveAcc,
+            dstAcc: payeeLoanTakenAcc,
+            amount: split.amountOwed,
+            txnId: txnId,
+          },
+        ],
+        tx
+      );
 
       await this.updateBalances(
         payerId,
         split.userId,
         split.amountOwed,
-        expenseCreateWithDetails.groupId
+        expenseCreateWithDetails.groupId,
+        tx
       );
 
-      await this.expenseSplitRepository.create({
-        amountOwed: split.amountOwed,
-        expenseId: expense.id,
-        userId: split.userId,
-        splitType: expenseCreateWithDetails.splitType,
-        metadata: expenseCreateWithDetails.description,
-      });
+      await this.expenseSplitRepository.create(
+        {
+          amountOwed: split.amountOwed,
+          expenseId: expense.id,
+          userId: split.userId,
+          splitType: expenseCreateWithDetails.splitType,
+          metadata: expenseCreateWithDetails.description,
+        },
+        tx
+      );
     }
   }
 
@@ -346,47 +382,64 @@ export class ExpenseService {
     payerId: number,
     payeeId: number,
     amount: number,
-    groupId?: number
+    groupId?: number,
+    tx?: DBTransactionType
   ): Promise<void> {
     // Update user_balance table to reflect the loan relationship
     // Payee owes payer: payee (owner) owes payer (counterparty) -amount
     const payeeBalance = await this.balanceRepository.findBalance(
       payeeId,
       payerId,
-      groupId
+      groupId,
+      tx
     );
     if (payeeBalance) {
-      await this.balanceRepository.update(payeeBalance.id, {
-        amount: payeeBalance.amount - amount,
-      });
+      await this.balanceRepository.update(
+        payeeBalance.id,
+        {
+          amount: payeeBalance.amount - amount,
+        },
+        tx
+      );
     } else {
-      await this.balanceRepository.create({
-        ownerId: payeeId,
-        counterPartyId: payerId,
-        amount: -amount,
-        currency: "INR",
-        groupId: groupId,
-      });
+      await this.balanceRepository.create(
+        {
+          ownerId: payeeId,
+          counterPartyId: payerId,
+          amount: -amount,
+          currency: "INR",
+          groupId: groupId,
+        },
+        tx
+      );
     }
 
     // Payer is owed by payee: payer (owner) is owed by payee (counterparty) +amount
     const payerBalance = await this.balanceRepository.findBalance(
       payerId,
       payeeId,
-      groupId
+      groupId,
+      tx
     );
     if (payerBalance) {
-      await this.balanceRepository.update(payerBalance.id, {
-        amount: payerBalance.amount + amount,
-      });
+      await this.balanceRepository.update(
+        payerBalance.id,
+        {
+          amount: payerBalance.amount + amount,
+        },
+        tx
+      );
     } else {
-      await this.balanceRepository.create({
-        ownerId: payerId,
-        counterPartyId: payeeId,
-        amount: amount,
-        currency: "INR",
-        groupId: groupId,
-      });
+      await this.balanceRepository.create(
+        {
+          ownerId: payerId,
+          counterPartyId: payeeId,
+          amount: amount,
+          currency: "INR",
+          groupId: groupId,
+        },
+        tx
+      );
     }
   }
   // NOTE:
@@ -411,12 +464,14 @@ export class ExpenseService {
           payerId,
           expenseCreateWithDetails.sourceTransactionAccountID,
           expenseCreateWithDetails.targetTransactionAccountID,
-          expenseCreateWithDetails.type
+          expenseCreateWithDetails.type,
+          tx
         );
 
         const txnHeader = await this.createTransactionHeader(
           payerId,
-          expenseCreateWithDetails.description
+          expenseCreateWithDetails.description,
+          tx
         );
 
         if (
@@ -425,14 +480,17 @@ export class ExpenseService {
           expenseCreateWithDetails.type === TXN_TYPE.LOAN_TAKEN
         ) {
           if (expenseCreateWithDetails.sharedWith === SHARE_TYPE.NONE) {
-            await this.transactionHelperService.updateAccountsAndCreateEntries([
-              {
-                srcAcc,
-                dstAcc,
-                amount: expenseCreateWithDetails.amount,
-                txnId: txnHeader.id,
-              },
-            ]);
+            await this.transactionHelperService.updateAccountsAndCreateEntries(
+              [
+                {
+                  srcAcc,
+                  dstAcc,
+                  amount: expenseCreateWithDetails.amount,
+                  txnId: txnHeader.id,
+                },
+              ],
+              tx
+            );
           } else if (
             expenseCreateWithDetails.sharedWith === SHARE_TYPE.GROUP ||
             expenseCreateWithDetails.sharedWith === SHARE_TYPE.FRIENDS
@@ -450,20 +508,24 @@ export class ExpenseService {
               0
             );
             const payerTotal = expenseCreateWithDetails.amount - splitTotal;
-            await this.transactionHelperService.updateAccountsAndCreateEntries([
-              {
-                srcAcc: srcAcc,
-                dstAcc: dstAcc,
-                amount: payerTotal,
-                txnId: txnHeader.id,
-              },
-            ]);
+            await this.transactionHelperService.updateAccountsAndCreateEntries(
+              [
+                {
+                  srcAcc: srcAcc,
+                  dstAcc: dstAcc,
+                  amount: payerTotal,
+                  txnId: txnHeader.id,
+                },
+              ],
+              tx
+            );
 
             await this.createExpenseAndHandleSplits(
               payerId,
               expenseCreateWithDetails,
               txnHeader.id,
-              splits
+              splits,
+              tx
             );
           } else {
             throw new NotFoundError("Provided share type not found");
@@ -472,14 +534,17 @@ export class ExpenseService {
           expenseCreateWithDetails.type === TXN_TYPE.INCOME ||
           expenseCreateWithDetails.type === TXN_TYPE.SAVING
         ) {
-          await this.transactionHelperService.updateAccountsAndCreateEntries([
-            {
-              srcAcc,
-              dstAcc,
-              amount: expenseCreateWithDetails.amount,
-              txnId: txnHeader.id,
-            },
-          ]);
+          await this.transactionHelperService.updateAccountsAndCreateEntries(
+            [
+              {
+                srcAcc,
+                dstAcc,
+                amount: expenseCreateWithDetails.amount,
+                txnId: txnHeader.id,
+              },
+            ],
+            tx
+          );
         } else {
           throw new NotFoundError("Provided txn type not found");
         }

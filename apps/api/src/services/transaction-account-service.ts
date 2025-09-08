@@ -1,4 +1,4 @@
-import { ACCOUNT_TYPE, type DBType } from "@/db";
+import { ACCOUNT_TYPE, type DBType, type DBTransactionType } from "@/db";
 import { initialAccountSeed } from "@/utils/constants";
 import { TransactionAccountRepository } from "@/repositories";
 import {
@@ -28,33 +28,59 @@ export class TransactionAccountService {
     this.db = db;
   }
 
-  async seedInitialAccounts(userId: number) {
-    await this.db.transaction(async () => {
+  async seedInitialAccounts(userId: number, tx?: DBTransactionType) {
+    if (tx) {
+      // If tx is provided, use it directly without creating a new transaction
       for (const [name, type] of initialAccountSeed.entries()) {
-        await this.transactionAccountRepository.create({
-          balance: 0,
-          currency: "INR",
-          isPaymentSource: type === ACCOUNT_TYPE.INCOME,
-          name: name,
-          type: type,
-          userId: userId,
-        });
+        await this.transactionAccountRepository.create(
+          {
+            balance: 0,
+            currency: "INR",
+            isPaymentSource: type === ACCOUNT_TYPE.INCOME,
+            name: name,
+            type: type,
+            userId: userId,
+          },
+          tx
+        );
       }
-    });
+    } else {
+      // If no tx provided, create a new transaction
+      await this.db.transaction(async (tx) => {
+        for (const [name, type] of initialAccountSeed.entries()) {
+          await this.transactionAccountRepository.create(
+            {
+              balance: 0,
+              currency: "INR",
+              isPaymentSource: type === ACCOUNT_TYPE.INCOME,
+              name: name,
+              type: type,
+              userId: userId,
+            },
+            tx
+          );
+        }
+      });
+    }
   }
 
-  async getAll(user: UserAuth): Promise<TransactionAccountResponse[]> {
-    return this.transactionAccountRepository.findByUserId(user.id);
+  async getAll(
+    user: UserAuth,
+    tx?: DBTransactionType
+  ): Promise<TransactionAccountResponse[]> {
+    return this.transactionAccountRepository.findByUserId(user.id, tx);
   }
 
   async getById(
     id: number,
-    user: UserAuth
+    user: UserAuth,
+    tx?: DBTransactionType
   ): Promise<TransactionAccountResponse> {
     const account =
       await this.transactionAccountRepository.findByUserIdAndAccountId(
         user.id,
-        id
+        id,
+        tx
       );
     if (!account) {
       throw new NotFoundError("Account not found");
@@ -64,45 +90,57 @@ export class TransactionAccountService {
 
   async create(
     data: TransactionAccountCreate,
-    user: UserAuth
+    user: UserAuth,
+    tx?: DBTransactionType
   ): Promise<TransactionAccountResponse> {
     // Ensure the account belongs to the user
     const accountData = { ...data, userId: user.id };
-    return this.transactionAccountRepository.create(accountData);
+    return this.transactionAccountRepository.create(accountData, tx);
   }
 
   async update(
     id: number,
     data: TransactionAccountUpdate,
-    user: UserAuth
+    user: UserAuth,
+    tx?: DBTransactionType
   ): Promise<TransactionAccountResponse> {
     // Check if account exists and belongs to user
     const existing =
       await this.transactionAccountRepository.findByUserIdAndAccountId(
         user.id,
-        id
+        id,
+        tx
       );
     if (!existing) {
       throw new NotFoundError("Account not found");
     }
-    const updated = await this.transactionAccountRepository.update(id, data);
+    const updated = await this.transactionAccountRepository.update(
+      id,
+      data,
+      tx
+    );
     if (!updated) {
       throw new NotFoundError("Account not found");
     }
     return updated;
   }
 
-  async delete(id: number, user: UserAuth): Promise<void> {
+  async delete(
+    id: number,
+    user: UserAuth,
+    tx?: DBTransactionType
+  ): Promise<void> {
     // Check if account exists and belongs to user
     const existing =
       await this.transactionAccountRepository.findByUserIdAndAccountId(
         user.id,
-        id
+        id,
+        tx
       );
     if (!existing) {
       throw new NotFoundError("Account not found");
     }
-    const deleted = await this.transactionAccountRepository.delete(id);
+    const deleted = await this.transactionAccountRepository.delete(id, tx);
     if (!deleted) {
       throw new NotFoundError("Account not found");
     }
@@ -110,17 +148,20 @@ export class TransactionAccountService {
 
   async getSpecialAccount(
     user: UserAuth,
-    type: ACCOUNT_TYPE
+    type: ACCOUNT_TYPE,
+    tx?: DBTransactionType
   ): Promise<TransactionAccountResponse | null> {
     return this.transactionAccountRepository.getSpecialAccountByUserIdAndAccountType(
       user.id,
-      type
+      type,
+      tx
     );
   }
 
   async getFriendsLoanAccounts(
     friendId: number,
-    user: UserAuth
+    user: UserAuth,
+    tx?: DBTransactionType
   ): Promise<TransactionAccountResponse[]> {
     const currentUserId = user.id;
 
@@ -138,12 +179,14 @@ export class TransactionAccountService {
     const loanGiven =
       await this.transactionAccountRepository.getSpecialAccountByUserIdAndAccountType(
         friendId,
-        ACCOUNT_TYPE.LOAN_GIVEN
+        ACCOUNT_TYPE.LOAN_GIVEN,
+        tx
       );
     const loanTaken =
       await this.transactionAccountRepository.getSpecialAccountByUserIdAndAccountType(
         friendId,
-        ACCOUNT_TYPE.LOAN_TAKEN
+        ACCOUNT_TYPE.LOAN_TAKEN,
+        tx
       );
     const accounts = [];
     if (loanGiven) accounts.push(loanGiven);

@@ -242,24 +242,28 @@ export class BalanceService {
           throw new BadRequestError("Cannot settle with self");
         }
 
-        const payer = await this.userRepository.findById(data.payerId);
-        const payee = await this.userRepository.findById(data.payeeId);
+        const payer = await this.userRepository.findById(data.payerId, tx);
+        const payee = await this.userRepository.findById(data.payeeId, tx);
 
         if (!payer || !payee) {
           throw new BadRequestError("Invalid payer or payee");
         }
 
         // Create transaction header for the settlement
-        const transaction = await this.transactionRepository.create({
-          description: `Direct settlement: ${payer.name} paid ${data.amount} ${data.currency} to ${payee.name}`,
-          userId: data.payerId,
-        });
+        const transaction = await this.transactionRepository.create(
+          {
+            description: `Direct settlement: ${payer.name} paid ${data.amount} ${data.currency} to ${payee.name}`,
+            userId: data.payerId,
+          },
+          tx
+        );
 
         // Get payer's OUTGOING account (money going out)
         const payerOutgoingAcc =
           await this.transactionAccountRepository.getSpecialAccountByUserIdAndAccountType(
             data.payerId,
-            ACCOUNT_TYPE.OUTGOING
+            ACCOUNT_TYPE.OUTGOING,
+            tx
           );
 
         if (!payerOutgoingAcc) {
@@ -270,7 +274,8 @@ export class BalanceService {
         const payeeExpenseAcc =
           await this.transactionAccountRepository.getSpecialAccountByUserIdAndAccountType(
             data.payeeId,
-            ACCOUNT_TYPE.EXPENSE
+            ACCOUNT_TYPE.EXPENSE,
+            tx
           );
 
         if (!payeeExpenseAcc) {
@@ -278,44 +283,55 @@ export class BalanceService {
         }
 
         // Record the actual payment: OUTGOING (-) → EXPENSE (+)
-        await this.transactionHelperService.updateAccountsAndCreateEntries([
-          {
-            srcAcc: payerOutgoingAcc,
-            dstAcc: payeeExpenseAcc,
-            amount: data.amount,
-            txnId: transaction.id,
-          },
-        ]);
+        await this.transactionHelperService.updateAccountsAndCreateEntries(
+          [
+            {
+              srcAcc: payerOutgoingAcc,
+              dstAcc: payeeExpenseAcc,
+              amount: data.amount,
+              txnId: transaction.id,
+            },
+          ],
+          tx
+        );
 
         // Also reverse the loan relationship: LOAN_TAKEN (-) → LOAN_GIVEN (+)
         // This represents the debt being settled
         const payerLoanTakenAcc =
           await this.transactionAccountRepository.getSpecialAccountByUserIdAndAccountType(
             data.payerId,
-            ACCOUNT_TYPE.LOAN_TAKEN
+            ACCOUNT_TYPE.LOAN_TAKEN,
+            tx
           );
 
         const payeeLoanGivenAcc =
           await this.transactionAccountRepository.getSpecialAccountByUserIdAndAccountType(
             data.payeeId,
-            ACCOUNT_TYPE.LOAN_GIVEN
+            ACCOUNT_TYPE.LOAN_GIVEN,
+            tx
           );
 
         if (payerLoanTakenAcc && payeeLoanGivenAcc) {
           // Create another transaction for the loan reversal
-          const loanReversalTxn = await this.transactionRepository.create({
-            description: `Loan reversal: Debt between ${payer.name} and ${payee.name} settled`,
-            userId: data.payerId,
-          });
-
-          await this.transactionHelperService.updateAccountsAndCreateEntries([
+          const loanReversalTxn = await this.transactionRepository.create(
             {
-              srcAcc: payerLoanTakenAcc,
-              dstAcc: payeeLoanGivenAcc,
-              amount: data.amount,
-              txnId: loanReversalTxn.id,
+              description: `Loan reversal: Debt between ${payer.name} and ${payee.name} settled`,
+              userId: data.payerId,
             },
-          ]);
+            tx
+          );
+
+          await this.transactionHelperService.updateAccountsAndCreateEntries(
+            [
+              {
+                srcAcc: payerLoanTakenAcc,
+                dstAcc: payeeLoanGivenAcc,
+                amount: data.amount,
+                txnId: loanReversalTxn.id,
+              },
+            ],
+            tx
+          );
         }
 
         // Update overall balances for both sides
@@ -323,41 +339,57 @@ export class BalanceService {
         const payerBalance = await this.balanceRepository.findBalance(
           data.payerId,
           data.payeeId,
-          undefined
+          undefined,
+          tx
         );
         if (payerBalance) {
-          await this.balanceRepository.update(payerBalance.id, {
-            amount: payerBalance.amount - data.amount,
-          });
+          await this.balanceRepository.update(
+            payerBalance.id,
+            {
+              amount: payerBalance.amount - data.amount,
+            },
+            tx
+          );
         } else {
           // If no balance, create with -amount (payer now owes less or is owed more)
-          await this.balanceRepository.create({
-            ownerId: data.payerId,
-            counterPartyId: data.payeeId,
-            amount: -data.amount,
-            currency: data.currency,
-            groupId: undefined,
-          });
+          await this.balanceRepository.create(
+            {
+              ownerId: data.payerId,
+              counterPartyId: data.payeeId,
+              amount: -data.amount,
+              currency: data.currency,
+              groupId: undefined,
+            },
+            tx
+          );
         }
 
         // Payee's balance with payer: payee (owner) receives from payer (counterparty) +amount
         const payeeBalance = await this.balanceRepository.findBalance(
           data.payeeId,
           data.payerId,
-          undefined
+          undefined,
+          tx
         );
         if (payeeBalance) {
-          await this.balanceRepository.update(payeeBalance.id, {
-            amount: payeeBalance.amount + data.amount,
-          });
+          await this.balanceRepository.update(
+            payeeBalance.id,
+            {
+              amount: payeeBalance.amount + data.amount,
+            },
+            tx
+          );
         } else {
-          await this.balanceRepository.create({
-            ownerId: data.payeeId,
-            counterPartyId: data.payerId,
-            amount: data.amount,
-            currency: data.currency,
-            groupId: undefined,
-          });
+          await this.balanceRepository.create(
+            {
+              ownerId: data.payeeId,
+              counterPartyId: data.payerId,
+              amount: data.amount,
+              currency: data.currency,
+              groupId: undefined,
+            },
+            tx
+          );
         }
 
         // If groupId provided, also update group-specific balances
@@ -365,39 +397,55 @@ export class BalanceService {
           const payerGroupBalance = await this.balanceRepository.findBalance(
             data.payerId,
             data.payeeId,
-            data.groupId
+            data.groupId,
+            tx
           );
           if (payerGroupBalance) {
-            await this.balanceRepository.update(payerGroupBalance.id, {
-              amount: payerGroupBalance.amount - data.amount,
-            });
+            await this.balanceRepository.update(
+              payerGroupBalance.id,
+              {
+                amount: payerGroupBalance.amount - data.amount,
+              },
+              tx
+            );
           } else {
-            await this.balanceRepository.create({
-              ownerId: data.payerId,
-              counterPartyId: data.payeeId,
-              amount: -data.amount,
-              currency: data.currency,
-              groupId: data.groupId,
-            });
+            await this.balanceRepository.create(
+              {
+                ownerId: data.payerId,
+                counterPartyId: data.payeeId,
+                amount: -data.amount,
+                currency: data.currency,
+                groupId: data.groupId,
+              },
+              tx
+            );
           }
 
           const payeeGroupBalance = await this.balanceRepository.findBalance(
             data.payeeId,
             data.payerId,
-            data.groupId
+            data.groupId,
+            tx
           );
           if (payeeGroupBalance) {
-            await this.balanceRepository.update(payeeGroupBalance.id, {
-              amount: payeeGroupBalance.amount + data.amount,
-            });
+            await this.balanceRepository.update(
+              payeeGroupBalance.id,
+              {
+                amount: payeeGroupBalance.amount + data.amount,
+              },
+              tx
+            );
           } else {
-            await this.balanceRepository.create({
-              ownerId: data.payeeId,
-              counterPartyId: data.payerId,
-              amount: data.amount,
-              currency: data.currency,
-              groupId: data.groupId,
-            });
+            await this.balanceRepository.create(
+              {
+                ownerId: data.payeeId,
+                counterPartyId: data.payerId,
+                amount: data.amount,
+                currency: data.currency,
+                groupId: data.groupId,
+              },
+              tx
+            );
           }
         }
 
@@ -406,7 +454,7 @@ export class BalanceService {
           ...data,
           settledAt: data.settledAt || new Date().toISOString(),
         };
-        await this.settlementRepository.create(settlementData);
+        await this.settlementRepository.create(settlementData, tx);
       } catch (error: any) {
         console.log(error);
         tx.rollback();
