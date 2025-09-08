@@ -47,6 +47,14 @@ Pocket Pixie is a comprehensive financial management application supporting indi
 4. **Loan Creation**: `LOAN_GIVEN (-) → LOAN_TAKEN (+)`
 5. **Settlement**: Reverses loan relationships (+ records expense cash flow for group settlements)
 
+### Category Derivation from Transaction Accounts
+
+**Recent Enhancement**: Settlement categories are now derived from transaction account names rather than expense descriptions:
+
+1. **Query Flow**: `expense.transactionId → transactionEntry (positive amount) → transactionAccount.name`
+2. **Fallback**: Uses "GENERAL" if no specific category found
+3. **Benefits**: Consistent categorization across all transaction types
+
 ### Loan Transaction Validation Rules
 
 **For LOAN_GIVEN and LOAN_TAKEN transactions, strict validation is applied:**
@@ -167,7 +175,11 @@ For each participant in a shared expense:
 - **ExpenseService**: Manages expense creation with automatic loan generation
 - **SettlementService**: Processes debt settlements with transaction integrity
 - **BalanceService**: Handles direct loans/settlements with transaction entries
+- **TransactionHelperService**: Manages double-entry transaction creation and account updates
 - **DashboardService**: Provides aggregated financial analytics
+- **AuthService**: Handles user authentication and account initialization
+- **GroupService**: Manages group operations and member relationships
+- **FriendService**: Manages user friendships and social connections
 
 ### Design Patterns
 
@@ -175,6 +187,45 @@ For each participant in a shared expense:
 - **Service Layer**: Business logic encapsulation
 - **Dependency Injection**: Loose coupling
 - **Transaction Management**: Atomic financial operations
+
+### Transaction Management & Error Handling
+
+#### Database Transaction Strategy
+
+**Critical Operations Requiring Transactions:**
+
+- `ExpenseService.createExpense()`: Multi-step expense creation with loan generation
+- `BalanceService.createSettlement()`: Complex settlement with multiple balance updates
+- `BalanceService.recordLoan()`: Loan creation with balance updates
+- `AuthService.signUp()`: User creation with account initialization
+
+**Transaction Pattern:**
+
+```typescript
+await this.db.transaction(async (tx) => {
+  try {
+    // Multiple database operations using tx
+    // All operations are atomic
+  } catch (error) {
+    tx.rollback(); // Automatic rollback on error
+    throw error;
+  }
+});
+```
+
+**Repository Method Signature:**
+
+```typescript
+async methodName(params, tx?: DBTransactionType): Promise<Result>
+```
+
+#### Error Handling Strategy
+
+- **Validation Errors**: Input validation failures (400 Bad Request)
+- **Not Found Errors**: Missing resources (404 Not Found)
+- **Transaction Errors**: Database constraint violations (500 Internal Server Error)
+- **Authentication Errors**: Unauthorized access attempts
+- **Atomic Rollbacks**: All-or-nothing transaction behavior
 
 ### Critical Integration Fix
 
@@ -196,23 +247,23 @@ For each participant in a shared expense:
 - Group expense creation with automatic loan relationship generation
 - Settlement flow with debt reversal and payment recording
 - Direct loan/settlement integration with transaction system
-- Dashboard analytics with category-based spending analysis
-- Budget tracking and utilization calculations
-- Recurring expense management with priority scheduling
-- Net worth trend analysis with historical tracking
-- Advanced transaction reporting (passbook) with filtering and pagination
+- Transaction account-based category derivation system
+- User balance table for optimized balance calculations
+- Comprehensive transaction validation and error handling
+- Repository pattern implementation with transaction support
 
 ### 🔄 In Progress
 
-- Mobile application integration optimization
+- Advanced transaction aggregation optimization
+- Multi-table relationship performance tuning
 
-### 🎯 Future Enhancements
+### 🎯 Future Architectural Enhancements
 
-- Multi-currency support
-- Advanced budgeting with forecasting
-- Integration with external financial institutions
-- AI-powered spending insights and recommendations
+- Multi-currency transaction support
+- Advanced transaction indexing strategies
+- Distributed transaction management
+- Real-time balance synchronization
 
 ---
 
-_This LLD serves as the architectural foundation for Pocket Pixie. For detailed API specifications, see the OpenAPI documentation at `/docs`._
+_This LLD serves as the architectural foundation for Pocket Pixie. For implementation details, refer to the codebase comments and service layer documentation._

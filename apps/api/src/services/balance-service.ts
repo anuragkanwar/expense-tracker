@@ -548,131 +548,178 @@ export class BalanceService {
       throw new BadRequestError("Cannot record loan to self");
     }
 
-    const lender = await this.userRepository.findById(lenderId);
-    const borrower = await this.userRepository.findById(borrowerId);
+    await this.db.transaction(async (tx) => {
+      try {
+        const lender = await this.userRepository.findById(lenderId, tx);
+        const borrower = await this.userRepository.findById(borrowerId, tx);
 
-    if (!lender || !borrower) {
-      throw new BadRequestError("Invalid lender or borrower");
-    }
+        if (!lender || !borrower) {
+          throw new BadRequestError("Invalid lender or borrower");
+        }
 
-    // Create transaction header for the loan
-    const transaction = await this.transactionRepository.create({
-      description: `Direct loan: ${lender.name} lent ${amount} ${currency} to ${borrower.name}`,
-      userId: lenderId,
+        // Create transaction header for the loan
+        const transaction = await this.transactionRepository.create(
+          {
+            description: `Direct loan: ${lender.name} lent ${amount} ${currency} to ${borrower.name}`,
+            userId: lenderId,
+          },
+          tx
+        );
+
+        // Get lender's LOAN_GIVEN account
+        const lenderLoanGivenAcc =
+          await this.transactionAccountRepository.getSpecialAccountByUserIdAndAccountType(
+            lenderId,
+            ACCOUNT_TYPE.LOAN_GIVEN,
+            tx
+          );
+
+        if (!lenderLoanGivenAcc) {
+          throw new BadRequestError("Lender's loan given account not found");
+        }
+
+        // Get borrower's LOAN_TAKEN account
+        const borrowerLoanTakenAcc =
+          await this.transactionAccountRepository.getSpecialAccountByUserIdAndAccountType(
+            borrowerId,
+            ACCOUNT_TYPE.LOAN_TAKEN,
+            tx
+          );
+
+        if (!borrowerLoanTakenAcc) {
+          throw new BadRequestError("Borrower's loan taken account not found");
+        }
+
+        // Create transaction entries using helper service
+        await this.transactionHelperService.updateAccountsAndCreateEntries(
+          [
+            {
+              srcAcc: lenderLoanGivenAcc,
+              dstAcc: borrowerLoanTakenAcc,
+              amount: amount,
+              txnId: transaction.id,
+            },
+          ],
+          tx
+        );
+
+        // Update or create overall balances for both sides
+        // Borrower owes lender: borrower (owner) owes lender (counterparty) -amount
+        const borrowerBalance = await this.balanceRepository.findBalance(
+          borrowerId,
+          lenderId,
+          null,
+          tx
+        );
+        if (borrowerBalance) {
+          await this.balanceRepository.update(
+            borrowerBalance.id,
+            {
+              amount: borrowerBalance.amount - amount,
+            },
+            tx
+          );
+        } else {
+          await this.balanceRepository.create(
+            {
+              ownerId: borrowerId,
+              counterPartyId: lenderId,
+              amount: -amount,
+              currency: currency,
+              groupId: undefined,
+            },
+            tx
+          );
+        }
+
+        // Lender is owed by borrower: lender (owner) is owed by borrower (counterparty) +amount
+        const lenderBalance = await this.balanceRepository.findBalance(
+          lenderId,
+          borrowerId,
+          null,
+          tx
+        );
+        if (lenderBalance) {
+          await this.balanceRepository.update(
+            lenderBalance.id,
+            {
+              amount: lenderBalance.amount + amount,
+            },
+            tx
+          );
+        } else {
+          await this.balanceRepository.create(
+            {
+              ownerId: lenderId,
+              counterPartyId: borrowerId,
+              amount: amount,
+              currency: currency,
+              groupId: undefined,
+            },
+            tx
+          );
+        }
+
+        // If groupId provided, also update or create group-specific balances
+        if (groupId) {
+          const borrowerGroupBalance = await this.balanceRepository.findBalance(
+            borrowerId,
+            lenderId,
+            groupId,
+            tx
+          );
+          if (borrowerGroupBalance) {
+            await this.balanceRepository.update(
+              borrowerGroupBalance.id,
+              {
+                amount: borrowerGroupBalance.amount - amount,
+              },
+              tx
+            );
+          } else {
+            await this.balanceRepository.create(
+              {
+                ownerId: borrowerId,
+                counterPartyId: lenderId,
+                amount: -amount,
+                currency: currency,
+                groupId: groupId,
+              },
+              tx
+            );
+          }
+
+          const lenderGroupBalance = await this.balanceRepository.findBalance(
+            lenderId,
+            borrowerId,
+            groupId,
+            tx
+          );
+          if (lenderGroupBalance) {
+            await this.balanceRepository.update(
+              lenderGroupBalance.id,
+              {
+                amount: lenderGroupBalance.amount + amount,
+              },
+              tx
+            );
+          } else {
+            await this.balanceRepository.create(
+              {
+                ownerId: lenderId,
+                counterPartyId: borrowerId,
+                amount: amount,
+                currency: currency,
+                groupId: groupId,
+              },
+              tx
+            );
+          }
+        }
+      } catch (error: any) {
+        tx.rollback();
+        throw error;
+      }
     });
-
-    // Get lender's LOAN_GIVEN account
-    const lenderLoanGivenAcc =
-      await this.transactionAccountRepository.getSpecialAccountByUserIdAndAccountType(
-        lenderId,
-        ACCOUNT_TYPE.LOAN_GIVEN
-      );
-
-    if (!lenderLoanGivenAcc) {
-      throw new BadRequestError("Lender's loan given account not found");
-    }
-
-    // Get borrower's LOAN_TAKEN account
-    const borrowerLoanTakenAcc =
-      await this.transactionAccountRepository.getSpecialAccountByUserIdAndAccountType(
-        borrowerId,
-        ACCOUNT_TYPE.LOAN_TAKEN
-      );
-
-    if (!borrowerLoanTakenAcc) {
-      throw new BadRequestError("Borrower's loan taken account not found");
-    }
-
-    // Create transaction entries using helper service
-    await this.transactionHelperService.updateAccountsAndCreateEntries([
-      {
-        srcAcc: lenderLoanGivenAcc,
-        dstAcc: borrowerLoanTakenAcc,
-        amount: amount,
-        txnId: transaction.id,
-      },
-    ]);
-
-    // Update or create overall balances for both sides
-    // Borrower owes lender: borrower (owner) owes lender (counterparty) -amount
-    const borrowerBalance = await this.balanceRepository.findBalance(
-      borrowerId,
-      lenderId,
-      null
-    );
-    if (borrowerBalance) {
-      await this.balanceRepository.update(borrowerBalance.id, {
-        amount: borrowerBalance.amount - amount,
-      });
-    } else {
-      await this.balanceRepository.create({
-        ownerId: borrowerId,
-        counterPartyId: lenderId,
-        amount: -amount,
-        currency: currency,
-        groupId: undefined,
-      });
-    }
-
-    // Lender is owed by borrower: lender (owner) is owed by borrower (counterparty) +amount
-    const lenderBalance = await this.balanceRepository.findBalance(
-      lenderId,
-      borrowerId,
-      null
-    );
-    if (lenderBalance) {
-      await this.balanceRepository.update(lenderBalance.id, {
-        amount: lenderBalance.amount + amount,
-      });
-    } else {
-      await this.balanceRepository.create({
-        ownerId: lenderId,
-        counterPartyId: borrowerId,
-        amount: amount,
-        currency: currency,
-        groupId: undefined,
-      });
-    }
-
-    // If groupId provided, also update or create group-specific balances
-    if (groupId) {
-      const borrowerGroupBalance = await this.balanceRepository.findBalance(
-        borrowerId,
-        lenderId,
-        groupId
-      );
-      if (borrowerGroupBalance) {
-        await this.balanceRepository.update(borrowerGroupBalance.id, {
-          amount: borrowerGroupBalance.amount - amount,
-        });
-      } else {
-        await this.balanceRepository.create({
-          ownerId: borrowerId,
-          counterPartyId: lenderId,
-          amount: -amount,
-          currency: currency,
-          groupId: groupId,
-        });
-      }
-
-      const lenderGroupBalance = await this.balanceRepository.findBalance(
-        lenderId,
-        borrowerId,
-        groupId
-      );
-      if (lenderGroupBalance) {
-        await this.balanceRepository.update(lenderGroupBalance.id, {
-          amount: lenderGroupBalance.amount + amount,
-        });
-      } else {
-        await this.balanceRepository.create({
-          ownerId: lenderId,
-          counterPartyId: borrowerId,
-          amount: amount,
-          currency: currency,
-          groupId: groupId,
-        });
-      }
-    }
   }
 }
