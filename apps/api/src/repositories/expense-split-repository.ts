@@ -5,11 +5,11 @@ import {
   ExpenseSplitCreate,
   ExpenseSplitUpdate,
 } from "@/models/expense-split";
-import { db as DATABASE } from "@/db";
+import { type DBType } from "@/db";
 
 export class ExpenseSplitRepository {
-  private db: typeof DATABASE;
-  constructor({ db }: { db: typeof DATABASE }) {
+  private db: DBType;
+  constructor({ db }: { db: DBType }) {
     this.db = db;
   }
 

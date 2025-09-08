@@ -1,6 +1,6 @@
 import { transaction, transactionEntry, transactionAccount } from "@/db";
 import { eq, and, gte, lte, desc, sql } from "drizzle-orm";
-import { db as DATABASE } from "@/db";
+import { type DBType } from "@/db";
 import { TransactionResponse } from "@/models/transaction";
 import { TransactionAccountResponse } from "@/models/transaction-account";
 
@@ -31,8 +31,8 @@ export interface PassbookQueryResult {
 }
 
 export class PassbookRepository {
-  private db: typeof DATABASE;
-  constructor({ db }: { db: typeof DATABASE }) {
+  private db: DBType;
+  constructor({ db }: { db: DBType }) {
     this.db = db;
   }
 

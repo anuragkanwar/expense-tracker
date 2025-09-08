@@ -1,4 +1,4 @@
-import { db as DATABASE } from "@/db";
+import { type DBType } from "@/db";
 import {
   budget,
   transaction,
@@ -10,9 +10,9 @@ import { sql, eq, and, gte, lte, inArray } from "drizzle-orm";
 import { ACCOUNT_TYPE } from "@/db/constants";
 
 export class DashboardRepository {
-  private readonly db: typeof DATABASE;
+  private readonly db: DBType;
 
-  constructor({ db }: { db: typeof DATABASE }) {
+  constructor({ db }: { db: DBType }) {
     this.db = db;
   }
 

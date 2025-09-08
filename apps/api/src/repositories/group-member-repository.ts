@@ -5,11 +5,11 @@ import {
   GroupMemberCreate,
   GroupMemberUpdate,
 } from "@/models/group-member";
-import { db as DATABASE } from "@/db";
+import { type DBType } from "@/db";
 
 export class GroupMemberRepository {
-  private db: typeof DATABASE;
-  constructor({ db }: { db: typeof DATABASE }) {
+  private db: DBType;
+  constructor({ db }: { db: DBType }) {
     this.db = db;
   }
 

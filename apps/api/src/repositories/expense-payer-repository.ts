@@ -5,11 +5,11 @@ import {
   ExpensePayerCreate,
   ExpensePayerUpdate,
 } from "@/models/expense-payer";
-import { db as DATABASE } from "@/db";
+import { type DBType } from "@/db";
 
 export class ExpensePayerRepository {
-  private db: typeof DATABASE;
-  constructor({ db }: { db: typeof DATABASE }) {
+  private db: DBType;
+  constructor({ db }: { db: DBType }) {
     this.db = db;
   }
 

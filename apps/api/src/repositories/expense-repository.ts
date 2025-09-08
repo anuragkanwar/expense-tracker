@@ -5,11 +5,11 @@ import {
   ExpenseCreate,
   ExpenseUpdate,
 } from "@/models/expense";
-import { db as DATABASE } from "@/db";
+import { type DBType } from "@/db";
 
 export class ExpenseRepository {
-  private db: typeof DATABASE;
-  constructor({ db }: { db: typeof DATABASE }) {
+  private db: DBType;
+  constructor({ db }: { db: DBType }) {
     this.db = db;
   }
 

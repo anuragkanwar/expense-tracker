@@ -1,11 +1,11 @@
 import { group } from "@/db";
 import { eq } from "drizzle-orm";
 import { GroupResponse, GroupCreate, GroupUpdate } from "@/models/group";
-import { db as DATABASE } from "@/db";
+import { type DBType } from "@/db";
 
 export class GroupRepository {
-  private db: typeof DATABASE;
-  constructor({ db }: { db: typeof DATABASE }) {
+  private db: DBType;
+  constructor({ db }: { db: DBType }) {
     this.db = db;
   }
 

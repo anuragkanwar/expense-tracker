@@ -1,11 +1,11 @@
 import { budget } from "@/db";
 import { eq } from "drizzle-orm";
 import { BudgetResponse, BudgetCreate, BudgetUpdate } from "@/models/budget";
-import { db as DATABASE } from "@/db";
+import { type DBType } from "@/db";
 
 export class BudgetRepository {
-  private db: typeof DATABASE;
-  constructor({ db }: { db: typeof DATABASE }) {
+  private db: DBType;
+  constructor({ db }: { db: DBType }) {
     this.db = db;
   }
 

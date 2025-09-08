@@ -13,7 +13,7 @@ import {
   GroupMemberRepository,
 } from "@/repositories";
 
-import { ACCOUNT_TYPE, db as DATABASE, SHARE_TYPE, TXN_TYPE } from "@/db";
+import { ACCOUNT_TYPE, type DBType, SHARE_TYPE, TXN_TYPE } from "@/db";
 import { NotFoundError, ValidationError } from "@/errors/base-error";
 import { GroupNotFoundError } from "@/errors/group-errors";
 import { mathOperationAndGetFixedNumber } from "@/utils/mathUtils";
@@ -31,7 +31,7 @@ export class ExpenseService {
   private readonly transactionEntryRepository;
   private readonly transactionRepository;
   private readonly transactionHelperService;
-  private db: typeof DATABASE;
+  private db: DBType;
   constructor({
     balanceRepository,
     db,
@@ -46,7 +46,7 @@ export class ExpenseService {
     transactionHelperService,
   }: {
     balanceRepository: BalanceRepository;
-    db: typeof DATABASE;
+    db: DBType
     expensePayerRepository: ExpensePayerRepository;
     expenseRepository: ExpenseRepository;
     expenseSplitRepository: ExpenseSplitRepository;

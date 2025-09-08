@@ -5,11 +5,11 @@ import {
   UserBalanceCreate,
   UserBalanceUpdate,
 } from "@/models/user-balance";
-import { db as DATABASE } from "@/db";
+import { type DBType } from "@/db";
 
 export class BalanceRepository {
-  private db: typeof DATABASE;
-  constructor({ db }: { db: typeof DATABASE }) {
+  private db: DBType;
+  constructor({ db }: { db: DBType }) {
     this.db = db;
   }
 

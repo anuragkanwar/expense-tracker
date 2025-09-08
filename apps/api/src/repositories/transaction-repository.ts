@@ -5,11 +5,11 @@ import {
   TransactionCreate,
   TransactionUpdate,
 } from "@/models/transaction";
-import { db as DATABASE } from "@/db";
+import { type DBType } from "@/db";
 
 export class TransactionRepository {
-  private db: typeof DATABASE;
-  constructor({ db }: { db: typeof DATABASE }) {
+  private db: DBType;
+  constructor({ db }: { db: DBType }) {
     this.db = db;
   }
 

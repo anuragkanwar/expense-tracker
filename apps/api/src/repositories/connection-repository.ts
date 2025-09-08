@@ -5,12 +5,12 @@ import {
   FriendshipCreate,
   FriendshipUpdate,
 } from "@/models/friendship";
-import { db as DATABASE } from "@/db";
+import { type DBType } from "@/db";
 import { FRIEND_STATUS } from "@/db";
 
 export class ConnectionRepository {
-  private db: typeof DATABASE;
-  constructor({ db }: { db: typeof DATABASE }) {
+  private db: DBType;
+  constructor({ db }: { db: DBType }) {
     this.db = db;
   }
 

@@ -1,15 +1,15 @@
-import { db as DATABASE, auth } from "@/db";
+import { type DBType, auth } from "@/db";
 import { UserCreate } from "@/models";
 import { TransactionAccountService } from "./transaction-account-service";
 
 export class AuthService {
-  private db: typeof DATABASE;
+  private db: DBType;
   private readonly transactionAccountService;
   constructor({
     db,
     transactionAccountService,
   }: {
-    db: typeof DATABASE;
+    db: DBType;
     transactionAccountService: TransactionAccountService;
   }) {
     this.db = db;

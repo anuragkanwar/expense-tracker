@@ -1,4 +1,4 @@
-import { ACCOUNT_TYPE, db as DATABASE } from "@/db";
+import { ACCOUNT_TYPE, type DBType } from "@/db";
 import { initialAccountSeed } from "@/utils/constants";
 import { TransactionAccountRepository } from "@/repositories";
 import {
@@ -13,7 +13,7 @@ import { FriendService } from "./friend-service";
 export class TransactionAccountService {
   private readonly transactionAccountRepository;
   private readonly friendService;
-  private db: typeof DATABASE;
+  private db: DBType;
   constructor({
     transactionAccountRepository,
     friendService,
@@ -21,7 +21,7 @@ export class TransactionAccountService {
   }: {
     transactionAccountRepository: TransactionAccountRepository;
     friendService: FriendService;
-    db: typeof DATABASE;
+    db: DBType;
   }) {
     this.transactionAccountRepository = transactionAccountRepository;
     this.friendService = friendService;
