@@ -1,5 +1,12 @@
-import { userBalance } from "@/db";
-import { eq, and, sql, isNull, or } from "drizzle-orm";
+import {
+  userBalance,
+  expense,
+  expenseSplit,
+  transactionEntry,
+  transactionAccount,
+  ACCOUNT_TYPE,
+} from "@/db";
+import { eq, and, sql, isNull, or, gt } from "drizzle-orm";
 import {
   UserBalanceResponse,
   UserBalanceCreate,
@@ -257,5 +264,69 @@ export class BalanceRepository {
       createdAt: row.createdAt.toISOString(),
       updatedAt: row.updatedAt.toISOString(),
     } as UserBalanceResponse;
+  }
+
+  async getSettlementCategory(
+    groupId: number,
+    payerId: number,
+    payeeId: number,
+    tx?: DBTransactionType
+  ): Promise<string> {
+    const db = tx ?? this.db;
+
+    // Find the underlying expense category from transaction accounts
+    const expenseQuery = await db
+      .select({ transactionId: expense.transactionId })
+      .from(expense)
+      .innerJoin(expenseSplit, eq(expense.id, expenseSplit.expenseId))
+      .where(
+        and(
+          eq(expense.groupId, groupId),
+          eq(expense.createdBy, payerId),
+          eq(expenseSplit.userId, payeeId)
+        )
+      )
+      .limit(1);
+
+    let category = "GENERAL";
+    if (expenseQuery.length > 0) {
+      const txnId = expenseQuery[0]?.transactionId;
+      if (txnId) {
+        const entryQuery = await db
+          .select({
+            transactionAccountId: transactionEntry.transactionAccountId,
+          })
+          .from(transactionEntry)
+          .where(
+            and(
+              eq(transactionEntry.transactionId, txnId),
+              gt(transactionEntry.amount, 0)
+            )
+          )
+          .limit(1);
+
+        if (entryQuery.length > 0) {
+          const accountId = entryQuery[0]?.transactionAccountId;
+          if (accountId) {
+            const accountQuery = await db
+              .select({ name: transactionAccount.name })
+              .from(transactionAccount)
+              .where(
+                and(
+                  eq(transactionAccount.id, accountId),
+                  eq(transactionAccount.type, ACCOUNT_TYPE.EXPENSE)
+                )
+              )
+              .limit(1);
+
+            if (accountQuery.length > 0) {
+              category = accountQuery[0]?.name || "GENERAL";
+            }
+          }
+        }
+      }
+    }
+
+    return category;
   }
 }
