@@ -7,28 +7,33 @@ import { BadRequestError } from "../errors/base-error";
 import { GroupRepository } from "@/repositories/group-repository";
 import { GroupMemberService } from "./group-member-service";
 import { ExpenseService } from "./expense-service";
+import { FriendService } from "./friend-service";
 import { type DBType } from "@/db";
 
 export class GroupService {
   private readonly groupRepository;
   private readonly groupMemberService;
   private readonly expenseService;
+  private readonly friendService;
   private readonly db: DBType;
 
   constructor({
     groupRepository,
     groupMemberService,
     expenseService,
+    friendService,
     db,
   }: {
     groupRepository: GroupRepository;
     groupMemberService: GroupMemberService;
     expenseService: ExpenseService;
+    friendService: FriendService;
     db: DBType;
   }) {
     this.groupRepository = groupRepository;
     this.groupMemberService = groupMemberService;
     this.expenseService = expenseService;
+    this.friendService = friendService;
     this.db = db;
   }
 
@@ -164,6 +169,13 @@ export class GroupService {
     memberId: number
   ) {
     await this.getGroupByIdAndUser(ownerId, groupId);
+
+    // Check if users are friends before adding to group
+    const areFriends = await this.friendService.areFriends(ownerId, memberId);
+    if (!areFriends) {
+      throw new BadRequestError("You can only add friends to groups");
+    }
+
     return this.groupMemberService.addGroupMember({
       groupId,
       userId: memberId,
