@@ -1,21 +1,21 @@
 import { createSelectSchema, createInsertSchema } from "drizzle-zod";
 import { z } from "@hono/zod-openapi";
-import { expense } from "@/db";
+import { loan } from "@/db";
 
 // ==========================================================
-// EXPENSE SCHEMAS
+// LOAN SCHEMAS
 // ==========================================================
 
-export const ExpenseResponseSchema = createSelectSchema(expense)
+export const LoanResponseSchema = createSelectSchema(loan)
   .transform((data) => ({
     ...data,
-    expenseDate: data.expenseDate?.toISOString(),
+    loanDate: data.loanDate?.toISOString(),
     createdAt: data.createdAt.toISOString(),
     updatedAt: data.updatedAt.toISOString(),
   }))
-  .openapi("ExpenseResponse");
+  .openapi("LoanResponse");
 
-export const ExpenseCreateSchema = createInsertSchema(expense, {
+export const LoanCreateSchema = createInsertSchema(loan, {
   description: z
     .string()
     .min(1, "Description is required")
@@ -36,9 +36,9 @@ export const ExpenseCreateSchema = createInsertSchema(expense, {
       example: "EUR",
       description: "Currency code",
     }),
-  expenseDate: z.string().optional().openapi({
+  loanDate: z.string().optional().openapi({
     example: "2025-09-01T12:00:00.000Z",
-    description: "Expense date",
+    description: "Loan date",
   }),
   groupId: z.number().optional().openapi({
     example: 123,
@@ -60,12 +60,12 @@ export const ExpenseCreateSchema = createInsertSchema(expense, {
   })
   .openapi("ExpenseCreate");
 
-export const ExpenseUpdateSchema =
-  ExpenseCreateSchema.partial().openapi("ExpenseUpdate");
+export const LoanUpdateSchema =
+  LoanCreateSchema.partial().openapi("LoanUpdate");
 
 // ==========================================
 // TYPE EXPORTS
 // ==========================================
-export type ExpenseResponse = z.infer<typeof ExpenseResponseSchema>;
-export type ExpenseCreate = z.infer<typeof ExpenseCreateSchema>;
-export type ExpenseUpdate = z.infer<typeof ExpenseUpdateSchema>;
+export type LoanResponse = z.infer<typeof LoanResponseSchema>;
+export type LoanCreate = z.infer<typeof LoanCreateSchema>;
+export type LoanUpdate = z.infer<typeof LoanUpdateSchema>;

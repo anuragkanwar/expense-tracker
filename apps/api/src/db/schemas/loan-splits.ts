@@ -5,15 +5,15 @@ import {
   real,
   blob,
 } from "drizzle-orm/sqlite-core";
-import { expense } from "./expense";
+import { loan } from "./loan";
 import { user } from "./user";
 import { SPLIT_TYPE } from "../constants";
 
-export const expenseSplit = sqliteTable("expense_split", {
+export const loanSplit = sqliteTable("loan_split", {
   id: integer("id").primaryKey({ autoIncrement: true }),
-  expenseId: integer("expense_id")
+  loanId: integer("loan_id")
     .notNull()
-    .references(() => expense.id, { onDelete: "cascade" }),
+    .references(() => loan.id, { onDelete: "cascade" }),
   userId: integer("user_id")
     .notNull()
     .references(() => user.id, { onDelete: "cascade" }),

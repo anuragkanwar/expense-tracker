@@ -4,11 +4,12 @@ import { container } from "@/container";
 export type InjectedServices = {
   authService: import("@/services/auth-service").AuthService;
   transactionAccountService: import("@/services/transaction-account-service").TransactionAccountService;
+  transactionService: import("@/services/transaction-service").TransactionService;
   balanceService: import("@/services/balance-service").BalanceService;
   budgetService: import("@/services/budget-service").BudgetService;
   connectionService: import("@/services/connection-service").ConnectionService;
   dashboardService: import("@/services/dashboard-service").DashboardService;
-  expenseService: import("@/services/expense-service").ExpenseService;
+  loanService: import("@/services/loan-service").LoanService;
   friendService: import("@/services/friend-service").FriendService;
   groupService: import("@/services/group-service").GroupService;
   groupMemberService: import("@/services/group-member-service").GroupMemberService;
@@ -31,11 +32,12 @@ export const dependencyInjector = createMiddleware(async (c, next) => {
   const services: InjectedServices = {
     authService: scope.resolve("authService"),
     transactionAccountService: scope.resolve("transactionAccountService"),
+    transactionService: scope.resolve("transactionService"),
     balanceService: scope.resolve("balanceService"),
     budgetService: scope.resolve("budgetService"),
     connectionService: scope.resolve("connectionService"),
     dashboardService: scope.resolve("dashboardService"),
-    expenseService: scope.resolve("expenseService"),
+    loanService: scope.resolve("loanService"),
     friendService: scope.resolve("friendService"),
     groupService: scope.resolve("groupService"),
     groupMemberService: scope.resolve("groupMemberService"),

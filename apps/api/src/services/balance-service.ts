@@ -26,7 +26,7 @@ import { TransactionRepository } from "@/repositories/transaction-repository";
 
 import { TransactionAccountRepository } from "@/repositories/transaction-account-repository";
 import { TransactionHelperService } from "./transaction-helper-service";
-import { ACCOUNT_TYPE, type DBType } from "@/db";
+import { ACCOUNT_TYPE, type DBType, type DBTransactionType } from "@/db";
 
 export class BalanceService {
   private readonly balanceRepository;
@@ -70,6 +70,52 @@ export class BalanceService {
     this.transactionAccountRepository = transactionAccountRepository;
     this.transactionHelperService = transactionHelperService;
     this.db = db;
+  }
+
+  /**
+   * Helper method to update or create a balance between two users
+   * @param ownerId The user who owns this balance perspective
+   * @param counterPartyId The other user in the balance relationship
+   * @param amountChange The amount to add to the owner's balance (positive = owner is owed more, negative = owner owes more)
+   * @param currency The currency for the balance
+   * @param groupId Optional group context for the balance
+   * @param tx Optional transaction for atomic operations
+   */
+  private async updateOrCreateBalance(
+    ownerId: number,
+    counterPartyId: number,
+    amountChange: number,
+    currency: string,
+    groupId?: number,
+    tx?: DBTransactionType
+  ): Promise<void> {
+    const existingBalance = await this.balanceRepository.findBalance(
+      ownerId,
+      counterPartyId,
+      groupId,
+      tx
+    );
+
+    if (existingBalance) {
+      await this.balanceRepository.update(
+        existingBalance.id,
+        {
+          amount: existingBalance.amount + amountChange,
+        },
+        tx
+      );
+    } else {
+      await this.balanceRepository.create(
+        {
+          ownerId,
+          counterPartyId,
+          amount: amountChange,
+          currency,
+          groupId,
+        },
+        tx
+      );
+    }
   }
 
   async getAllBalances(

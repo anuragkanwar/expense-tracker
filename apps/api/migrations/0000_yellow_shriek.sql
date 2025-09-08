@@ -28,7 +28,7 @@ CREATE TABLE `budget` (
 	FOREIGN KEY (`transasction_account_id`) REFERENCES `transaction_account`(`id`) ON UPDATE no action ON DELETE cascade
 );
 --> statement-breakpoint
-CREATE TABLE `expense` (
+CREATE TABLE `loan` (
 	`id` integer PRIMARY KEY AUTOINCREMENT NOT NULL,
 	`group_id` integer,
 	`description` text NOT NULL,
@@ -36,7 +36,7 @@ CREATE TABLE `expense` (
 	`currency` text NOT NULL,
 	`created_by` integer NOT NULL,
 	`transaction_id` integer NOT NULL,
-	`expense_date` integer NOT NULL,
+	`loan_date` integer NOT NULL,
 	`created_at` integer NOT NULL,
 	`updated_at` integer NOT NULL,
 	FOREIGN KEY (`group_id`) REFERENCES `group`(`id`) ON UPDATE no action ON DELETE cascade,
@@ -44,27 +44,27 @@ CREATE TABLE `expense` (
 	FOREIGN KEY (`transaction_id`) REFERENCES `transaction`(`id`) ON UPDATE no action ON DELETE cascade
 );
 --> statement-breakpoint
-CREATE TABLE `expense_payer` (
+CREATE TABLE `loan_payer` (
 	`id` integer PRIMARY KEY AUTOINCREMENT NOT NULL,
-	`expense_id` integer NOT NULL,
+	`loan_id` integer NOT NULL,
 	`user_id` integer NOT NULL,
 	`amount` real NOT NULL,
 	`created_at` integer NOT NULL,
 	`updated_at` integer NOT NULL,
-	FOREIGN KEY (`expense_id`) REFERENCES `expense`(`id`) ON UPDATE no action ON DELETE cascade,
+	FOREIGN KEY (`loan_id`) REFERENCES `loan`(`id`) ON UPDATE no action ON DELETE cascade,
 	FOREIGN KEY (`user_id`) REFERENCES `user`(`id`) ON UPDATE no action ON DELETE cascade
 );
 --> statement-breakpoint
-CREATE TABLE `expense_split` (
+CREATE TABLE `loan_split` (
 	`id` integer PRIMARY KEY AUTOINCREMENT NOT NULL,
-	`expense_id` integer NOT NULL,
+	`loan_id` integer NOT NULL,
 	`user_id` integer NOT NULL,
 	`amount_owed` real NOT NULL,
 	`split_type` text,
 	`metadata` blob,
 	`created_at` integer NOT NULL,
 	`updated_at` integer NOT NULL,
-	FOREIGN KEY (`expense_id`) REFERENCES `expense`(`id`) ON UPDATE no action ON DELETE cascade,
+	FOREIGN KEY (`loan_id`) REFERENCES `loan`(`id`) ON UPDATE no action ON DELETE cascade,
 	FOREIGN KEY (`user_id`) REFERENCES `user`(`id`) ON UPDATE no action ON DELETE cascade
 );
 --> statement-breakpoint

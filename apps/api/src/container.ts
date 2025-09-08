@@ -5,9 +5,9 @@ import {
   BudgetRepository,
   ConnectionRepository,
   DashboardRepository,
-  ExpensePayerRepository,
-  ExpenseSplitRepository,
-  ExpenseRepository,
+  LoanPayerRepository,
+  LoanSplitsRepository,
+  LoanRepository,
   FriendRepository,
   GroupRepository,
   GroupMemberRepository,
@@ -26,7 +26,7 @@ import {
   BudgetService,
   ConnectionService,
   DashboardService,
-  ExpenseService,
+  LoanService,
   FriendService,
   GroupService,
   GroupMemberService,
@@ -34,6 +34,7 @@ import {
   RecurringService,
   SettlementService,
   TransactionHelperService,
+  TransactionService,
   UserService,
 } from "./services";
 import { db } from "@/db";
@@ -55,13 +56,13 @@ container.register({
   dashboardRepository: asClass(DashboardRepository, {
     lifetime: Lifetime.SCOPED,
   }),
-  expensePayerRepository: asClass(ExpensePayerRepository, {
+  loanPayerRepository: asClass(LoanPayerRepository, {
     lifetime: Lifetime.SCOPED,
   }),
-  expenseSplitRepository: asClass(ExpenseSplitRepository, {
+  loanSplitsRepository: asClass(LoanSplitsRepository, {
     lifetime: Lifetime.SCOPED,
   }),
-  expenseRepository: asClass(ExpenseRepository, { lifetime: Lifetime.SCOPED }),
+  loanRepository: asClass(LoanRepository, { lifetime: Lifetime.SCOPED }),
   friendRepository: asClass(FriendRepository, { lifetime: Lifetime.SCOPED }),
   groupRepository: asClass(GroupRepository, { lifetime: Lifetime.SCOPED }),
   groupMemberRepository: asClass(GroupMemberRepository, {
@@ -97,24 +98,9 @@ container.register({
   budgetService: asClass(BudgetService, { lifetime: Lifetime.SCOPED }),
   connectionService: asClass(ConnectionService, { lifetime: Lifetime.SCOPED }),
   dashboardService: asClass(DashboardService, { lifetime: Lifetime.SCOPED }),
-  expenseService: asClass(ExpenseService, { lifetime: Lifetime.SCOPED }).inject(
+  loanService: asClass(LoanService, { lifetime: Lifetime.SCOPED }).inject(
     () => ({
-      balanceRepository: container.resolve("balanceRepository"),
-      db: container.resolve("db"),
-      expensePayerRepository: container.resolve("expensePayerRepository"),
-      expenseRepository: container.resolve("expenseRepository"),
-      expenseSplitRepository: container.resolve("expenseSplitRepository"),
-      groupMemberRepository: container.resolve("groupMemberRepository"),
-      groupRepository: container.resolve("groupRepository"),
-      transactionAccountRepository: container.resolve(
-        "transactionAccountRepository"
-      ),
-      transactionEntryRepository: container.resolve(
-        "transactionEntryRepository"
-      ),
-      transactionRepository: container.resolve("transactionRepository"),
-      transactionHelperService: container.resolve("transactionHelperService"),
-      friendService: container.resolve("friendService"),
+      transactionService: container.resolve("transactionService"),
     })
   ),
   friendService: asClass(FriendService, { lifetime: Lifetime.SCOPED }),
@@ -123,6 +109,9 @@ container.register({
     lifetime: Lifetime.SCOPED,
   }),
   transactionHelperService: asClass(TransactionHelperService, {
+    lifetime: Lifetime.SCOPED,
+  }),
+  transactionService: asClass(TransactionService, {
     lifetime: Lifetime.SCOPED,
   }),
   settlementService: asClass(SettlementService, {

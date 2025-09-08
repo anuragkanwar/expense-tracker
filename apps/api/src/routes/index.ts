@@ -7,8 +7,8 @@ export * from "./friends";
 // Group management routes
 export * from "./groups";
 
-// Expense management routes
-export * from "./expenses";
+// Transaction management routes
+export * from "./transactions";
 
 // Financial tracking routes
 export * from "./passbook";

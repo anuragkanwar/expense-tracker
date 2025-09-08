@@ -1,4 +1,4 @@
-import { createSelectSchema, createInsertSchema } from "drizzle-zod";
+import { createSelectSchema } from "drizzle-zod";
 import { z } from "@hono/zod-openapi";
 import { user } from "@/db";
 

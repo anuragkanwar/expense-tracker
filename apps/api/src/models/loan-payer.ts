@@ -1,27 +1,27 @@
 import { createSelectSchema, createInsertSchema } from "drizzle-zod";
 import { z } from "@hono/zod-openapi";
-import { expensePayer } from "@/db";
+import { loanPayer } from "@/db";
 
 // ==========================================================
-// EXPENSE PAYER SCHEMAS
+// LOAN PAYER SCHEMAS
 // ==========================================================
 
-export const ExpensePayerResponseSchema = createSelectSchema(expensePayer)
+export const LoanPayerResponseSchema = createSelectSchema(loanPayer)
   .transform((data) => ({
     ...data,
     createdAt: data.createdAt.toISOString(),
     updatedAt: data.updatedAt.toISOString(),
   }))
-  .openapi("ExpensePayerResponse");
+  .openapi("LoanPayerResponse");
 
-export const ExpensePayerCreateSchema = createInsertSchema(expensePayer, {
+export const LoanPayerCreateSchema = createInsertSchema(loanPayer, {
   amountPaid: z.number().min(0, "Amount must be positive").openapi({
     example: 50.0,
     description: "Amount paid",
   }),
-  expenseId: z.number().openapi({
+  loanId: z.number().openapi({
     example: 123,
-    description: "Expense ID",
+    description: "Loan ID",
   }),
   userId: z.number().openapi({
     example: 123,
@@ -33,14 +33,14 @@ export const ExpensePayerCreateSchema = createInsertSchema(expensePayer, {
     createdAt: true,
     updatedAt: true,
   })
-  .openapi("ExpensePayerCreate");
+  .openapi("LoanPayerCreate");
 
-export const ExpensePayerUpdateSchema =
-  ExpensePayerCreateSchema.partial().openapi("ExpensePayerUpdate");
+export const LoanPayerUpdateSchema =
+  LoanPayerCreateSchema.partial().openapi("LoanPayerUpdate");
 
 // ==========================================
 // TYPE EXPORTS
 // ==========================================
-export type ExpensePayerResponse = z.infer<typeof ExpensePayerResponseSchema>;
-export type ExpensePayerCreate = z.infer<typeof ExpensePayerCreateSchema>;
-export type ExpensePayerUpdate = z.infer<typeof ExpensePayerUpdateSchema>;
+export type LoanPayerResponse = z.infer<typeof LoanPayerResponseSchema>;
+export type LoanPayerCreate = z.infer<typeof LoanPayerCreateSchema>;
+export type LoanPayerUpdate = z.infer<typeof LoanPayerUpdateSchema>;

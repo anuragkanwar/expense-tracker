@@ -20,9 +20,9 @@ export { recurring } from "./recurring";
 // Splitwise schemas
 export { group } from "./group";
 export { groupMember } from "./group-member";
-export { expense } from "./expense";
-export { expensePayer } from "./expense-payer";
-export { expenseSplit } from "./expense-split";
+export { loan } from "./loan";
+export { loanPayer } from "./loan-payer";
+export { loanSplit } from "./loan-splits";
 export { userBalance } from "./user-balance";
 export { settlement } from "./settlement";
 

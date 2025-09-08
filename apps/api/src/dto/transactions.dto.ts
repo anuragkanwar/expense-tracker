@@ -1,15 +1,15 @@
 import { z } from "@hono/zod-openapi";
-import { ExpenseResponseSchema, ExpenseCreateSchema } from "@/models/expense";
-import { ExpenseSplitCreateSchema } from "@/models/expense-split";
+import { LoanResponseSchema, LoanCreateSchema } from "@/models/loan";
+import { LoanSplitCreateSchema } from "@/models/loan-split";
 import { SHARE_TYPE, SPLIT_TYPE, TXN_TYPE } from "@/db";
 
-// Complex schema for creating expense with payers and splits
-export const ExpenseCreateWithDetailsSchema = z
+// Complex schema for creating transaction with payers and splits
+export const TransactionCreateWithDetailsSchema = z
   .object({
-    description: ExpenseCreateSchema.shape.description,
-    amount: ExpenseCreateSchema.shape.amount,
-    groupId: ExpenseCreateSchema.shape.groupId,
-    expenseDate: ExpenseCreateSchema.shape.expenseDate,
+    description: LoanCreateSchema.shape.description,
+    amount: LoanCreateSchema.shape.amount,
+    groupId: LoanCreateSchema.shape.groupId,
+    loanDate: LoanCreateSchema.shape.loanDate,
     type: z.enum(TXN_TYPE),
     payer: z.number().openapi({
       description: "user who paid for the transaction",
@@ -31,26 +31,26 @@ export const ExpenseCreateWithDetailsSchema = z
     }),
     splits: z
       .array(
-        ExpenseSplitCreateSchema.omit({
-          expenseId: true,
+        LoanSplitCreateSchema.omit({
+          loanId: true,
           splitType: true,
           metadata: true,
-        }) // expenseId will be set after creation
+        }) // loanId will be set after creation
       )
       .optional()
       .openapi({
         description: "How the transaction is split among participants",
       }),
   })
-  .openapi("ExpenseCreateWithDetails");
+  .openapi("TransactionCreateWithDetails");
 
-// Schema for creating expense with AI prompt
-export const ExpenseCreateWithAIPromptSchema = z
+// Schema for creating transaction with AI prompt
+export const TransactionCreateWithAIPromptSchema = z
   .object({
     userPrompt: z.string().min(1, "User prompt is required").openapi({
       example:
         "paid 4000 for dinner with #some-splitwise-group and also @some-people1, @some-people2",
-      description: "Natural language description of the expense",
+      description: "Natural language description of the transaction",
     }),
     groupIds: z
       .array(z.number())
@@ -67,17 +67,19 @@ export const ExpenseCreateWithAIPromptSchema = z
         description: "Optional list of user IDs mentioned in the prompt",
       }),
   })
-  .openapi("ExpenseCreateWithAIPrompt");
+  .openapi("TransactionCreateWithAIPrompt");
 
-export const ExpenseUpdateWithDetailsSchema =
-  ExpenseCreateWithDetailsSchema.partial().openapi("ExpenseUpdateWithDetails");
+export const TransactionUpdateWithDetailsSchema =
+  TransactionCreateWithDetailsSchema.partial().openapi(
+    "TransactionUpdateWithDetails"
+  );
 
-// Response schema for expense with details
-export const ExpenseWithDetailsResponseSchema = z
+// Response schema for transaction with details
+export const TransactionWithDetailsResponseSchema = z
   .object({
     id: z.number().openapi({
       example: 123,
-      description: "Unique expense identifier",
+      description: "Unique transaction identifier",
     }),
     groupId: z.number().nullable().openapi({
       example: 123,
@@ -85,11 +87,11 @@ export const ExpenseWithDetailsResponseSchema = z
     }),
     description: z.string().openapi({
       example: "Dinner at restaurant",
-      description: "Expense description",
+      description: "Transaction description",
     }),
     amount: z.number().openapi({
       example: 150.0,
-      description: "Expense amount",
+      description: "Transaction amount",
     }),
     currency: z.string().openapi({
       example: "USD",
@@ -97,19 +99,19 @@ export const ExpenseWithDetailsResponseSchema = z
     }),
     createdBy: z.number().openapi({
       example: 123,
-      description: "User ID who created the expense",
+      description: "User ID who created the transaction",
     }),
-    expenseDate: z.string().openapi({
+    loanDate: z.string().openapi({
       example: "2025-09-01T12:00:00.000Z",
-      description: "Date of expense",
+      description: "Date of transaction",
     }),
     createdAt: z.string().openapi({
       example: "2025-09-01T12:00:00.000Z",
-      description: "When the expense was created",
+      description: "When the transaction was created",
     }),
     updatedAt: z.string().openapi({
       example: "2025-09-01T12:00:00.000Z",
-      description: "When the expense was updated",
+      description: "When the transaction was updated",
     }),
     payers: z
       .array(
@@ -134,28 +136,30 @@ export const ExpenseWithDetailsResponseSchema = z
         description: "List of splits with details",
       }),
   })
-  .openapi("ExpenseWithDetailsResponse");
+  .openapi("TransactionWithDetailsResponse");
 // Pagination schema
-export const ExpenseListResponseSchema = z
+export const TransactionListResponseSchema = z
   .object({
-    expenses: z.array(ExpenseResponseSchema),
+    transactions: z.array(LoanResponseSchema),
     total: z.number().openapi({ example: 100 }),
     page: z.number().openapi({ example: 1 }),
     limit: z.number().openapi({ example: 10 }),
   })
-  .openapi("ExpenseListResponse");
+  .openapi("TransactionListResponse");
 
 // Inferred types
-export type ExpenseCreateWithDetails = z.infer<
-  typeof ExpenseCreateWithDetailsSchema
+export type TransactionCreateWithDetails = z.infer<
+  typeof TransactionCreateWithDetailsSchema
 >;
-export type ExpenseCreateWithAIPrompt = z.infer<
-  typeof ExpenseCreateWithAIPromptSchema
+export type TransactionCreateWithAIPrompt = z.infer<
+  typeof TransactionCreateWithAIPromptSchema
 >;
-export type ExpenseUpdateWithDetails = z.infer<
-  typeof ExpenseUpdateWithDetailsSchema
+export type TransactionUpdateWithDetails = z.infer<
+  typeof TransactionUpdateWithDetailsSchema
 >;
-export type ExpenseWithDetailsResponse = z.infer<
-  typeof ExpenseWithDetailsResponseSchema
+export type TransactionWithDetailsResponse = z.infer<
+  typeof TransactionWithDetailsResponseSchema
 >;
-export type ExpenseListResponse = z.infer<typeof ExpenseListResponseSchema>;
+export type TransactionListResponse = z.infer<
+  typeof TransactionListResponseSchema
+>;

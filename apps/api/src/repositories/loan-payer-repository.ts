@@ -1,13 +1,13 @@
-import { expensePayer } from "@/db";
+import { loanPayer } from "@/db";
 import { eq } from "drizzle-orm";
 import {
-  ExpensePayerResponse,
-  ExpensePayerCreate,
-  ExpensePayerUpdate,
-} from "@/models/expense-payer";
+  LoanPayerResponse,
+  LoanPayerCreate,
+  LoanPayerUpdate,
+} from "@/models/loan-payer";
 import { type DBType, type DBTransactionType } from "@/db";
 
-export class ExpensePayerRepository {
+export class LoanPayerRepository {
   private db: DBType;
   constructor({ db }: { db: DBType }) {
     this.db = db;
@@ -17,29 +17,29 @@ export class ExpensePayerRepository {
     limit: number = 10,
     offset: number = 0,
     tx?: DBTransactionType
-  ): Promise<ExpensePayerResponse[]> {
+  ): Promise<LoanPayerResponse[]> {
     const db = tx ?? this.db;
     const result = await db
       .select()
-      .from(expensePayer)
+      .from(loanPayer)
       .limit(limit)
       .offset(offset);
     return result.map((item) => ({
       ...item,
       createdAt: item.createdAt.toISOString(),
       updatedAt: item.updatedAt.toISOString(),
-    })) as ExpensePayerResponse[];
+    })) as LoanPayerResponse[];
   }
 
   async findById(
     id: number,
     tx?: DBTransactionType
-  ): Promise<ExpensePayerResponse | null> {
+  ): Promise<LoanPayerResponse | null> {
     const db = tx ?? this.db;
     const result = await db
       .select()
-      .from(expensePayer)
-      .where(eq(expensePayer.id, id))
+      .from(loanPayer)
+      .where(eq(loanPayer.id, id))
       .limit(1);
 
     if (result.length === 0) {
@@ -50,34 +50,34 @@ export class ExpensePayerRepository {
       ...item,
       createdAt: item.createdAt.toISOString(),
       updatedAt: item.updatedAt.toISOString(),
-    } as ExpensePayerResponse;
+    } as LoanPayerResponse;
   }
 
-  async findByExpenseId(
-    expenseId: number,
+  async findByLoanId(
+    loanId: number,
     tx?: DBTransactionType
-  ): Promise<ExpensePayerResponse[]> {
+  ): Promise<LoanPayerResponse[]> {
     const db = tx ?? this.db;
     const result = await db
       .select()
-      .from(expensePayer)
-      .where(eq(expensePayer.expenseId, expenseId));
+      .from(loanPayer)
+      .where(eq(loanPayer.loanId, loanId));
     return result.map((item) => ({
       ...item,
       createdAt: item.createdAt.toISOString(),
       updatedAt: item.updatedAt.toISOString(),
-    })) as ExpensePayerResponse[];
+    })) as LoanPayerResponse[];
   }
 
   async create(
-    data: ExpensePayerCreate,
+    data: LoanPayerCreate,
     tx?: DBTransactionType
-  ): Promise<ExpensePayerResponse> {
+  ): Promise<LoanPayerResponse> {
     const db = tx ?? this.db;
-    const result = await db.insert(expensePayer).values(data).returning();
+    const result = await db.insert(loanPayer).values(data).returning();
 
     if (result.length === 0) {
-      throw new Error("Failed to create expense payer");
+      throw new Error("Failed to create loan payer");
     }
 
     const item = result[0]!;
@@ -85,23 +85,23 @@ export class ExpensePayerRepository {
       ...item,
       createdAt: item.createdAt.toISOString(),
       updatedAt: item.updatedAt.toISOString(),
-    } as ExpensePayerResponse;
+    } as LoanPayerResponse;
   }
 
   async update(
     id: number,
-    data: ExpensePayerUpdate,
+    data: LoanPayerUpdate,
     tx?: DBTransactionType
-  ): Promise<ExpensePayerResponse | null> {
+  ): Promise<LoanPayerResponse | null> {
     const db = tx ?? this.db;
-    await db.update(expensePayer).set(data).where(eq(expensePayer.id, id));
+    await db.update(loanPayer).set(data).where(eq(loanPayer.id, id));
 
     return this.findById(id, tx);
   }
 
   async delete(id: number, tx?: DBTransactionType): Promise<boolean> {
     const db = tx ?? this.db;
-    const result = await db.delete(expensePayer).where(eq(expensePayer.id, id));
+    const result = await db.delete(loanPayer).where(eq(loanPayer.id, id));
 
     return result.rowsAffected > 0;
   }

@@ -3,7 +3,7 @@ import { group } from "./group";
 import { user } from "./user";
 import { transaction } from "./transaction";
 
-export const expense = sqliteTable("expense", {
+export const loan = sqliteTable("loan", {
   id: integer("id").primaryKey({ autoIncrement: true }),
   groupId: integer("group_id").references(() => group.id, {
     onDelete: "cascade",
@@ -17,7 +17,7 @@ export const expense = sqliteTable("expense", {
   transactionId: integer("transaction_id")
     .notNull()
     .references(() => transaction.id, { onDelete: "cascade" }),
-  expenseDate: integer("expense_date", { mode: "timestamp" })
+  loanDate: integer("loan_date", { mode: "timestamp" })
     .$defaultFn(() => /* @__PURE__ */ new Date())
     .notNull(),
   createdAt: integer("created_at", { mode: "timestamp" })

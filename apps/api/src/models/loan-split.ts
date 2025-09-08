@@ -1,20 +1,20 @@
 import { createSelectSchema, createInsertSchema } from "drizzle-zod";
 import { z } from "@hono/zod-openapi";
-import { expenseSplit, SPLIT_TYPE } from "@/db";
+import { loanSplit, SPLIT_TYPE } from "@/db";
 
 // ==========================================================
-// EXPENSE SPLIT SCHEMAS
+// LOAN SPLIT SCHEMAS
 // ==========================================================
 
-export const ExpenseSplitResponseSchema = createSelectSchema(expenseSplit)
+export const LoanSplitResponseSchema = createSelectSchema(loanSplit)
   .transform((data) => ({
     ...data,
     createdAt: data.createdAt.toISOString(),
     updatedAt: data.updatedAt.toISOString(),
   }))
-  .openapi("ExpenseSplitResponse");
+  .openapi("LoanSplitResponse");
 
-export const ExpenseSplitCreateSchema = createInsertSchema(expenseSplit, {
+export const LoanSplitCreateSchema = createInsertSchema(loanSplit, {
   amountOwed: z.number().min(0, "Amount must be positive").openapi({
     example: 30.0,
     description: "Amount owed",
@@ -30,9 +30,9 @@ export const ExpenseSplitCreateSchema = createInsertSchema(expenseSplit, {
       example: { percentage: 30 },
       description: "Additional split metadata",
     }),
-  expenseId: z.number().openapi({
+  loanId: z.number().openapi({
     example: 123,
-    description: "Expense ID",
+    description: "Loan ID",
   }),
   userId: z.number().openapi({
     example: 123,
@@ -44,14 +44,14 @@ export const ExpenseSplitCreateSchema = createInsertSchema(expenseSplit, {
     createdAt: true,
     updatedAt: true,
   })
-  .openapi("ExpenseSplitCreate");
+  .openapi("LoanSplitCreate");
 
-export const ExpenseSplitUpdateSchema =
-  ExpenseSplitCreateSchema.partial().openapi("ExpenseSplitUpdate");
+export const LoanSplitUpdateSchema =
+  LoanSplitCreateSchema.partial().openapi("LoanSplitUpdate");
 
 // ==========================================
 // TYPE EXPORTS
 // ==========================================
-export type ExpenseSplitResponse = z.infer<typeof ExpenseSplitResponseSchema>;
-export type ExpenseSplitCreate = z.infer<typeof ExpenseSplitCreateSchema>;
-export type ExpenseSplitUpdate = z.infer<typeof ExpenseSplitUpdateSchema>;
+export type LoanSplitResponse = z.infer<typeof LoanSplitResponseSchema>;
+export type LoanSplitCreate = z.infer<typeof LoanSplitCreateSchema>;
+export type LoanSplitUpdate = z.infer<typeof LoanSplitUpdateSchema>;

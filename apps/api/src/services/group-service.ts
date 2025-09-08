@@ -6,7 +6,7 @@ import type {
 import { BadRequestError } from "../errors/base-error";
 import { GroupRepository } from "@/repositories/group-repository";
 import { GroupMemberService } from "./group-member-service";
-import { ExpenseService } from "./expense-service";
+import { LoanService } from "./loan-service";
 import { FriendService } from "./friend-service";
 import { type DBType } from "@/db";
 import type { GroupMemberBulkResponse } from "@/models/group-member";
@@ -14,26 +14,26 @@ import type { GroupMemberBulkResponse } from "@/models/group-member";
 export class GroupService {
   private readonly groupRepository;
   private readonly groupMemberService;
-  private readonly expenseService;
+  private readonly loanService;
   private readonly friendService;
   private readonly db: DBType;
 
   constructor({
     groupRepository,
     groupMemberService,
-    expenseService,
+    loanService,
     friendService,
     db,
   }: {
     groupRepository: GroupRepository;
     groupMemberService: GroupMemberService;
-    expenseService: ExpenseService;
+    loanService: LoanService;
     friendService: FriendService;
     db: DBType;
   }) {
     this.groupRepository = groupRepository;
     this.groupMemberService = groupMemberService;
-    this.expenseService = expenseService;
+    this.loanService = loanService;
     this.friendService = friendService;
     this.db = db;
   }

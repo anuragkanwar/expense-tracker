@@ -1,4 +1,4 @@
-import { drizzle, LibSQLDatabase } from "drizzle-orm/libsql";
+import { drizzle } from "drizzle-orm/libsql";
 import { createClient, ResultSet } from "@libsql/client";
 import * as schema from "./schemas/index.js";
 import { SQLiteTransaction } from "drizzle-orm/sqlite-core";

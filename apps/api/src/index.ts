@@ -8,7 +8,7 @@ import {
   authRoutes,
   friendRoutes,
   groupRoutes,
-  expenseRoutes,
+  transactionRoutesExport,
   passbookRoutes,
   budgetRoutes,
   accountRoutes,
@@ -58,7 +58,8 @@ app.get("/", (c) => {
       users: "/api/v1/users",
       friends: "/api/v1/friends",
       groups: "/api/v1/groups",
-      expenses: "/api/v1/expenses",
+      loans: "/api/v1/loans",
+      transactions: "/api/v1/transactions",
       passbook: "/api/v1/passbook",
       budgets: "/api/v1/budgets",
       accounts: "/api/v1/accounts",
@@ -95,8 +96,8 @@ app.route("/api/v1/friends", friendRoutes);
 // Mount group management routes
 app.route("/api/v1/groups", groupRoutes);
 
-// Mount expense management routes
-app.route("/api/v1/expenses", expenseRoutes);
+// Mount transaction management routes
+app.route("/api/v1/transactions", transactionRoutesExport);
 
 // Mount financial tracking routes
 app.route("/api/v1/passbook", passbookRoutes);
@@ -126,7 +127,7 @@ app.doc("/openapi.json", {
     version: "1.0.0",
     title: "Pocket Pixie API",
     description:
-      "A comprehensive financial management API for expense tracking, budgeting, group expenses, and financial insights.",
+      "A comprehensive financial management API for loan tracking, budgeting, group loans, and financial insights.",
   },
 });
 

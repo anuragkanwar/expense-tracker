@@ -45,7 +45,7 @@ describe("GroupService", () => {
     groupService = new GroupService({
       groupRepository: mockGroupRepository as any,
       groupMemberService: mockGroupMemberService as any,
-      expenseService: mockExpenseService as any,
+      loanService: mockExpenseService as any,
       friendService: mockFriendService as any,
       db: mockDb as any,
     });

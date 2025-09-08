@@ -1,7 +1,7 @@
 import {
   userBalance,
-  expense,
-  expenseSplit,
+  loan,
+  loanSplit,
   transactionEntry,
   transactionAccount,
   ACCOUNT_TYPE,
@@ -20,6 +20,17 @@ export class BalanceRepository {
     this.db = db;
   }
 
+  /**
+   * Helper method to format balance rows with ISO timestamps
+   */
+  private formatBalanceRow(row: any): UserBalanceResponse {
+    return {
+      ...row,
+      createdAt: row.createdAt.toISOString(),
+      updatedAt: row.updatedAt.toISOString(),
+    } as UserBalanceResponse;
+  }
+
   async findAll(
     limit: number = 10,
     offset: number = 0,
@@ -31,11 +42,7 @@ export class BalanceRepository {
       .from(userBalance)
       .limit(limit)
       .offset(offset);
-    return result.map((row) => ({
-      ...row,
-      createdAt: row.createdAt.toISOString(),
-      updatedAt: row.updatedAt.toISOString(),
-    })) as UserBalanceResponse[];
+    return result.map((row) => this.formatBalanceRow(row));
   }
 
   async findById(
@@ -274,23 +281,23 @@ export class BalanceRepository {
   ): Promise<string> {
     const db = tx ?? this.db;
 
-    // Find the underlying expense category from transaction accounts
-    const expenseQuery = await db
-      .select({ transactionId: expense.transactionId })
-      .from(expense)
-      .innerJoin(expenseSplit, eq(expense.id, expenseSplit.expenseId))
+    // Find the underlying loan category from transaction accounts
+    const loanQuery = await db
+      .select({ transactionId: loan.transactionId })
+      .from(loan)
+      .innerJoin(loanSplit, eq(loan.id, loanSplit.loanId))
       .where(
         and(
-          eq(expense.groupId, groupId),
-          eq(expense.createdBy, payerId),
-          eq(expenseSplit.userId, payeeId)
+          eq(loan.groupId, groupId),
+          eq(loan.createdBy, payerId),
+          eq(loanSplit.userId, payeeId)
         )
       )
       .limit(1);
 
     let category = "GENERAL";
-    if (expenseQuery.length > 0) {
-      const txnId = expenseQuery[0]?.transactionId;
+    if (loanQuery.length > 0) {
+      const txnId = loanQuery[0]?.transactionId;
       if (txnId) {
         const entryQuery = await db
           .select({

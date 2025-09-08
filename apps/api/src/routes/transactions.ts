@@ -1,53 +1,45 @@
 import { OpenAPIHono } from "@hono/zod-openapi";
 import {
-  createExpenseRoute,
-  getExpensesRoute,
-  getExpenseRoute,
-  getGroupExpensesRoute,
-  getFriendExpensesRoute,
-  updateExpenseRoute,
-  deleteExpenseRoute,
-  createExpenseWithAIRoute,
-} from "./expenses.contracts";
+  createTransactionRoute,
+  getTransactionsRoute,
+  getTransactionRoute,
+  getGroupTransactionsRoute,
+  getFriendTransactionsRoute,
+  updateTransactionRoute,
+  deleteTransactionRoute,
+  createTransactionWithAIRoute,
+} from "./transactions.contracts";
 
-import { ExpenseCreateWithDetails } from "@/dto/expenses.dto";
+import { TransactionCreateWithDetails } from "@/dto/transactions.dto";
+import { requireAuthMiddleware } from "@/middleware/require-auth-middleware";
+import { handleRouteError } from "@/utils/error-response-handler";
 
-export const expenseRoutes = new OpenAPIHono();
+export const transactionRoutesExport = new OpenAPIHono();
 
-expenseRoutes.openapi(createExpenseRoute, async (c) => {
+transactionRoutesExport.use(requireAuthMiddleware());
+
+transactionRoutesExport.openapi(createTransactionRoute, async (c) => {
   try {
-    const data = c.req.valid("json") as ExpenseCreateWithDetails;
-    const { expenseService } = c.get("services");
-    const user = c.get("user");
-    if (!user) {
-      return c.json({ message: "Not authenticated" }, 401);
-    }
+    const data = c.req.valid("json") as TransactionCreateWithDetails;
+    const { transactionService } = c.get("services");
 
-    // For now, we'll return a placeholder response since createExpense doesn't return data
-    // In a full implementation, createExpense should return the created expense
-    await expenseService.createExpense(data);
+    await transactionService.createTransaction(data);
 
     return c.json(
       {
-        message: "Expense created successfully",
-        // TODO: Return the created expense data when createExpense method is updated
+        message: "Transaction created successfully",
       },
       201
     );
   } catch (error: any) {
-    if (error.message.includes("not found")) {
-      return c.json({ message: error.message }, 404);
-    }
-    if (error.message.includes("Validation")) {
-      return c.json({ message: error.message }, 400);
-    }
-    return c.json({ message: error.message || "Internal server error" }, 500);
+    const { json, status } = handleRouteError(error);
+    return c.json(json, status as any);
   }
 });
 
-expenseRoutes.openapi(getExpensesRoute, async (c) => {
+transactionRoutesExport.openapi(getTransactionsRoute, async (c) => {
   try {
-    const { expenseService } = c.get("services");
+    const { transactionService } = c.get("services");
     const user = c.get("user");
     if (!user) {
       return c.json({ message: "Not authenticated" }, 401);
@@ -55,7 +47,7 @@ expenseRoutes.openapi(getExpensesRoute, async (c) => {
 
     const { page, limit, type } = c.req.valid("query");
 
-    const result = await expenseService.getExpenses(user.id, {
+    const result = await transactionService.getTransactions(user.id, {
       page: page ? Number(page) : undefined,
       limit: limit ? Number(limit) : undefined,
       type: type || undefined,
@@ -67,24 +59,24 @@ expenseRoutes.openapi(getExpensesRoute, async (c) => {
   }
 });
 
-expenseRoutes.openapi(getExpenseRoute, async (c) => {
+transactionRoutesExport.openapi(getTransactionRoute, async (c) => {
   try {
-    const { expenseService } = c.get("services");
+    const { transactionService } = c.get("services");
     const user = c.get("user");
     if (!user) {
       return c.json({ message: "Not authenticated" }, 401);
     }
 
-    const { expenseId } = c.req.valid("param");
+    const { transactionId } = c.req.valid("param");
 
-    const expense = await expenseService.getExpenseById(
-      Number(expenseId),
+    const transaction = await transactionService.getTransactionById(
+      Number(transactionId),
       user.id
     );
 
-    return c.json(expense, 200);
+    return c.json(transaction, 200);
   } catch (error: any) {
-    if (error.message === "Expense not found") {
+    if (error.message === "Transaction not found") {
       return c.json({ message: error.message }, 404);
     }
     if (error.message.includes("access")) {
@@ -94,9 +86,9 @@ expenseRoutes.openapi(getExpenseRoute, async (c) => {
   }
 });
 
-expenseRoutes.openapi(getGroupExpensesRoute, async (c) => {
+transactionRoutesExport.openapi(getGroupTransactionsRoute, async (c) => {
   try {
-    const { expenseService } = c.get("services");
+    const { transactionService } = c.get("services");
     const user = c.get("user");
     if (!user) {
       return c.json({ message: "Not authenticated" }, 401);
@@ -105,7 +97,7 @@ expenseRoutes.openapi(getGroupExpensesRoute, async (c) => {
     const { groupId } = c.req.valid("param");
     const { page, limit } = c.req.valid("query");
 
-    const result = await expenseService.getGroupExpenses(
+    const result = await transactionService.getGroupTransactions(
       Number(groupId),
       user.id,
       {
@@ -126,9 +118,9 @@ expenseRoutes.openapi(getGroupExpensesRoute, async (c) => {
   }
 });
 
-expenseRoutes.openapi(getFriendExpensesRoute, async (c) => {
+transactionRoutesExport.openapi(getFriendTransactionsRoute, async (c) => {
   try {
-    const { expenseService } = c.get("services");
+    const { transactionService } = c.get("services");
     const user = c.get("user");
     if (!user) {
       return c.json({ message: "Not authenticated" }, 401);
@@ -137,7 +129,7 @@ expenseRoutes.openapi(getFriendExpensesRoute, async (c) => {
     const { userId } = c.req.valid("param");
     const { page, limit } = c.req.valid("query");
 
-    const result = await expenseService.getFriendExpenses(
+    const result = await transactionService.getFriendTransactions(
       Number(userId),
       user.id,
       {
@@ -155,26 +147,26 @@ expenseRoutes.openapi(getFriendExpensesRoute, async (c) => {
   }
 });
 
-expenseRoutes.openapi(updateExpenseRoute, async (c) => {
+transactionRoutesExport.openapi(updateTransactionRoute, async (c) => {
   try {
-    const { expenseService } = c.get("services");
+    const { transactionService } = c.get("services");
     const user = c.get("user");
     if (!user) {
       return c.json({ message: "Not authenticated" }, 401);
     }
 
-    const { expenseId } = c.req.valid("param");
+    const { transactionId } = c.req.valid("param");
     const updateData = c.req.valid("json");
 
-    const updatedExpense = await expenseService.updateExpense(
-      Number(expenseId),
+    const updatedTransaction = await transactionService.updateTransaction(
+      Number(transactionId),
       user.id,
       updateData
     );
 
-    return c.json(updatedExpense, 200);
+    return c.json(updatedTransaction, 200);
   } catch (error: any) {
-    if (error.message === "Expense not found") {
+    if (error.message === "Transaction not found") {
       return c.json({ message: error.message }, 404);
     }
     if (error.message.includes("access")) {
@@ -184,24 +176,24 @@ expenseRoutes.openapi(updateExpenseRoute, async (c) => {
   }
 });
 
-expenseRoutes.openapi(deleteExpenseRoute, async (c) => {
+transactionRoutesExport.openapi(deleteTransactionRoute, async (c) => {
   try {
-    const { expenseService } = c.get("services");
+    const { transactionService } = c.get("services");
     const user = c.get("user");
     if (!user) {
       return c.json({ message: "Not authenticated" }, 401);
     }
 
-    const { expenseId } = c.req.valid("param");
+    const { transactionId } = c.req.valid("param");
 
-    const result = await expenseService.deleteExpense(
-      Number(expenseId),
+    const result = await transactionService.deleteTransaction(
+      Number(transactionId),
       user.id
     );
 
     return c.json(result, 200);
   } catch (error: any) {
-    if (error.message === "Expense not found") {
+    if (error.message === "Transaction not found") {
       return c.json({ message: error.message }, 404);
     }
     if (error.message.includes("access")) {
@@ -212,24 +204,24 @@ expenseRoutes.openapi(deleteExpenseRoute, async (c) => {
 });
 
 // NOTE: DO NOT IMPLEMENT THIS, THIS IS JUST FUTURE NOT IMPLEMENT NOW
-expenseRoutes.openapi(createExpenseWithAIRoute, async (c) => {
-  // TODO: Implement create expense with AI
+transactionRoutesExport.openapi(createTransactionWithAIRoute, async (c) => {
+  // TODO: Implement create transaction with AI
   // 1. Get the AI prompt from request body
-  // 2. Process the prompt with AI/LLM to extract structured expense data
+  // 2. Process the prompt with AI/LLM to extract structured transaction data
   // 3. Validate the parsed data
-  // 4. Create the expense using the parsed ExpenseCreateWithDetailsSchema
-  // 5. Return the created expense with details
+  // 4. Create the transaction using the parsed TransactionCreateWithDetailsSchema
+  // 5. Return the created transaction with details
 
   const body = c.req.valid("json");
   const { userPrompt, groupIds, userIds } = body;
 
   // Placeholder for AI processing
-  // const parsedExpense = await aiService.parseExpensePrompt(userPrompt, groupIds, userIds);
+  // const parsedTransaction = await aiService.parseTransactionPrompt(userPrompt, groupIds, userIds);
 
   // Placeholder response - replace with actual implementation
   return c.json(
     {
-      message: "AI expense creation not yet implemented",
+      message: "AI transaction creation not yet implemented",
       receivedPrompt: userPrompt,
       groupIds,
       userIds,
@@ -237,3 +229,5 @@ expenseRoutes.openapi(createExpenseWithAIRoute, async (c) => {
     501
   );
 });
+
+// Export is already declared above

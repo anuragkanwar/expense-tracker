@@ -15,9 +15,9 @@ export * from "./recurring";
 // Splitwise models
 export * from "./group";
 export * from "./group-member";
-export * from "./expense";
-export * from "./expense-payer";
-export * from "./expense-split";
+export * from "./loan";
+export * from "./loan-payer";
+export * from "./loan-split";
 export * from "./user-balance";
 export * from "./settlement";
 
