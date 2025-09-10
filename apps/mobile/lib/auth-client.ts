@@ -17,7 +17,7 @@ import * as SecureStore from "expo-secure-store";
 // // };
 
 export const authClient = createAuthClient({
-  baseURL: "http://10.101.82.236:3000",
+  baseURL: "http://10.101.83.129:3000/api/v1/auth",
   plugins: [
     expoClient({
       scheme: "pocket-pixie",
