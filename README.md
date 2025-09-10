@@ -15,7 +15,7 @@ pnpm install
 # Setup database
 pnpm run db:migrate
 
-# Start development (API + Database)
+# Start development (API + Database + Drizzle Studio)
 pnpm run dev:server
 ```
 
@@ -30,18 +30,16 @@ pnpm run dev:server
 ```
 pocket-pixie/
 ├── apps/
-│   ├── api/                 # 🚀 Hono API Server
+│   ├── api/                 # 🚀 Hono API Server + Database
 │   │   ├── src/            # TypeScript source
+│   │   │   ├── db/         # 🗄️ Database schemas, auth, auto-generated Zod schemas
+│   │   │   └── ...         # API routes, services, repositories
 │   │   ├── dist/           # Compiled JavaScript
 │   │   └── package.json
 │   └── mobile/             # 📱 React Native App
 │       ├── src/            # React Native source
 │       └── package.json
 ├── packages/
-│   ├── db/                 # 🗄️ Turso + Drizzle ORM + Better Auth + Auto-Zod
-│   │   ├── src/            # Database schemas, auth, auto-generated Zod schemas
-│   │   ├── migrations/     # Database migrations
-│   │   └── package.json
 │   ├── validators/         # ✅ Zod validation schemas
 │   ├── config-eslint/      # 🔧 ESLint configuration
 │   ├── config-prettier/    # 🎨 Prettier configuration
@@ -87,16 +85,16 @@ pocket-pixie/
 
 ### Package Overview
 
-| Package                             | Purpose          | Key Features                                                                                |
-| ----------------------------------- | ---------------- | ------------------------------------------------------------------------------------------- |
-| **@pocket-pixie/db**                | Database + Auth  | Turso + Drizzle ORM, Better Auth integration, auto-generated Zod schemas, type-safe queries |
-| **@pocket-pixie/validators**        | Data validation  | Zod schemas, type-safe validation, API request validation                                   |
-| **@pocket-pixie/eslint-config**     | Code linting     | ESLint rules for TypeScript, React, consistent code style                                   |
-| **@pocket-pixie/prettier-config**   | Code formatting  | Prettier configuration, TailwindCSS class sorting                                           |
-| **@pocket-pixie/typescript-config** | TypeScript setup | Base, React, and Expo TypeScript configurations                                             |
-| **@pocket-pixie/eslint-config**     | Code linting     | ESLint rules for TypeScript, React, consistent code style                                   |
-| **@pocket-pixie/prettier-config**   | Code formatting  | Prettier configuration, TailwindCSS class sorting                                           |
-| **@pocket-pixie/typescript-config** | TypeScript setup | Base, React, and Expo TypeScript configurations                                             |
+| Package | Purpose | Key Features |
+| ------- | ------- | ------------ |
+
+| **@pocket-pixie/validators** | Data validation | Zod schemas, type-safe validation, API request validation |
+| **@pocket-pixie/eslint-config** | Code linting | ESLint rules for TypeScript, React, consistent code style |
+| **@pocket-pixie/prettier-config** | Code formatting | Prettier configuration, TailwindCSS class sorting |
+| **@pocket-pixie/typescript-config** | TypeScript setup | Base, React, and Expo TypeScript configurations |
+| **@pocket-pixie/eslint-config** | Code linting | ESLint rules for TypeScript, React, consistent code style |
+| **@pocket-pixie/prettier-config** | Code formatting | Prettier configuration, TailwindCSS class sorting |
+| **@pocket-pixie/typescript-config** | TypeScript setup | Base, React, and Expo TypeScript configurations |
 
 **Benefits:**
 
@@ -135,7 +133,7 @@ pnpm run dev:mobile       # Mobile only: React Native app
 
 # Alternative commands
 cd apps/api && bun --watch --port 3000 src/index.ts    # API only
-cd packages/db && pnpm run dev                         # Database + Drizzle Studio only
+cd apps/api && pnpm run db:studio                   # Database + Drizzle Studio only
 cd apps/mobile && pnpm run dev                         # Mobile app only
 ```
 
@@ -275,7 +273,7 @@ pnpm run build:production  # Production builds
 
 ### Packages
 
-- **[Database (@pocket-pixie/db)](./packages/db/README.md)** - Turso + Drizzle ORM + Better Auth + Auto-Zod setup
+- **[Database (apps/api/src/db)](./apps/api/src/db)** - Turso + Drizzle ORM + Better Auth + Auto-Zod setup
 - **[Validators (@pocket-pixie/validators)](./packages/validators/README.md)** - Zod validation schemas
 - **[ESLint Config](./packages/config-eslint/README.md)** - Code linting rules
 - **[Prettier Config](./packages/config-prettier/README.md)** - Code formatting
@@ -306,7 +304,7 @@ pnpm run clean && pnpm install && pnpm run dev:server
 
 ```bash
 # Reset database
-rm packages/db/local.db
+rm apps/api/local.db
 pnpm run db:migrate
 
 # Check environment variables

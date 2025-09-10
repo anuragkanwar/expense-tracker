@@ -3,12 +3,23 @@ import { Scalar } from "@scalar/hono-api-reference";
 import { errorHandler } from "@/middleware/error-handler";
 import { logger } from "@/middleware/logger";
 import { dependencyInjector } from "@/middleware/di-middleware";
+import { authMiddeware } from "./middleware/auth-middleware";
 import {
   authRoutes,
-  studentRoutes
+  friendRoutes,
+  groupRoutes,
+  transactionRoutesExport,
+  passbookRoutes,
+  budgetRoutes,
+  accountRoutes,
+  recurringItemRoutes,
+  balanceRoutes,
+  dashboardRoutes,
+  connectionRoutes,
 } from "./routes";
-import { auth } from "@pocket-pixie/db";
+
 import { cors } from "hono/cors";
+import { auth } from "@/db";
 // API setup
 const app = new OpenAPIHono();
 
@@ -16,8 +27,9 @@ const app = new OpenAPIHono();
 app.use("*", logger());
 app.use("*", dependencyInjector);
 app.use("*", errorHandler());
+app.use("*", authMiddeware());
 app.use(
-  "/api/auth/*", // or replace with "*" to enable cors for all routes
+  "/api/*", // Enable CORS for all API routes
   cors({
     origin: [
       "pocket-pixie://",
@@ -26,11 +38,11 @@ app.use(
       "http://YOUR_COMPUTER_IP:3000", // Replace with your computer's IP
     ], // replace with your origin
     allowHeaders: ["Content-Type", "Authorization"],
-    allowMethods: ["POST", "GET", "OPTIONS"],
+    allowMethods: ["POST", "GET", "PUT", "DELETE", "OPTIONS"],
     exposeHeaders: ["Content-Length"],
     maxAge: 600,
     credentials: true,
-  }),
+  })
 );
 // Health check endpoint
 app.get("/", (c) => {
@@ -41,6 +53,22 @@ app.get("/", (c) => {
     timestamp: new Date().toISOString(),
     environment: process.env.NODE_ENV || "development",
     docs: "http://localhost:3000/docs",
+    endpoints: {
+      auth: "/api/v1/auth",
+      users: "/api/v1/users",
+      friends: "/api/v1/friends",
+      groups: "/api/v1/groups",
+      loans: "/api/v1/loans",
+      transactions: "/api/v1/transactions",
+      passbook: "/api/v1/passbook",
+      budgets: "/api/v1/budgets",
+      accounts: "/api/v1/accounts",
+      categories: "/api/v1/categories",
+      "recurring-items": "/api/v1/recurring-items",
+      balances: "/api/v1/balances",
+      dashboard: "/api/v1/dashboard",
+      connections: "/api/v1/connections",
+    },
   });
 });
 
@@ -54,23 +82,52 @@ app.get("/health", (c) => {
   });
 });
 
-// Mount auth routes
-// app.route("/api/auth", authRoutes);
+// Mount auth extended routes
+app.route("/api/v1/auth", authRoutes);
 
-// app.on(["POST", "GET"], "/api/auth/*", (c) => {
-//   return auth.handler(c.req.raw);
-// });
+// Mount authentication routes
+app.on(["POST", "GET"], "/api/v1/auth/*", (c) => {
+  return auth.handler(c.req.raw);
+});
 
-// Mount student routes
-app.route("/api/students", studentRoutes);
+// Mount social features routes
+app.route("/api/v1/friends", friendRoutes);
+
+// Mount group management routes
+app.route("/api/v1/groups", groupRoutes);
+
+// Mount transaction management routes
+app.route("/api/v1/transactions", transactionRoutesExport);
+
+// Mount financial tracking routes
+app.route("/api/v1/passbook", passbookRoutes);
+
+// Mount budgeting routes
+app.route("/api/v1/budgets", budgetRoutes);
+
+// Mount personal finance routes
+app.route("/api/v1/accounts", accountRoutes);
+
+// Mount recurring-items routes
+app.route("/api/v1/recurring-items", recurringItemRoutes);
+
+// Mount balances and settlements routes
+app.route("/api/v1/balances", balanceRoutes);
+
+// Mount dashboard routes
+app.route("/api/v1/dashboard", dashboardRoutes);
+
+// Mount external connections routes
+app.route("/api/v1/connections", connectionRoutes);
 
 // OpenAPI documentation - generated from Zod schemas
 app.doc("/openapi.json", {
   openapi: "3.1.0",
   info: {
     version: "1.0.0",
-    title: "Student Management API",
-    description: "An API for managing student records.",
+    title: "Pocket Pixie API",
+    description:
+      "A comprehensive financial management API for loan tracking, budgeting, group loans, and financial insights.",
   },
 });
 
@@ -78,7 +135,16 @@ app.doc("/openapi.json", {
 app.get(
   "/docs",
   Scalar({
-    url: "/openapi.json",
+    sources: [
+      {
+        title: "Main API",
+        url: "/openapi.json",
+      },
+      {
+        title: "Authentication Api",
+        url: "/api/v1/auth/open-api/generate-schema",
+      },
+    ],
     pageTitle: "Pocket Pixie API",
   })
 );
@@ -97,4 +163,8 @@ app.notFound((c) => {
   );
 });
 
-export default app;
+export default {
+  fetch: app.fetch,
+  port: 3000,
+  hostname: "0.0.0.0",
+};

@@ -70,6 +70,7 @@ This mobile app provides:
 
 3. **API URL configuration:**
    Update `lib/auth-client.ts` with your API URL:
+
    ```typescript
    baseURL: "http://localhost:3000", // For development
    // or
@@ -313,7 +314,7 @@ pnpm run lint
 ### Backend Services
 
 - [API Documentation](../api/README.md) - Backend API with clean architecture
-- [Database Package](../../packages/db/README.md) - Database and authentication setup
+- [Database Module](../api/src/db) - Database and authentication setup
 
 ### Development Tools
 

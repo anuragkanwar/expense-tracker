@@ -1,0 +1,30 @@
+// Auth schemas
+export { user } from "./user";
+export { session } from "./session";
+export { account } from "./account";
+export { verification } from "./verification";
+export {
+  friendship,
+  friendshipUniqueIndex,
+  friendshipUserIndex,
+  friendshipStatusIndex,
+} from "./friendship";
+
+// Personal finance schemas
+export { transactionAccount } from "./transaction-account";
+export { transaction } from "./transaction";
+export { transactionEntry } from "./transaction-entry";
+export { budget } from "./budget";
+export { recurring } from "./recurring";
+
+// Splitwise schemas
+export { group } from "./group";
+export { groupMember } from "./group-member";
+export { loan } from "./loan";
+export { loanPayer } from "./loan-payer";
+export { loanSplit } from "./loan-splits";
+export { userBalance } from "./user-balance";
+export { settlement } from "./settlement";
+
+// Student schema
+export { student } from "./student";

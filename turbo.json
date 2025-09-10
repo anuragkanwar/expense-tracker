@@ -2,6 +2,11 @@
   "$schema": "https://turborepo.com/schema.json",
   "ui": "tui",
   "tasks": {
+    "android": {
+      "cache": false,
+      "persistent": true,
+      "dependsOn": ["^build"]
+    },
     "build": {
       "dependsOn": ["^build"],
       "inputs": ["src/**", "package.json", "tsconfig.json", ".env*"],
@@ -25,6 +30,10 @@
       "persistent": true,
       "dependsOn": ["^build"]
     },
+    "db:push": {
+      "cache": false,
+      "dependsOn": []
+    },
     "db:generate": {
       "cache": false,
       "dependsOn": []
@@ -33,13 +42,9 @@
       "cache": false,
       "dependsOn": ["db:generate"]
     },
-    "auth:db:generate": {
+    "db:seed": {
       "cache": false,
       "dependsOn": []
-    },
-    "auth:db:migrate": {
-      "cache": false,
-      "dependsOn": ["auth:db:generate"]
     },
     "start": {
       "cache": false,
