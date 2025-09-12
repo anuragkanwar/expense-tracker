@@ -16,6 +16,68 @@ export class DashboardRepository {
     this.db = db;
   }
 
+  async getMonthlyLoanGiven(
+    userId: number,
+    startDate: Date,
+    endDate: Date,
+    tx?: DBTransactionType
+  ): Promise<number> {
+    const db = tx ?? this.db;
+    const result = await db
+      .select({ total: sql<number>`SUM(${transactionEntry.amount})` })
+      .from(transactionEntry)
+      .innerJoin(
+        transaction,
+        eq(transactionEntry.transactionId, transaction.id)
+      )
+      .innerJoin(
+        transactionAccount,
+        eq(transactionEntry.transactionAccountId, transactionAccount.id)
+      )
+      .where(
+        and(
+          eq(transaction.userId, userId),
+          eq(transactionAccount.type, ACCOUNT_TYPE.EXPENSE),
+          gte(transaction.transactionDate, startDate),
+          lte(transaction.transactionDate, endDate),
+          sql`${transactionEntry.amount} < 0` // Only positive amounts (money received by expense accounts)
+        )
+      );
+
+    return result[0]?.total || 0;
+  }
+
+  async getMonthlyLoanTaken(
+    userId: number,
+    startDate: Date,
+    endDate: Date,
+    tx?: DBTransactionType
+  ): Promise<number> {
+    const db = tx ?? this.db;
+    const result = await db
+      .select({ total: sql<number>`SUM(${transactionEntry.amount})` })
+      .from(transactionEntry)
+      .innerJoin(
+        transaction,
+        eq(transactionEntry.transactionId, transaction.id)
+      )
+      .innerJoin(
+        transactionAccount,
+        eq(transactionEntry.transactionAccountId, transactionAccount.id)
+      )
+      .where(
+        and(
+          eq(transaction.userId, userId),
+          eq(transactionAccount.type, ACCOUNT_TYPE.EXPENSE),
+          gte(transaction.transactionDate, startDate),
+          lte(transaction.transactionDate, endDate),
+          sql`${transactionEntry.amount} > 0` // Only positive amounts (money received by expense accounts)
+        )
+      );
+
+    return result[0]?.total || 0;
+  }
+
   async getMonthlyExpenses(
     userId: number,
     startDate: Date,

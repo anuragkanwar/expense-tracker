@@ -1,7 +1,10 @@
 import { Button, Text } from "@/components/ui";
 import { authClient } from "@/lib/auth-client";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { useHeader } from "@/hooks/useHeader";
+
 export default function Recurring() {
+  useHeader({ title: "Recurring" });
   return (
     <SafeAreaView>
       <Text>Recurring Page</Text>

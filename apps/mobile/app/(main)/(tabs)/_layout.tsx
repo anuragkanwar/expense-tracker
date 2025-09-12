@@ -15,6 +15,7 @@ export default function Layout() {
           paddingTop: 8,
           marginBottom: insets.bottom,
         },
+        headerShown: false,
       }}
     >
       <Tabs.Screen

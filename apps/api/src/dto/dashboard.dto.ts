@@ -15,6 +15,14 @@ export const MonthlySummaryResponseSchema = z
       example: 3200.0,
       description: "Total expenses for the month",
     }),
+    totalLoanTaken: z.number().openapi({
+      example: 5000.0,
+      description: "Total loan taken for the month",
+    }),
+    totalLoanGiven: z.number().openapi({
+      example: 3200.0,
+      description: "Total loan given for the month",
+    }),
     netIncome: z.number().openapi({
       example: 1800.0,
       description: "Net income (income - expenses)",

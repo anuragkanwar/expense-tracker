@@ -1,17 +1,14 @@
-import MainHeader from "@/components/layout/MainHeader";
-import { Stack } from "expo-router";
+import { Slot } from "expo-router";
+import { View } from "react-native";
+import { PersistentMainHeader } from "@/components/layout/PersistentMainHeader";
 
 export default function MainLayout() {
   return (
-    <Stack screenOptions={{ headerShown: false }}>
-      <Stack.Screen
-        name="(tabs)"
-        options={{
-          header: (props) => <MainHeader {...props} />,
-          headerShown: true,
-        }}
-      />
-      {/* <Stack.Screen name="../profile" options={{ presentation: "modal" }} /> */}
-    </Stack>
+    <View style={{ flex: 1 }}>
+      <PersistentMainHeader />
+      <View style={{ flex: 1 }}>
+        <Slot />
+      </View>
+    </View>
   );
 }
