@@ -49,14 +49,15 @@ transactionRoutesExport.openapi(getTransactionsRoute, async (c) => {
     const { page, limit, type } = c.req.valid("query");
 
     const result = await transactionService.getTransactions(user.id, {
-      page: page ? Number(page) : undefined,
-      limit: limit ? Number(limit) : undefined,
+      page,
+      limit,
       type: type || undefined,
     });
 
     return c.json(result, 200);
-  } catch (error: AppError) {
-    return c.json({ message: error.message || "Internal server error" }, 500);
+  } catch (error) {
+    const err = error as Error;
+    return c.json({ message: err.message || "Internal server error" }, 500);
   }
 });
 
@@ -71,19 +72,20 @@ transactionRoutesExport.openapi(getTransactionRoute, async (c) => {
     const { transactionId } = c.req.valid("param");
 
     const transaction = await transactionService.getTransactionById(
-      Number(transactionId),
+      transactionId,
       user.id
     );
 
     return c.json(transaction, 200);
-  } catch (error: AppError) {
-    if (error.message === "Transaction not found") {
-      return c.json({ message: error.message }, 404);
+  } catch (error) {
+    const err = error as Error;
+    if (err.message === "Transaction not found") {
+      return c.json({ message: err.message }, 404);
     }
-    if (error.message.includes("access")) {
-      return c.json({ message: error.message }, 403);
+    if (err.message.includes("access")) {
+      return c.json({ message: err.message }, 403);
     }
-    return c.json({ message: error.message || "Internal server error" }, 500);
+    return c.json({ message: err.message || "Internal server error" }, 500);
   }
 });
 
@@ -99,23 +101,24 @@ transactionRoutesExport.openapi(getGroupTransactionsRoute, async (c) => {
     const { page, limit } = c.req.valid("query");
 
     const result = await transactionService.getGroupTransactions(
-      Number(groupId),
+      groupId,
       user.id,
       {
-        page: page ? Number(page) : undefined,
-        limit: limit ? Number(limit) : undefined,
+        page,
+        limit,
       }
     );
 
     return c.json(result, 200);
-  } catch (error: AppError) {
-    if (error.message === "Group not found") {
-      return c.json({ message: error.message }, 404);
+  } catch (error) {
+    const err = error as Error;
+    if (err.message === "Group not found") {
+      return c.json({ message: err.message }, 404);
     }
-    if (error.message.includes("access")) {
-      return c.json({ message: error.message }, 403);
+    if (err.message.includes("access")) {
+      return c.json({ message: err.message }, 403);
     }
-    return c.json({ message: error.message || "Internal server error" }, 500);
+    return c.json({ message: err.message || "Internal server error" }, 500);
   }
 });
 
@@ -131,20 +134,21 @@ transactionRoutesExport.openapi(getFriendTransactionsRoute, async (c) => {
     const { page, limit } = c.req.valid("query");
 
     const result = await transactionService.getFriendTransactions(
-      Number(userId),
+      userId,
       user.id,
       {
-        page: page ? Number(page) : undefined,
-        limit: limit ? Number(limit) : undefined,
+        page,
+        limit,
       }
     );
 
     return c.json(result, 200);
-  } catch (error: AppError) {
-    if (error.message.includes("friends")) {
-      return c.json({ message: error.message }, 403);
+  } catch (error) {
+    const err = error as Error;
+    if (err.message.includes("friends")) {
+      return c.json({ message: err.message }, 403);
     }
-    return c.json({ message: error.message || "Internal server error" }, 500);
+    return c.json({ message: err.message || "Internal server error" }, 500);
   }
 });
 
@@ -160,20 +164,21 @@ transactionRoutesExport.openapi(updateTransactionRoute, async (c) => {
     const updateData = c.req.valid("json");
 
     const updatedTransaction = await transactionService.updateTransaction(
-      Number(transactionId),
+      transactionId,
       user.id,
       updateData
     );
 
     return c.json(updatedTransaction, 200);
-  } catch (error: AppError) {
-    if (error.message === "Transaction not found") {
-      return c.json({ message: error.message }, 404);
+  } catch (error) {
+    const err = error as Error;
+    if (err.message === "Transaction not found") {
+      return c.json({ message: err.message }, 404);
     }
-    if (error.message.includes("access")) {
-      return c.json({ message: error.message }, 403);
+    if (err.message.includes("access")) {
+      return c.json({ message: err.message }, 403);
     }
-    return c.json({ message: error.message || "Internal server error" }, 500);
+    return c.json({ message: err.message || "Internal server error" }, 500);
   }
 });
 
@@ -188,19 +193,20 @@ transactionRoutesExport.openapi(deleteTransactionRoute, async (c) => {
     const { transactionId } = c.req.valid("param");
 
     const result = await transactionService.deleteTransaction(
-      Number(transactionId),
+      transactionId,
       user.id
     );
 
     return c.json(result, 200);
-  } catch (error: AppError) {
-    if (error.message === "Transaction not found") {
-      return c.json({ message: error.message }, 404);
+  } catch (error) {
+    const err = error as Error;
+    if (err.message === "Transaction not found") {
+      return c.json({ message: err.message }, 404);
     }
-    if (error.message.includes("access")) {
-      return c.json({ message: error.message }, 403);
+    if (err.message.includes("access")) {
+      return c.json({ message: err.message }, 403);
     }
-    return c.json({ message: error.message || "Internal server error" }, 500);
+    return c.json({ message: err.message || "Internal server error" }, 500);
   }
 });
 

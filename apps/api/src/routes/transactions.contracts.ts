@@ -48,7 +48,7 @@ export const getTransactionRoute = createRoute({
   tags: ["Transactions"],
   request: {
     params: z.object({
-      transactionId: z.string().openapi({
+      transactionId: z.coerce.number().int().positive().openapi({
         example: 123,
         description: "Transaction ID",
       }),
@@ -77,18 +77,18 @@ export const getGroupTransactionsRoute = createRoute({
   tags: ["Transactions"],
   request: {
     params: z.object({
-      groupId: z.string().openapi({
+      groupId: z.coerce.number().int().positive().openapi({
         example: 123,
         description: "Group ID",
       }),
     }),
     query: z.object({
-      page: z.string().optional().openapi({
-        example: "1",
+      page: z.coerce.number().int().positive().optional().openapi({
+        example: 1,
         description: "Page number",
       }),
-      limit: z.string().optional().openapi({
-        example: "10",
+      limit: z.coerce.number().int().positive().optional().openapi({
+        example: 10,
         description: "Items per page",
       }),
     }),
@@ -116,7 +116,7 @@ export const updateTransactionRoute = createRoute({
   tags: ["Transactions"],
   request: {
     params: z.object({
-      transactionId: z.string().openapi({
+      transactionId: z.coerce.number().int().positive().openapi({
         example: 123,
         description: "Transaction ID",
       }),
@@ -153,11 +153,11 @@ export const getTransactionsRoute = createRoute({
   tags: ["Transactions"],
   request: {
     query: z.object({
-      page: z.string().transform(Number).pipe(z.number()).optional().openapi({
+      page: z.coerce.number().int().positive().optional().openapi({
         example: 1,
         description: "Page number",
       }),
-      limit: z.string().transform(Number).pipe(z.number()).optional().openapi({
+      limit: z.coerce.number().int().positive().optional().openapi({
         example: 20,
         description: "Items per page",
       }),
@@ -196,17 +196,17 @@ export const getFriendTransactionsRoute = createRoute({
   tags: ["Transactions"],
   request: {
     params: z.object({
-      userId: z.string().openapi({
+      userId: z.coerce.number().int().positive().openapi({
         example: 456,
         description: "Friend's user ID",
       }),
     }),
     query: z.object({
-      page: z.string().transform(Number).pipe(z.number()).optional().openapi({
+      page: z.coerce.number().int().positive().optional().openapi({
         example: 1,
         description: "Page number",
       }),
-      limit: z.string().transform(Number).pipe(z.number()).optional().openapi({
+      limit: z.coerce.number().int().positive().optional().openapi({
         example: 20,
         description: "Items per page",
       }),
@@ -242,7 +242,7 @@ export const deleteTransactionRoute = createRoute({
   tags: ["Transactions"],
   request: {
     params: z.object({
-      transactionId: z.string().openapi({
+      transactionId: z.coerce.number().int().positive().openapi({
         example: 123,
         description: "Transaction ID",
       }),

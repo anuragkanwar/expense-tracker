@@ -1,4 +1,5 @@
 import { OpenAPIHono } from "@hono/zod-openapi";
+import { requireAuthMiddleware } from "@/middleware/require-auth-middleware";
 import {
   createGroupRoute,
   getGroupsRoute,
@@ -53,21 +54,11 @@ groupRoutes.openapi(getGroupRoute, async (c) => {
   const services = c.get("services");
   const { groupId } = c.req.valid("param");
 
-  try {
-    const group = await services.groupService.getGroupByIdAndUser(
-      user.id,
-      groupId
-    );
-    return c.json(group, 200);
-  } catch (error: any) {
-    if (error.message === "Group not found" || error.message === "Forbidden") {
-      return c.json(
-        { message: error.message },
-        error.message === "Group not found" ? 404 : 403
-      );
-    }
-    return c.json({ message: "Internal server error" }, 500);
-  }
+  const group = await services.groupService.getGroupByIdAndUser(
+    user.id,
+    groupId
+  );
+  return c.json(group, 200);
 });
 
 groupRoutes.openapi(updateGroupRoute, async (c) => {
@@ -80,25 +71,15 @@ groupRoutes.openapi(updateGroupRoute, async (c) => {
   const { groupId } = c.req.valid("param");
   const body = c.req.valid("json");
 
-  try {
-    const updatedGroup = await services.groupService.updateGroupByUser(
-      user.id,
-      groupId,
-      body
-    );
-    if (!updatedGroup) {
-      return c.json({ message: "Group not found" }, 404);
-    }
-    return c.json(updatedGroup, 200);
-  } catch (error: any) {
-    if (error.message === "Group not found") {
-      return c.json({ message: "Group not found" }, 404);
-    }
-    if (error.message === "Forbidden") {
-      return c.json({ message: "Forbidden" }, 403);
-    }
-    return c.json({ message: "Internal server error" }, 500);
+  const updatedGroup = await services.groupService.updateGroupByUser(
+    user.id,
+    groupId,
+    body
+  );
+  if (!updatedGroup) {
+    return c.json({ message: "Group not found" }, 404);
   }
+  return c.json(updatedGroup, 200);
 });
 
 groupRoutes.openapi(deleteGroupRoute, async (c) => {
@@ -110,18 +91,8 @@ groupRoutes.openapi(deleteGroupRoute, async (c) => {
   const services = c.get("services");
   const { groupId } = c.req.valid("param");
 
-  try {
-    await services.groupService.deleteGroupByUser(user.id, groupId);
-    return c.json({ message: "Group deleted successfully" }, 200);
-  } catch (error: any) {
-    if (error.message === "Group not found" || error.message === "Forbidden") {
-      return c.json(
-        { message: error.message },
-        error.message === "Group not found" ? 404 : 403
-      );
-    }
-    return c.json({ message: "Internal server error" }, 500);
-  }
+  await services.groupService.deleteGroupByUser(user.id, groupId);
+  return c.json({ message: "Group deleted successfully" }, 200);
 });
 
 groupRoutes.openapi(getGroupMembersRoute, async (c) => {
@@ -133,21 +104,11 @@ groupRoutes.openapi(getGroupMembersRoute, async (c) => {
   const services = c.get("services");
   const { groupId } = c.req.valid("param");
 
-  try {
-    const members = await services.groupService.getGroupMembersByUser(
-      user.id,
-      groupId
-    );
-    return c.json(members, 200);
-  } catch (error: any) {
-    if (error.message === "Group not found" || error.message === "Forbidden") {
-      return c.json(
-        { message: error.message },
-        error.message === "Group not found" ? 404 : 403
-      );
-    }
-    return c.json({ message: "Internal server error" }, 500);
-  }
+  const members = await services.groupService.getGroupMembersByUser(
+    user.id,
+    groupId
+  );
+  return c.json(members, 200);
 });
 
 groupRoutes.openapi(addGroupMemberRoute, async (c) => {

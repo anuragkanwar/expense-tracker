@@ -1,6 +1,10 @@
-import { BudgetResponseSchema, BudgetCreateSchema } from "@/models/budget";
 import { createRoute, z } from "@hono/zod-openapi";
-import { BudgetWithStatusResponseSchema } from "@/dto/budgets.dto";
+import { IdParamSchema, MessageResponseSchema } from "./shared-schemas";
+import {
+  BudgetResponseSchema,
+  BudgetCreateSchema,
+  BudgetWithStatusResponseSchema,
+} from "@pocket-pixie/contracts";
 
 export const getBudgetsRoute = createRoute({
   method: "get",
@@ -61,10 +65,7 @@ export const getBudgetRoute = createRoute({
   tags: ["Budgets"],
   request: {
     params: z.object({
-      budgetId: z.string().transform(Number).pipe(z.number()).openapi({
-        example: 123,
-        description: "Budget ID",
-      }),
+      budgetId: IdParamSchema.openapi({ description: "Budget ID" }),
     }),
   },
   responses: {
@@ -89,10 +90,7 @@ export const updateBudgetRoute = createRoute({
   tags: ["Budgets"],
   request: {
     params: z.object({
-      budgetId: z.string().transform(Number).pipe(z.number()).openapi({
-        example: 123,
-        description: "Budget ID",
-      }),
+      budgetId: IdParamSchema.openapi({ description: "Budget ID" }),
     }),
     body: {
       content: {
@@ -125,20 +123,15 @@ export const deleteBudgetRoute = createRoute({
   tags: ["Budgets"],
   request: {
     params: z.object({
-      budgetId: z.string().transform(Number).pipe(z.number()).openapi({
-        example: 123,
-        description: "Budget ID",
-      }),
+      budgetId: IdParamSchema.openapi({ description: "Budget ID" }),
     }),
   },
   responses: {
     200: {
       content: {
         "application/json": {
-          schema: z.object({
-            message: z
-              .string()
-              .openapi({ example: "Budget deleted successfully" }),
+          schema: MessageResponseSchema.openapi({
+            example: { message: "Budget deleted successfully" },
           }),
         },
       },

@@ -63,7 +63,7 @@ export class TransactionAccountRepository {
       return null;
     }
 
-    let result = await db
+    const result = await db
       .select()
       .from(transactionAccount)
       .where(
@@ -91,7 +91,7 @@ export class TransactionAccountRepository {
     tx?: DBTransactionType
   ): Promise<TransactionAccountResponse | null> {
     const db = tx ?? this.db;
-    let result = await db
+    const result = await db
       .select()
       .from(transactionAccount)
       .where(

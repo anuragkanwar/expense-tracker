@@ -52,7 +52,7 @@ app.get("/", (c) => {
     version: "1.0.0",
     timestamp: new Date().toISOString(),
     environment: process.env.NODE_ENV || "development",
-    docs: "http://localhost:3000/docs",
+    docs: "http://localhost:4000/docs",
     endpoints: {
       auth: "/api/v1/auth",
       users: "/api/v1/users",

@@ -30,7 +30,11 @@
     "types": ["bun-types"],
     "baseUrl": ".",
     "paths": {
-      "@/*": ["./src/*"]
+      "@/*": ["./src/*"],
+      "@/models": ["../../packages/contracts/src/models/index.ts"],
+      "@/models/*": ["../../packages/contracts/src/models/*"],
+      "@/dto": ["../../packages/contracts/src/dto/index.ts"],
+      "@/dto/*": ["../../packages/contracts/src/dto/*"]
     }
   }
 }

@@ -38,7 +38,7 @@ export function SignUpForm() {
       password: password,
       fetchOptions: {
         onSuccess() {
-          router.navigate("/(tabs)");
+          router.navigate("/(main)/(tabs)");
         },
       },
     });

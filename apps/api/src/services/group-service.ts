@@ -3,7 +3,12 @@ import type {
   GroupBalancesResponse,
   SettlementPlanResponse,
 } from "@/dto/groups.dto";
-import { BadRequestError } from "../errors/base-error";
+import {
+  BadRequestError,
+  NotFoundError,
+  ForbiddenError,
+  ConflictError,
+} from "../errors/base-error";
 import { GroupRepository } from "@/repositories/group-repository";
 import { GroupMemberService } from "./group-member-service";
 import { LoanService } from "./loan-service";
@@ -72,11 +77,11 @@ export class GroupService {
 
     const group = await this.groupRepository.findById(groupId);
     if (!group) {
-      throw new BadRequestError("Group not found");
+      throw new NotFoundError("Group");
     }
 
     if (group.createdBy !== userId) {
-      throw new BadRequestError("Forbidden");
+      throw new ForbiddenError("You do not have access to this group");
     }
 
     return group;
@@ -137,7 +142,7 @@ export class GroupService {
 
     const existingGroup = await this.groupRepository.findById(id);
     if (!existingGroup) {
-      throw new BadRequestError("Group not found");
+      throw new NotFoundError("Group");
     }
 
     return this.groupRepository.delete(id);
@@ -264,7 +269,7 @@ export class GroupService {
     // Validate that group exists
     const group = await this.groupRepository.findById(groupId);
     if (!group) {
-      throw new BadRequestError("Group not found");
+      throw new NotFoundError("Group");
     }
 
     // Get all members of the group
@@ -293,7 +298,7 @@ export class GroupService {
     // Validate that group exists
     const group = await this.groupRepository.findById(groupId);
     if (!group) {
-      throw new BadRequestError("Group not found");
+      throw new NotFoundError("Group");
     }
 
     // Get balances

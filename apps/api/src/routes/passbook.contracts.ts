@@ -1,5 +1,5 @@
 import { createRoute, z } from "@hono/zod-openapi";
-import { PassbookResponseSchema } from "@/dto/passbook.dto";
+import { PassbookResponseSchema } from "@pocket-pixie/contracts";
 
 export const getPassbookRoute = createRoute({
   method: "get",
@@ -26,24 +26,14 @@ export const getPassbookRoute = createRoute({
         example: "2025-12-31T23:59:59.999Z",
         description: "Filter by end date",
       }),
-      categoryId: z
-        .string()
-        .transform(Number)
-        .pipe(z.number())
-        .optional()
-        .openapi({
-          example: 123,
-          description: "Filter by category",
-        }),
-      accountId: z
-        .string()
-        .transform(Number)
-        .pipe(z.number())
-        .optional()
-        .openapi({
-          example: 123,
-          description: "Filter by account",
-        }),
+      categoryId: z.coerce.number().optional().openapi({
+        example: 123,
+        description: "Filter by category",
+      }),
+      accountId: z.coerce.number().optional().openapi({
+        example: 123,
+        description: "Filter by account",
+      }),
     }),
   },
   responses: {

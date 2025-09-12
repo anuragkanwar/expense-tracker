@@ -34,7 +34,7 @@ export function SignInForm() {
       password: password,
       fetchOptions: {
         onSuccess() {
-          router.navigate("/(tabs)");
+          router.navigate("/(main)/(tabs)");
         },
       },
     });

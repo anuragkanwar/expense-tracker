@@ -1,0 +1,15 @@
+{
+  "extends": "@pocket-pixie/typescript-config/base.json",
+  "compilerOptions": {
+    "composite": true,
+    "rootDir": "src",
+    "declaration": true,
+    "emitDeclarationOnly": true,
+    "declarationMap": true,
+    "outDir": "dist",
+    "module": "ESNext",
+    "moduleResolution": "bundler"
+  },
+  "include": ["src"],
+  "exclude": ["dist"]
+}

@@ -1,6 +1,8 @@
 import { createRoute, z } from "@hono/zod-openapi";
-import { RecurringResponseSchema } from "@/models/recurring";
-import { RecurringItemCreateSchema } from "@/dto/recurring-items.dto";
+import {
+  RecurringResponseSchema,
+  RecurringItemCreateSchema,
+} from "@pocket-pixie/contracts";
 
 export const getRecurringItemsRoute = createRoute({
   method: "get",
@@ -60,7 +62,7 @@ export const getRecurringItemRoute = createRoute({
   tags: ["Recurring Items"],
   request: {
     params: z.object({
-      itemId: z.string().transform(Number).pipe(z.number()).openapi({
+      itemId: z.coerce.number().openapi({
         example: 123,
         description: "Recurring item ID",
       }),
@@ -88,7 +90,7 @@ export const updateRecurringItemRoute = createRoute({
   tags: ["Recurring Items"],
   request: {
     params: z.object({
-      itemId: z.string().transform(Number).pipe(z.number()).openapi({
+      itemId: z.coerce.number().openapi({
         example: 123,
         description: "Recurring item ID",
       }),
@@ -124,7 +126,7 @@ export const deleteRecurringItemRoute = createRoute({
   tags: ["Recurring Items"],
   request: {
     params: z.object({
-      itemId: z.string().transform(Number).pipe(z.number()).openapi({
+      itemId: z.coerce.number().openapi({
         example: 123,
         description: "Recurring item ID",
       }),
