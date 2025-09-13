@@ -1,4 +1,4 @@
-const { withAndroidManifest } = require("@expo/config-plugins");
+const { withAndroidManifest } = require("expo/config-plugins");
 export default ({ config }) => {
   const profile = process.env.EXPO_PROFILE || "default";
 

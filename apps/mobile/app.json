@@ -18,7 +18,8 @@
         "backgroundColor": "#ffffff"
       },
       "edgeToEdgeEnabled": true,
-      "package": "com.anonymous.pocketpixiedev"
+      "package": "com.anonymous.pocketpixiedev",
+      "versionCode": 1
     },
     "web": {
       "bundler": "metro",

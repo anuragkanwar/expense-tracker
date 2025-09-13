@@ -1,4 +1,4 @@
-import { Stack, SplashScreen, useRouter, useSegments } from "expo-router";
+import { Stack, SplashScreen } from "expo-router";
 import "../global.css";
 import { ThemeProvider } from "@react-navigation/native";
 import { StatusBar, useColorScheme } from "react-native";
@@ -7,7 +7,6 @@ import { NAV_THEME } from "@/lib/theme";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useReactQueryDevTools } from "@dev-plugins/react-query";
 import { SafeAreaProvider } from "react-native-safe-area-context";
-import { useEffect } from "react";
 import { authClient } from "@/lib/auth-client";
 
 const queryClient = new QueryClient({});

@@ -7,3 +7,4 @@ onlyBuiltDependencies:
   - esbuild
   - sqlite3
   - unrs-resolver
+

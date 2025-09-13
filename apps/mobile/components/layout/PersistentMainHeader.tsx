@@ -41,8 +41,8 @@ export const PersistentMainHeader: React.FC = React.memo(() => {
 
   return (
     <View
-      style={{ paddingTop: top, backgroundColor }}
-      className="rounded-b-2xl"
+      style={{ paddingTop: top }}
+      className="bg-primary rounded-b-2xl overflow-hidden"
     >
       <View className="flex-row items-center justify-between h-12 px-4 pb-3">
         <View className="w-1/4">

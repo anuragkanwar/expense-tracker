@@ -6,15 +6,13 @@ export default function Layout() {
   return (
     <Tabs
       screenOptions={{
-        tabBarActiveTintColor: "#2b7fff",
-        tabBarInactiveTintColor: "#657786",
         tabBarStyle: {
           borderTopWidth: 1,
-          borderTopColor: "#E1E8ED",
           height: 70,
           paddingTop: 8,
           marginBottom: insets.bottom,
         },
+        animation: "fade",
         headerShown: false,
       }}
     >
