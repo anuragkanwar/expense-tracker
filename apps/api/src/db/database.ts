@@ -1,6 +1,6 @@
 import { drizzle } from "drizzle-orm/libsql";
 import { createClient, ResultSet } from "@libsql/client";
-import * as schema from "./schemas/index.js";
+import * as schema from "@pocket-pixie/db-schema";
 import { SQLiteTransaction } from "drizzle-orm/sqlite-core";
 import { ExtractTablesWithRelations } from "drizzle-orm";
 

@@ -2,8 +2,8 @@ import { createRoute, z } from "@hono/zod-openapi";
 import {
   TransactionAccountResponseSchema,
   TransactionAccountCreateSchema,
-} from "@/models/transaction-account";
-import { ACCOUNT_TYPE } from "@/db";
+} from "@pocket-pixie/contracts";
+import { ACCOUNT_TYPE } from "@pocket-pixie/db-schema";
 
 export const getAccountsRoute = createRoute({
   method: "get",
@@ -65,7 +65,7 @@ export const getAccountRoute = createRoute({
   tags: ["Accounts"],
   request: {
     params: z.object({
-      accountId: z.string().transform(Number).pipe(z.number()).openapi({
+      accountId: z.coerce.number().openapi({
         example: 123,
         description: "Account ID",
       }),
@@ -93,7 +93,7 @@ export const updateAccountRoute = createRoute({
   tags: ["Accounts"],
   request: {
     params: z.object({
-      accountId: z.string().transform(Number).pipe(z.number()).openapi({
+      accountId: z.coerce.number().openapi({
         example: 123,
         description: "Account ID",
       }),
@@ -129,7 +129,7 @@ export const deleteAccountRoute = createRoute({
   tags: ["Accounts"],
   request: {
     params: z.object({
-      accountId: z.string().transform(Number).pipe(z.number()).openapi({
+      accountId: z.coerce.number().openapi({
         example: 123,
         description: "Account ID",
       }),
@@ -189,7 +189,7 @@ export const getFriendsLoanAccountsRoute = createRoute({
   tags: ["Accounts"],
   request: {
     params: z.object({
-      friendId: z.string().transform(Number).pipe(z.number()).openapi({
+      friendId: z.coerce.number().openapi({
         example: 123,
         description: "Friend user ID",
       }),

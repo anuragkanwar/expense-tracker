@@ -17,7 +17,11 @@ import {
   SHARE_TYPE,
   TXN_TYPE,
 } from "@/db";
-import { NotFoundError, ValidationError } from "@/errors/base-error";
+import {
+  NotFoundError,
+  ValidationError,
+  ForbiddenError,
+} from "@/errors/base-error";
 import { GroupNotFoundError } from "@/errors/group-errors";
 import { TransactionUpdateWithDetails } from "@/dto/transactions.dto";
 import { mathOperationAndGetFixedNumber } from "@/utils/mathUtils";
@@ -480,7 +484,7 @@ export class TransactionService {
     if (transaction.userId !== userId) {
       // In a real implementation, check if user is in the splits
       // For now, we'll allow access if user is the creator
-      throw new ValidationError("You don't have access to this transaction");
+      throw new ForbiddenError("You don't have access to this transaction");
     }
 
     return transaction;

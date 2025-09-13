@@ -1,0 +1,19 @@
+{
+  "extends": "@pocket-pixie/typescript-config/base.json",
+  "compilerOptions": {
+    "strict": true,
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "target": "ESNext",
+    "baseUrl": ".",
+    "paths": {
+      "@pocket-pixie/contracts/*": ["./src/*"],
+      "@/models": ["./src/models/index.ts"],
+      "@/models/*": ["./src/models/*"],
+      "@/dto": ["./src/dto/index.ts"],
+      "@/dto/*": ["./src/dto/*"]
+    }
+  },
+  "include": ["src/**/*"],
+  "exclude": ["dist", "node_modules"]
+}

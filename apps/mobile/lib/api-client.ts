@@ -1,18 +1,21 @@
-import axios from "axios";
+import axios, { AxiosHeaders } from "axios";
+import { authClient } from "@/lib/auth-client";
 
 export const apiClient = axios.create({
-  baseURL: "http://10.101.82.236:3000",
+  baseURL: "http://10.101.83.129:3000",
   withCredentials: true,
 });
 
-export const attachCookie = (
-  cookie?: string,
-  headers?: Record<string, string>
-) => {
-  return {
-    headers: {
-      ...headers,
-      ...(cookie ? { Cookie: cookie } : {}),
-    },
-  };
-};
+// Attach cookie to every request automatically
+apiClient.interceptors.request.use(async (config) => {
+  const cookie = authClient.getCookie?.();
+  if (cookie) {
+    if (!config.headers) {
+      config.headers = new AxiosHeaders();
+    }
+    if (typeof (config.headers as any).set === "function") {
+      (config.headers as any).set("Cookie", cookie);
+    }
+  }
+  return config;
+});

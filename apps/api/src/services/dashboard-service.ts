@@ -33,6 +33,17 @@ export class DashboardService {
       startOfMonth,
       endOfMonth
     );
+
+    const totalLoanTaken = await this.dashboardRepository.getMonthlyLoanTaken(
+      userId,
+      startOfMonth,
+      endOfMonth
+    );
+    const totalLoanGiven = await this.dashboardRepository.getMonthlyLoanGiven(
+      userId,
+      startOfMonth,
+      endOfMonth
+    );
     const budgetUtilization =
       await this.dashboardRepository.getBudgetUtilization(
         userId,
@@ -61,6 +72,8 @@ export class DashboardService {
       month: now.toLocaleString("default", { month: "long", year: "numeric" }),
       totalIncome,
       totalExpenses,
+      totalLoanGiven,
+      totalLoanTaken,
       netIncome,
       budgetUtilization,
       savingsRate,

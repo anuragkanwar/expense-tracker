@@ -9,13 +9,15 @@ import type {
   BalanceSummaryResponseSchema,
   FriendBalanceResponseSchema,
   GroupBalanceResponseSchema,
-  SettlementPlanResponseSchema,
+  BalancesSettlementPlanResponseSchema,
 } from "@/dto/balances.dto";
 
 type BalanceSummaryResponse = z.infer<typeof BalanceSummaryResponseSchema>;
 type FriendBalanceResponse = z.infer<typeof FriendBalanceResponseSchema>;
 type GroupBalanceResponse = z.infer<typeof GroupBalanceResponseSchema>;
-type SettlementPlanResponse = z.infer<typeof SettlementPlanResponseSchema>;
+type SettlementPlanResponse = z.infer<
+  typeof BalancesSettlementPlanResponseSchema
+>;
 import { BadRequestError, InternalServerError } from "../errors/base-error";
 import { BalanceRepository } from "@/repositories/balance-repository";
 import { SettlementRepository } from "@/repositories/settlement-repository";

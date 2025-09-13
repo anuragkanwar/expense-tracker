@@ -1,6 +1,7 @@
 import { createAuthClient } from "better-auth/react";
 import { expoClient } from "@better-auth/expo/client";
 import * as SecureStore from "expo-secure-store";
+import { SECURESTORESESSIONKEY } from "./constants";
 
 // // const getApiUrl = () => {
 //   // const isDevice = process.env.EXPO_PUBLIC_ENV === "device";
@@ -21,8 +22,12 @@ export const authClient = createAuthClient({
   plugins: [
     expoClient({
       scheme: "pocket-pixie",
-      storagePrefix: "pocket-pixie",
+      storagePrefix: SECURESTORESESSIONKEY,
       storage: SecureStore,
+      disableCache: false,
     }),
   ],
 });
+
+export type Session = typeof authClient.$Infer.Session.session;
+export type User = typeof authClient.$Infer.Session.user;

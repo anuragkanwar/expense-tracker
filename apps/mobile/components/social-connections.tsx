@@ -2,6 +2,7 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { useColorScheme } from "nativewind";
 import { Image, Platform, View } from "react-native";
+import { authClient } from "@/lib/auth-client";
 
 const SOCIAL_CONNECTION_STRATEGIES = [
   {
@@ -34,7 +35,9 @@ export function SocialConnections() {
             size="sm"
             className="sm:flex-1"
             onPress={() => {
-              // TODO: Authenticate with social provider and navigate to protected screen if successful
+              authClient.signIn.social({
+                provider: "google",
+              });
             }}
           >
             <Image

@@ -7,8 +7,9 @@ export type {
 } from "./database";
 
 // Export all schema types and utilities
-export * from "./schemas";
-export * from "./constants";
+export * from "@pocket-pixie/db-schema";
+// Local constants removed in favor of shared enums from @pocket-pixie/db-schema
+// export * from "./constants";
 
 // Export auth instance
 export { auth } from "./auth";

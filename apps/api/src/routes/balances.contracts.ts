@@ -1,11 +1,16 @@
 import { createRoute, z } from "@hono/zod-openapi";
-import { SettlementCreateSchema } from "@/models/settlement";
 import {
+  IdParamSchema,
+  UserIdParamSchema,
+  MessageResponseSchema,
+} from "./shared-schemas";
+import {
+  SettlementCreateSchema,
   BalanceSummaryResponseSchema,
   FriendBalanceResponseSchema,
   GroupBalanceResponseSchema,
-  SettlementPlanResponseSchema,
-} from "@/dto/balances.dto";
+  BalancesSettlementPlanResponseSchema,
+} from "@pocket-pixie/contracts";
 
 export const getBalanceSummaryRoute = createRoute({
   method: "get",
@@ -35,10 +40,7 @@ export const getFriendBalanceRoute = createRoute({
   tags: ["Balances"],
   request: {
     params: z.object({
-      userId: z.string().transform(Number).pipe(z.number()).openapi({
-        example: 456,
-        description: "Friend's user ID",
-      }),
+      userId: UserIdParamSchema.openapi({ description: "Friend's user ID" }),
     }),
   },
   responses: {
@@ -63,10 +65,7 @@ export const getGroupBalanceRoute = createRoute({
   tags: ["Balances"],
   request: {
     params: z.object({
-      groupId: z.string().transform(Number).pipe(z.number()).openapi({
-        example: 123,
-        description: "Group ID",
-      }),
+      groupId: IdParamSchema.openapi({ description: "Group ID" }),
     }),
   },
   responses: {
@@ -102,10 +101,8 @@ export const createSettlementRoute = createRoute({
     201: {
       content: {
         "application/json": {
-          schema: z.object({
-            message: z
-              .string()
-              .openapi({ example: "Settlement recorded successfully" }),
+          schema: MessageResponseSchema.openapi({
+            example: { message: "Settlement recorded successfully" },
           }),
         },
       },
@@ -126,7 +123,7 @@ export const getGlobalSettlementPlanRoute = createRoute({
     200: {
       content: {
         "application/json": {
-          schema: SettlementPlanResponseSchema,
+          schema: BalancesSettlementPlanResponseSchema,
         },
       },
       description: "Global settlement plan retrieved successfully",
@@ -143,17 +140,14 @@ export const getGroupSettlementPlanRoute = createRoute({
   tags: ["Settlements"],
   request: {
     params: z.object({
-      groupId: z.string().transform(Number).pipe(z.number()).openapi({
-        example: 123,
-        description: "Group ID",
-      }),
+      groupId: IdParamSchema.openapi({ description: "Group ID" }),
     }),
   },
   responses: {
     200: {
       content: {
         "application/json": {
-          schema: SettlementPlanResponseSchema,
+          schema: BalancesSettlementPlanResponseSchema,
         },
       },
       description: "Group settlement plan retrieved successfully",
