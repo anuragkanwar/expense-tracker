@@ -1,5 +1,5 @@
-import { View } from "react-native";
-import { Button, Separator, Text } from "@/components/ui";
+import { TouchableOpacity, View } from "react-native";
+import { Text } from "@/components/ui";
 import { authClient } from "@/lib/auth-client";
 import { Feather } from "@expo/vector-icons";
 import { Profile } from "./Profile.component";
@@ -15,9 +15,12 @@ export function DashboardHeader() {
             <Text className="text-3xl capitalize">{data?.user.name}</Text>
           </View>
         </View>
-        <Button variant={"outline"} size={"icon"} className="rounded-full">
-          <Feather className="" color={"white"} size={18} name="bell" />
-        </Button>
+        <TouchableOpacity
+          className="flex flex-row h-16 w-16 justify-center items-center rounded-full bg-secondary"
+          onPress={() => {}}
+        >
+          <Feather color={"white"} size={22} name="bell" />
+        </TouchableOpacity>
       </View>
     </>
   );
