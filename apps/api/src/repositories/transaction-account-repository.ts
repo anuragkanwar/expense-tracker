@@ -1,10 +1,10 @@
 import { ACCOUNT_TYPE, transactionAccount } from "@/db";
 import { and, eq, inArray } from "drizzle-orm";
-import {
+import type {
   TransactionAccountResponse,
   TransactionAccountCreate,
   TransactionAccountUpdate,
-} from "@/models/transaction-account";
+} from "@pocket-pixie/contracts";
 import { type DBType, type DBTransactionType } from "@/db";
 
 export class TransactionAccountRepository {

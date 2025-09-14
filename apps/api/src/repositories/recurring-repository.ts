@@ -1,10 +1,10 @@
 import { recurring } from "@/db";
 import { eq } from "drizzle-orm";
-import {
+import type {
   RecurringResponse,
   RecurringCreate,
   RecurringUpdate,
-} from "@/models/recurring";
+} from "@pocket-pixie/contracts";
 import { type DBType, type DBTransactionType } from "@/db";
 
 export class RecurringRepository {

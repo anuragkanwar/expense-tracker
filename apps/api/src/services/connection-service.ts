@@ -2,7 +2,7 @@ import type {
   FriendshipResponse,
   FriendshipCreate,
   FriendshipUpdate,
-} from "@/models/friendship";
+} from "@pocket-pixie/contracts";
 import { BadRequestError } from "../errors/base-error";
 import { ConnectionRepository } from "@/repositories/connection-repository";
 

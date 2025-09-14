@@ -7,11 +7,11 @@ import {
   ACCOUNT_TYPE,
 } from "@/db";
 import { eq, and, sql, isNull, or, gt } from "drizzle-orm";
-import {
+import type {
   UserBalanceResponse,
   UserBalanceCreate,
   UserBalanceUpdate,
-} from "@/models/user-balance";
+} from "@pocket-pixie/contracts";
 import { type DBType, type DBTransactionType } from "@/db";
 
 export class BalanceRepository {

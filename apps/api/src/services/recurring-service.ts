@@ -2,7 +2,7 @@ import type {
   RecurringResponse,
   RecurringCreate,
   RecurringUpdate,
-} from "@/models/recurring";
+} from "@pocket-pixie/contracts";
 import { BadRequestError } from "../errors/base-error";
 import { RecurringRepository } from "@/repositories/recurring-repository";
 import { TransactionAccountRepository } from "@/repositories/transaction-account-repository";

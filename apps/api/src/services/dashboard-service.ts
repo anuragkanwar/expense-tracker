@@ -1,11 +1,11 @@
 import { DashboardRepository } from "@/repositories/dashboard-repository";
-import {
+import type {
   MonthlySummaryResponse,
   SpendingAnalyticsResponse,
   SpendingByCategoryResponse,
   UpcomingBillsResponse,
   NetWorthTrendResponse,
-} from "@/dto/dashboard.dto";
+} from "@pocket-pixie/contracts";
 
 export class DashboardService {
   private readonly dashboardRepository;

@@ -1,10 +1,10 @@
 import { settlement } from "@/db";
 import { eq, and } from "drizzle-orm";
-import {
+import type {
   SettlementResponse,
   SettlementCreate,
   SettlementUpdate,
-} from "@/models/settlement";
+} from "@pocket-pixie/contracts";
 import { type DBType, type DBTransactionType } from "@/db";
 
 export class SettlementRepository {

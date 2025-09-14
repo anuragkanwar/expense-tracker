@@ -1,10 +1,10 @@
 import { loanPayer } from "@/db";
 import { eq } from "drizzle-orm";
-import {
+import type {
   LoanPayerResponse,
   LoanPayerCreate,
   LoanPayerUpdate,
-} from "@/models/loan-payer";
+} from "@pocket-pixie/contracts";
 import { type DBType, type DBTransactionType } from "@/db";
 
 export class LoanPayerRepository {

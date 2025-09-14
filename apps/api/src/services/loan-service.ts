@@ -1,4 +1,3 @@
-import { TransactionCreateWithDetails } from "@/dto/transactions.dto";
 import { TransactionAccountNotFoundError } from "@/errors/transaction-account-errors";
 
 import {
@@ -25,7 +24,11 @@ import {
 import { NotFoundError, ValidationError } from "@/errors/base-error";
 import { GroupNotFoundError } from "@/errors/group-errors";
 import { mathOperationAndGetFixedNumber } from "@/utils/mathUtils";
-import { LoanUpdate, LoanResponse } from "@/models/loan";
+import {
+  type TransactionCreateWithDetails,
+  type LoanUpdate,
+  type LoanResponse,
+} from "@pocket-pixie/contracts";
 
 /**
  * LoanService

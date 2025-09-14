@@ -1,4 +1,8 @@
-import { TransactionCreateWithDetails } from "@/dto/transactions.dto";
+import {
+  TransactionCreateWithDetails,
+  TransactionUpdateWithDetails,
+  TransactionAccountResponse,
+} from "@pocket-pixie/contracts";
 import { TransactionAccountNotFoundError } from "@/errors/transaction-account-errors";
 import {
   TransactionRepository,
@@ -23,8 +27,7 @@ import {
   ValidationError,
   ForbiddenError,
 } from "@/errors/base-error";
-import { TransactionUpdateWithDetails } from "@/dto/transactions.dto";
-import { TransactionAccountResponse } from "@/models";
+
 import { TransactionHelperService } from "./transaction-helper-service"; // helper for double-entry updates
 import { BalanceAdjustmentService } from "./balance-adjustment-service";
 

@@ -3,7 +3,7 @@ import {
   TransactionEntryRepository,
   TransactionAccountRepository,
 } from "@/repositories";
-import type { TransactionAccountResponse } from "@/models/transaction-account";
+import type { TransactionAccountResponse } from "@pocket-pixie/contracts";
 import { type DBTransactionType } from "@/db";
 
 export class TransactionHelperService {

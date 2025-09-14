@@ -1,10 +1,10 @@
 import { loanSplit } from "@/db";
 import { eq } from "drizzle-orm";
-import {
+import type {
   LoanSplitResponse,
   LoanSplitCreate,
   LoanSplitUpdate,
-} from "@/models/loan-split";
+} from "@pocket-pixie/contracts";
 import { type DBType, type DBTransactionType } from "@/db";
 
 export class LoanSplitsRepository {

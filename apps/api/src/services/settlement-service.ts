@@ -2,7 +2,7 @@ import type {
   SettlementResponse,
   SettlementCreate,
   SettlementUpdate,
-} from "@/models/settlement";
+} from "@pocket-pixie/contracts";
 import { BadRequestError } from "../errors/base-error";
 import { SettlementRepository } from "@/repositories/settlement-repository";
 import {

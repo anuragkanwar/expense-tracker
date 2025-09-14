@@ -1,6 +1,10 @@
 import { loan } from "@/db";
 import { eq } from "drizzle-orm";
-import { LoanResponse, LoanCreate, LoanUpdate } from "@/models/loan";
+import type {
+  LoanResponse,
+  LoanCreate,
+  LoanUpdate,
+} from "@pocket-pixie/contracts";
 import { type DBType, type DBTransactionType } from "@/db";
 
 export class LoanRepository {

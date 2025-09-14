@@ -1,4 +1,4 @@
-import { SessionAuth, UserAuth } from "@/models/auth";
+import type { SessionAuth, UserAuth } from "@pocket-pixie/contracts";
 import { auth } from "@/db";
 import { MiddlewareHandler } from "hono";
 

@@ -5,7 +5,7 @@ import {
   UpcomingBillsResponseSchema,
   NetWorthTrendResponseSchema,
   SpendingAnalyticsResponseSchema,
-} from "@/dto/dashboard.dto";
+} from "@pocket-pixie/contracts";
 
 export const getMonthlySummaryRoute = createRoute({
   method: "get",

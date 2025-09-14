@@ -1,8 +1,12 @@
-import type { GroupResponse, GroupCreate, GroupUpdate } from "@/models/group";
 import type {
+  GroupResponse,
+  GroupCreate,
+  GroupUpdate,
+  GroupMemberBulkResponse,
   GroupBalancesResponse,
   SettlementPlanResponse,
-} from "@/dto/groups.dto";
+} from "@pocket-pixie/contracts";
+
 import {
   BadRequestError,
   NotFoundError,
@@ -14,7 +18,6 @@ import { GroupMemberService } from "./group-member-service";
 import { LoanService } from "./loan-service";
 import { FriendService } from "./friend-service";
 import { type DBType } from "@/db";
-import type { GroupMemberBulkResponse } from "@/models/group-member";
 
 export class GroupService {
   private readonly groupRepository;

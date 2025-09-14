@@ -10,7 +10,7 @@ import {
   createTransactionWithAIRoute,
 } from "./transactions.contracts";
 
-import { TransactionCreateWithDetails } from "@/dto/transactions.dto";
+import type { TransactionCreateWithDetails } from "@pocket-pixie/contracts";
 import { requireAuthMiddleware } from "@/middleware/require-auth-middleware";
 import { handleRouteError, AppError } from "@/utils/error-response-handler";
 

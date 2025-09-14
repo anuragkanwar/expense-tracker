@@ -1,13 +1,13 @@
 // Transaction contracts
-import { LoanResponseSchema } from "@/models/loan";
-import { createRoute, z } from "@hono/zod-openapi";
 import {
+  LoanResponseSchema,
   TransactionCreateWithDetailsSchema,
   TransactionCreateWithAIPromptSchema,
   TransactionUpdateWithDetailsSchema,
   TransactionWithDetailsResponseSchema,
   TransactionListResponseSchema,
-} from "@/dto/transactions.dto";
+} from "@pocket-pixie/contracts";
+import { createRoute, z } from "@hono/zod-openapi";
 
 export const createTransactionRoute = createRoute({
   method: "post",

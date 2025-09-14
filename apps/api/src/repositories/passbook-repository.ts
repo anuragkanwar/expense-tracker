@@ -1,8 +1,10 @@
 import { transaction, transactionEntry, transactionAccount } from "@/db";
 import { eq, and, gte, lte, desc, sql } from "drizzle-orm";
 import { type DBType, type DBTransactionType } from "@/db";
-import { TransactionResponse } from "@/models/transaction";
-import { TransactionAccountResponse } from "@/models/transaction-account";
+import type {
+  TransactionResponse,
+  TransactionAccountResponse,
+} from "@pocket-pixie/contracts";
 
 export interface PassbookFilters {
   startDate?: Date;

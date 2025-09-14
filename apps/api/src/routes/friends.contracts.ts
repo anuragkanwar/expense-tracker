@@ -1,5 +1,8 @@
-import { FriendshipResponseSchema } from "@/models/friendship";
-import { UserResponseSchema } from "@/models/user";
+import {
+  FriendshipResponseSchema,
+  UserResponseSchema,
+} from "@pocket-pixie/contracts";
+
 import { createRoute, z } from "@hono/zod-openapi";
 
 export const getFriendsRoute = createRoute({

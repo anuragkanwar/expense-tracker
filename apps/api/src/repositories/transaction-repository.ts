@@ -1,10 +1,10 @@
 import { transaction } from "@/db";
 import { eq } from "drizzle-orm";
-import {
+import type {
   TransactionResponse,
   TransactionCreate,
   TransactionUpdate,
-} from "@/models/transaction";
+} from "@pocket-pixie/contracts";
 import { type DBType, type DBTransactionType } from "@/db";
 
 export class TransactionRepository {

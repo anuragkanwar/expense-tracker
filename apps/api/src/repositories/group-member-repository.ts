@@ -1,10 +1,10 @@
 import { groupMember } from "@/db";
 import { eq, and } from "drizzle-orm";
-import {
+import type {
   GroupMemberResponse,
   GroupMemberCreate,
   GroupMemberUpdate,
-} from "@/models/group-member";
+} from "@pocket-pixie/contracts";
 import { type DBType, type DBTransactionType } from "@/db";
 
 export class GroupMemberRepository {

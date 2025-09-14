@@ -2,14 +2,14 @@ import type {
   UserBalanceResponse,
   UserBalanceCreate,
   UserBalanceUpdate,
-} from "@/models/user-balance";
+} from "@pocket-pixie/contracts";
 import { z } from "zod";
 import type {
   BalanceSummaryResponseSchema,
   FriendBalanceResponseSchema,
   GroupBalanceResponseSchema,
   BalancesSettlementPlanResponseSchema,
-} from "@/dto/balances.dto";
+} from "@pocket-pixie/contracts";
 
 type BalanceSummaryResponse = z.infer<typeof BalanceSummaryResponseSchema>;
 type FriendBalanceResponse = z.infer<typeof FriendBalanceResponseSchema>;

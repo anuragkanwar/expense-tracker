@@ -1,5 +1,5 @@
 import { type DBType, auth } from "@/db";
-import { UserCreate } from "@/models";
+import type { UserCreate } from "@pocket-pixie/contracts";
 import { TransactionAccountService } from "./transaction-account-service";
 
 export class AuthService {
