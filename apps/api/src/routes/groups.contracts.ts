@@ -356,7 +356,15 @@ export const createGroupDirectSettlementRoute = createRoute({
           schema: DirectSettlementResponseSchema,
         },
       },
-      description: "Settlement recorded successfully",
+      description: "Settlement recorded successfully (new)",
+    },
+    200: {
+      content: {
+        "application/json": {
+          schema: DirectSettlementResponseSchema,
+        },
+      },
+      description: "Idempotent replay - original settlement returned",
     },
     400: { description: "Validation Error" },
     401: { description: "Unauthorized" },

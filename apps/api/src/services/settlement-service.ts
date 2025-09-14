@@ -162,7 +162,7 @@ export class SettlementService {
     currency: string;
     groupId?: number | null;
     idempotencyKey?: string | null;
-  }): Promise<SettlementResponse> {
+  }): Promise<{ settlement: SettlementResponse; replay: boolean }> {
     const { payerId, payeeId, amount, currency, groupId, idempotencyKey } =
       params;
 
@@ -173,7 +173,7 @@ export class SettlementService {
       throw new BadRequestError("Settlement amount must be positive");
     }
 
-    const settlement = await this.db.transaction(async (tx) => {
+    const result = await this.db.transaction(async (tx) => {
       // If there are outstanding expense shares between these two users in this context,
       // force usage of allocation endpoint for correct FIFO semantics.
       const outstandingShares =
@@ -210,7 +210,35 @@ export class SettlementService {
           idempotencyKey,
           tx
         );
-        if (existing) return existing; // idempotent replay
+        if (existing) {
+          // Validate payload parity for idempotent replay; mismatch => conflict 409
+          const diffs: Record<string, { original: any; attempted: any }> = {};
+          if (existing.payerId !== payerId)
+            diffs.payerId = { original: existing.payerId, attempted: payerId };
+          if (existing.payeeId !== payeeId)
+            diffs.payeeId = { original: existing.payeeId, attempted: payeeId };
+          if (Math.abs(existing.amount - amount) > 1e-8)
+            diffs.amount = { original: existing.amount, attempted: amount };
+          if (existing.currency !== currency)
+            diffs.currency = {
+              original: existing.currency,
+              attempted: currency,
+            };
+          const existingGroup = (existing as any).groupId ?? null;
+          const attemptedGroup = groupId ?? null;
+          if (existingGroup !== attemptedGroup)
+            diffs.groupId = {
+              original: existingGroup,
+              attempted: attemptedGroup,
+            };
+          if (Object.keys(diffs).length) {
+            throw new IdempotencyKeyConflictError(
+              "Idempotency-Key reuse with differing payload",
+              diffs
+            );
+          }
+          return { settlement: existing, replay: true }; // idempotent replay
+        }
       }
 
       // Loan reversal ledger transaction
@@ -282,10 +310,10 @@ export class SettlementService {
         tx
       );
 
-      return created;
+      return { settlement: created, replay: false };
     });
 
-    return settlement;
+    return result;
   }
 
   /**

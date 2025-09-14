@@ -142,7 +142,7 @@ describe("SettlementService - direct + allocation flows", () => {
       .fn()
       .mockResolvedValueOnce({ amount: 40 });
 
-    const result = await service.createDirectSettlement({
+    const { settlement, replay } = await service.createDirectSettlement({
       payerId,
       payeeId,
       amount: 40,
@@ -151,7 +151,8 @@ describe("SettlementService - direct + allocation flows", () => {
       idempotencyKey: "direct-1",
     });
 
-    expect(result).toMatchObject({ id: 900, amount: 40 });
+    expect(replay).toBe(false);
+    expect(settlement).toMatchObject({ id: 900, amount: 40 });
     // Balance adjustment negative (reducing debt)
     expect(
       mockBalanceAdjustmentService.applyBilateralDelta
@@ -187,7 +188,7 @@ describe("SettlementService - direct + allocation flows", () => {
       .fn()
       .mockResolvedValueOnce({ amount: 55 });
 
-    const result = await service.createDirectSettlement({
+    const { settlement, replay } = await service.createDirectSettlement({
       payerId,
       payeeId,
       amount: 55,
@@ -196,7 +197,8 @@ describe("SettlementService - direct + allocation flows", () => {
       idempotencyKey: "direct-replay",
     });
 
-    expect(result).toBe(existing);
+    expect(replay).toBe(true);
+    expect(settlement).toBe(existing);
     expect(mockSettlementRepository.create).not.toHaveBeenCalled();
   });
 

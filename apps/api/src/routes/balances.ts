@@ -81,7 +81,7 @@ balanceRoutes.openapi(createDirectSettlementRoute, async (c) => {
     }
     const services = c.get("services");
     try {
-      const settlement =
+      const { settlement, replay } =
         await services.settlementService.createDirectSettlement({
           payerId: user.id,
           payeeId: settlementData.payeeId,
@@ -90,9 +90,7 @@ balanceRoutes.openapi(createDirectSettlementRoute, async (c) => {
           groupId: settlementData.groupId ?? null,
           idempotencyKey,
         });
-      // TODO: Extend service to return a replay flag; currently always returning 201 for new and 200 for heuristic replay is not reliable.
-      // Since service returns the existing object for a replay we can detect by querying repository (future improvement). For now always 201.
-      return c.json(settlement, 201);
+      return c.json(settlement, replay ? 200 : 201);
     } catch (error: any) {
       if (error instanceof IdempotencyKeyConflictError) {
         return c.json(error.toJSON(), 409 as any);

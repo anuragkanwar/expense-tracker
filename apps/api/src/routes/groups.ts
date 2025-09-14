@@ -249,15 +249,16 @@ groupRoutes.openapi(createGroupDirectSettlementRoute, async (c) => {
     if (!idempotencyKey) {
       return c.json({ message: "Idempotency-Key header required" }, 400);
     }
-    const settlement = await services.settlementService.createDirectSettlement({
-      payerId: user.id,
-      payeeId: body.payeeId,
-      amount: body.amount,
-      currency: body.currency,
-      groupId: body.groupId ?? null,
-      idempotencyKey,
-    });
-    return c.json(settlement, 201);
+    const { settlement, replay } =
+      await services.settlementService.createDirectSettlement({
+        payerId: user.id,
+        payeeId: body.payeeId,
+        amount: body.amount,
+        currency: body.currency,
+        groupId: body.groupId ?? null,
+        idempotencyKey,
+      });
+    return c.json(settlement, replay ? 200 : 201);
   } catch (error: any) {
     return c.json({ message: "Failed to record settlement" }, 400);
   }

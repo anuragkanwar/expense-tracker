@@ -24,6 +24,7 @@ export * from "./recurring-items";
 
 // Balances and settlements routes
 export * from "./balances";
+export * from "./settlements";
 
 // Dashboard routes
 export * from "./dashboard";
