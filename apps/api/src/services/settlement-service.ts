@@ -189,6 +189,21 @@ export class SettlementService {
         );
       }
 
+      // Overpayment validation (Flag F2 resolved): fetch current outstanding debt
+      // Creditor perspective row: owner=payeeId, counterParty=payerId
+      const creditorRow = await this.balanceRepository.findBalance(
+        payeeId,
+        payerId,
+        groupId ?? null,
+        tx
+      );
+      const outstanding = creditorRow?.amount ?? 0;
+      if (outstanding <= 0 || amount > outstanding + 1e-8) {
+        throw new BadRequestError(
+          `Settlement amount ${amount} exceeds outstanding ${outstanding}`
+        );
+      }
+
       if (idempotencyKey) {
         const existing = await this.settlementRepository.findByIdempotencyKey(
           idempotencyKey,

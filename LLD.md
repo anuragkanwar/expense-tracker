@@ -375,7 +375,7 @@ Table: `settlement_application`
 
 - Legacy principle: every monetary movement is represented as double-entry ledger entries.
 - **Current State**: `allocateExpenseShareSettlement` updates `expense_share`, `settlement`, `settlement_application`, and `user_balance`, but DOES NOT create new `transaction` + `transaction_entry` rows (no LOAN_TAKEN/LOAN_GIVEN reversal entries or cash outflow entries).
-- **Implication**: Loan account aggregations will not reflect repayments recorded only through allocation. User-facing net balances remain correct (because user*balance is canonical for interpersonal debt), but ledger-based analytics relying solely on LOAN*\* entries will overstate outstanding debt until parity is recalculated or a summarizing ledger entry is added.
+- **Implication**: Loan account aggregations will not reflect repayments recorded only through allocation. User-facing net balances remain correct (because user\*balance is canonical for interpersonal debt), but ledger-based analytics relying solely on LOAN\*\* entries will overstate outstanding debt until parity is recalculated or a summarizing ledger entry is added.
 - **Planned Resolution** (Future Enhancement): Introduce summarized periodic ledger entries for aggregated settlement allocations or per-allocation micro-entries behind a feature flag.
 
 ### Legacy vs Canonical Flow (Conceptual Comparison)
@@ -521,9 +521,8 @@ Response:
 
 (Each flag references the flow(s) it impacts and planned remediation track.)
 
-- Flag F1 (Balance Sign Inconsistency): TransactionService shared expense balance updates invert sign relative to BalanceService + SettlementService. Impact: Flow 5 (shared expense), Flow 6 (allocation) reconciliation & dashboard computations. Planned: Establish canonical convention (+amount means counterParty owes owner) then refactor TransactionService.updateBalances and migrate existing rows.
-- Flag F2 (Overpayment Not Prevented in Direct Settlement): Direct legacy settlements (Flow 4) do not cap amount to outstanding net. Risk of negative debt states. Planned: Validation against current user_balance prior to ledger reversal; reject or clamp with explicit response field.
-- Flag F3 (Missing Idempotency Documentation / Enforcement for Allocation): Allocation endpoint requires/idempotency support not fully documented (Flow 6). Planned: Add Idempotency-Key header contract + server-side key storage to guard duplicate submissions.
+- Flag F2 (Overpayment Not Prevented in Direct Settlement): RESOLVED. Direct legacy settlements (Flow 4) now validate requested amount against current outstanding (creditor perspective user_balance row). Attempts where outstanding <= 0 or amount > outstanding are rejected with `Settlement amount X exceeds outstanding Y`. Prevents negative debt states.
+- Flag F3 (Missing Idempotency Documentation / Enforcement for Allocation): Allocation endpoint requires/idempotency support not fully documented (Flow 6). Planned: Add Idempotency-Key header contract + server-side key storage to guard duplicate submissions. (Partially Implemented: key honored in service; docs still reference gap; will reclassify once endpoint contract is updated.)
 - Flag F4 (Zero-Amount Payer Share Rows Noise): Flow 5 may create payer share entries with amount 0 but status UNPAID. Planned: Either omit zero rows or mark as PAID at insertion; migration to clean existing noise.
 - Flag F5 (Dual Loan Pathways Divergence): Flow 3 uses both LoanService and TransactionService leading to potential drift in validation or side-effects. Planned: Consolidate through a single orchestrator (LoanService) delegating ledger creation; deprecate alternate path.
 - Flag F6 (Ledger Omission for Allocations): Flow 6 produces no double-entry representation, breaking full ledger parity. Planned: Phase 1 reconciliation job deriving synthetic ledger snapshots; Phase 2 optional per-allocation micro-entries behind feature flag.
@@ -531,6 +530,10 @@ Response:
 - Flag F8 (Concurrency Race on Parallel Allocations): Parallel Flow 6 requests can over-allocate same shares. Planned: DB-level row locking (when supported) or application mutex keyed by payerId-payeeId-groupId triad.
 - Flag F9 (Incomplete OpenAPI / Contract Coverage): Allocation endpoint missing header docs; share listing endpoints absent (affects discoverability for Flows 5 & 6). Planned: Extend contracts + SDK generation.
 - Flag F10 (No FX / Multi-Currency Normalization): Cross-currency settlements undefined (affects potential future Flows 5 & 6). Planned: Currency normalization layer + stored functional currency per group/user.
+
+#### Resolved Flags (Historical)
+
+- Flag F1 (Balance Sign Inconsistency): RESOLVED. A canonical bilateral mutation path was introduced via BalanceAdjustmentService.applyBilateralDelta(creditorId, debtorId, amount). All shared expense and settlement flows now conform: positive amount increases debtor obligation; negative amount reduces it. Legacy inconsistent mutation paths removed/refactored. Existing user_balance rows created under old convention were aligned during refactor (future data migration note if historical data existed pre-refactor).
 
 - Allocation flow lacks corresponding double-entry ledger entries (design gap)
 - No idempotency keys for allocation endpoint
@@ -550,7 +553,7 @@ Response:
 
 ### (Removed detailed code quality changelog to keep domain focus)
 
-(Implementation detail section removed)
+(Removed)
 
 (Removed)
 

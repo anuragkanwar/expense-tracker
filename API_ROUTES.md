@@ -35,8 +35,9 @@ Balances and settlments
 GET /api/v1/balances Gets the user's total balance (total owed vs. total owed to you).
 GET /api/v1/balances/friends/{userId} Gets the total consolidated balance with a specific friend.
 GET /api/v1/balances/groups/{groupId} Gets the user's net balance within a specific group.
-POST /api/v1/settlements Records a payment to settle a debt (e.g., "I paid Jane $20").
+POST /api/v1/settlements Records a payment to settle a debt (e.g., "I paid Jane $20"). Requires Idempotency-Key header. Rejects overpayment above current outstanding (400).
 GET /api/v1/settlements/simplify Gets a simplified payment plan for all of the user's debts.
+POST /api/v1/settlements/allocate Allocates a settlement across outstanding expense shares (FIFO). Requires Idempotency-Key header.
 GET /api/v1/settlements/groups/{groupId}/simplify Gets a simplified payment plan for a specific group.
 
 Personal Finance: acconts, passbook, categories

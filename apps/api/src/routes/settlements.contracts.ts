@@ -12,6 +12,15 @@ export const allocateExpenseShareSettlementRoute = createRoute({
     "Allocates a settlement amount paid by the authenticated user (participant) to the original payer across outstanding expense shares using FIFO ordering.",
   tags: ["Settlements"],
   request: {
+    headers: z
+      .object({
+        "Idempotency-Key": z.string().min(1).openapi({
+          description:
+            "Idempotency key to safely retry allocation requests without creating duplicates",
+          example: "allocate-123e4567-e89b-12d3-a456-426614174000",
+        }),
+      })
+      .openapi({ description: "Required idempotency header" }),
     body: {
       content: {
         "application/json": {
