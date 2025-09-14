@@ -109,6 +109,7 @@ container.register({
   loanService: asClass(LoanService, { lifetime: Lifetime.SCOPED }).inject(
     () => ({
       transactionService: container.resolve("transactionService"),
+      interpersonalDebtEngine: container.resolve("interpersonalDebtEngine"),
     })
   ),
   friendService: asClass(FriendService, { lifetime: Lifetime.SCOPED }),
@@ -129,6 +130,11 @@ container.register({
     {
       lifetime: Lifetime.SCOPED,
     }
+  ),
+  interpersonalDebtEngine: asClass(
+    (await import("./services/interpersonal-debt-engine"))
+      .InterpersonalDebtEngineImpl,
+    { lifetime: Lifetime.SCOPED }
   ),
   settlementService: asClass(SettlementService, {
     lifetime: Lifetime.SCOPED,

@@ -13,6 +13,7 @@ import {
 import { FriendService } from "./friend-service";
 import { TransactionService } from "./transaction-service";
 import { BalanceAdjustmentService } from "./balance-adjustment-service";
+import { InterpersonalDebtEngine } from "./interpersonal-debt-engine";
 
 import {
   ACCOUNT_TYPE,
@@ -24,22 +25,28 @@ import {
 import { NotFoundError, ValidationError } from "@/errors/base-error";
 import { GroupNotFoundError } from "@/errors/group-errors";
 import { mathOperationAndGetFixedNumber } from "@/utils/mathUtils";
-import { TransactionAccountResponse } from "@/models";
-import { LoanUpdate } from "@/models/loan";
-import { TransactionHelperService } from "./transaction-helper-service";
+import { LoanUpdate, LoanResponse } from "@/models/loan";
 
+/**
+ * LoanService
+ * Canonical entrypoint for direct bilateral loans (Flag F5 remediation stages 2 & 3 interim).
+ * LOAN_TAKEN direction is disabled; all creations must specify type=LOAN_GIVEN. TransactionService
+ * path for loan types remains blocked. Balance mutations flow through InterpersonalDebtEngine (if present)
+ * falling back to BalanceAdjustmentService until the engine is fully adopted elsewhere.
+ */
 export class LoanService {
   private readonly loanPayerRepository;
-  private readonly loanRepository;
+  private readonly loanRepository: LoanRepository;
   private readonly loanSplitsRepository;
   private readonly groupMemberRepository;
   private readonly groupRepository;
   private readonly transactionAccountRepository;
   private readonly userRepository;
 
-  private readonly transactionService;
-  private readonly friendService;
-  private readonly balanceAdjustmentService: BalanceAdjustmentService;
+  private readonly transactionService: TransactionService;
+  private readonly friendService: FriendService;
+  private readonly balanceAdjustmentService: BalanceAdjustmentService; // fallback
+  private readonly interpersonalDebtEngine?: InterpersonalDebtEngine; // new engine
   private db: DBType;
   constructor({
     db,
@@ -50,10 +57,10 @@ export class LoanService {
     groupRepository,
     transactionAccountRepository,
     userRepository,
-
     transactionService,
     friendService,
     balanceAdjustmentService,
+    interpersonalDebtEngine, // optional during transition
   }: {
     db: DBType;
     loanPayerRepository: LoanPayerRepository;
@@ -63,10 +70,10 @@ export class LoanService {
     groupRepository: GroupRepository;
     transactionAccountRepository: TransactionAccountRepository;
     userRepository: UserRepository;
-
     transactionService: TransactionService;
     friendService: FriendService;
     balanceAdjustmentService: BalanceAdjustmentService;
+    interpersonalDebtEngine?: InterpersonalDebtEngine;
   }) {
     this.db = db;
     this.loanPayerRepository = loanPayerRepository;
@@ -80,6 +87,7 @@ export class LoanService {
     this.transactionService = transactionService;
     this.friendService = friendService;
     this.balanceAdjustmentService = balanceAdjustmentService;
+    this.interpersonalDebtEngine = interpersonalDebtEngine;
   }
 
   private async validateLoanTransaction(
@@ -94,7 +102,6 @@ export class LoanService {
       type,
     } = loanCreateWithDetails;
 
-    // Validate splits for loan transactions
     if (!splits || splits.length !== 1) {
       throw new ValidationError(
         "Loan transactions must have exactly one split entry"
@@ -118,7 +125,6 @@ export class LoanService {
     if (!loanSrcAcc) {
       throw new TransactionAccountNotFoundError("Source account not found");
     }
-
     if (loanSrcAcc.type !== ACCOUNT_TYPE.LOAN_GIVEN) {
       throw new ValidationError(
         "Source account must be LOAN_GIVEN for loan transactions"
@@ -137,36 +143,27 @@ export class LoanService {
         "Destination account not found"
       );
     }
-
     if (loanDstAcc.type !== ACCOUNT_TYPE.LOAN_TAKEN) {
       throw new ValidationError(
         "Destination account must be LOAN_TAKEN for loan transactions"
       );
     }
 
-    // Additional validation for transaction type
-    if (type === TXN_TYPE.LOAN_GIVEN) {
-      if (loanSrcAcc.userId !== payerId) {
-        throw new ValidationError(
-          "Source account must belong to the payer for LOAN_GIVEN transactions"
-        );
-      }
-      if (loanDstAcc.userId !== loanSplitUser.userId) {
-        throw new ValidationError(
-          "Destination account must belong to the split user for LOAN_GIVEN transactions"
-        );
-      }
-    } else if (type === TXN_TYPE.LOAN_TAKEN) {
-      if (loanSrcAcc.userId !== loanSplitUser.userId) {
-        throw new ValidationError(
-          "Source account must belong to the split user for LOAN_TAKEN transactions"
-        );
-      }
-      if (loanDstAcc.userId !== payerId) {
-        throw new ValidationError(
-          "Destination account must belong to the payer for LOAN_TAKEN transactions"
-        );
-      }
+    // Orientation validation (single canonical direction: LOAN_GIVEN)
+    if (type !== TXN_TYPE.LOAN_GIVEN) {
+      throw new ValidationError(
+        "Only LOAN_GIVEN direction is supported (LOAN_TAKEN disabled)"
+      );
+    }
+    if (loanSrcAcc.userId !== payerId) {
+      throw new ValidationError(
+        "Source account must belong to the payer for LOAN_GIVEN transactions"
+      );
+    }
+    if (loanDstAcc.userId !== loanSplitUser.userId) {
+      throw new ValidationError(
+        "Destination account must belong to the split user for LOAN_GIVEN transactions"
+      );
     }
   }
 
@@ -174,13 +171,10 @@ export class LoanService {
     payerId: number,
     loanCreateWithDetails: TransactionCreateWithDetails,
     txnId: number,
-    splits: {
-      userId: number;
-      amountOwed: number;
-    }[],
+    splits: { userId: number; amountOwed: number }[],
     currency: string,
     tx?: DBTransactionType
-  ) {
+  ): Promise<LoanResponse> {
     const loan = await this.loanRepository.create(
       {
         amount: loanCreateWithDetails.amount,
@@ -213,19 +207,18 @@ export class LoanService {
           ACCOUNT_TYPE.LOAN_TAKEN,
           tx
         );
-
       if (!payeeLoanTakenAcc) {
         throw new TransactionAccountNotFoundError(
           `${split.userId} , LOAN_TAKEN`
         );
       }
+
       const payerLoanGiveAcc =
         await this.transactionAccountRepository.findByUserIdAndCategoryName(
           payerId,
           ACCOUNT_TYPE.LOAN_GIVEN,
           tx
         );
-
       if (!payerLoanGiveAcc) {
         throw new TransactionAccountNotFoundError(`${payerId} ,  LOAN_GIVEN`);
       }
@@ -242,15 +235,28 @@ export class LoanService {
         tx
       );
 
-      // Adjust balances using canonical service (payer is creditor, split.userId is debtor)
-      await this.balanceAdjustmentService.applyBilateralDelta(
-        payerId,
-        split.userId,
-        split.amountOwed,
-        currency,
-        loanCreateWithDetails.groupId ?? null,
-        tx
-      );
+      // Balance mutation via engine (canonical) or fallback.
+      if (this.interpersonalDebtEngine) {
+        await this.interpersonalDebtEngine.recordDirectLoan(
+          {
+            creditorId: payerId,
+            debtorId: split.userId,
+            amount: split.amountOwed,
+            currency,
+            groupId: loanCreateWithDetails.groupId ?? null,
+          },
+          tx
+        );
+      } else {
+        await this.balanceAdjustmentService.applyBilateralDelta(
+          payerId,
+          split.userId,
+          split.amountOwed,
+          currency,
+          loanCreateWithDetails.groupId ?? null,
+          tx
+        );
+      }
 
       await this.loanSplitsRepository.create(
         {
@@ -263,16 +269,13 @@ export class LoanService {
         tx
       );
     }
+
+    return loan;
   }
 
   private async calculateSplits(
     loanCreateWithDetails: TransactionCreateWithDetails
-  ): Promise<
-    {
-      userId: number;
-      amountOwed: number;
-    }[]
-  > {
+  ): Promise<{ userId: number; amountOwed: number }[]> {
     const payerId = loanCreateWithDetails.payer;
     if (!loanCreateWithDetails.groupId) {
       throw new ValidationError(
@@ -283,14 +286,13 @@ export class LoanService {
     const group = await this.groupRepository.findById(
       loanCreateWithDetails.groupId
     );
-
     if (!group) {
       throw new GroupNotFoundError(`${loanCreateWithDetails.groupId}`);
     }
+
     const groupMembers = await this.groupMemberRepository.findByGroupId(
       group.id
     );
-
     if (groupMembers.length === 0) {
       throw new ValidationError("group is not valid 0 members huh");
     }
@@ -300,38 +302,32 @@ export class LoanService {
       groupMembers.length,
       (a, b) => a / b
     );
-    const splits: {
-      userId: number;
-      amountOwed: number;
-    }[] = [];
+
+    const splits: { userId: number; amountOwed: number }[] = [];
     for (const member of groupMembers) {
-      if (member.id === payerId) {
-        continue;
-      }
-      splits.push({
-        userId: member.id,
-        amountOwed: splitPrice,
-      });
+      if (member.id === payerId) continue;
+      splits.push({ userId: member.id, amountOwed: splitPrice });
     }
     return splits;
   }
 
-  // NOTE:
-  // EXPENSE => OUTGOING -> EXPENSE (categories)
-  // INCOME => EXTERNAL (-) -> INCOME (+)
-  // LOAN_TAKEN => LOAN_GIVEN (someones) -> LOAN_TAKEN
-  // LOAN_GIVEN => LOAN_TAKEN (someones) -> LOAN_GIVEN
-  async createLoan(loanCreateWithDetails: TransactionCreateWithDetails) {
+  async createLoan(
+    loanCreateWithDetails: TransactionCreateWithDetails
+  ): Promise<LoanResponse> {
     const payerId = loanCreateWithDetails.payer;
 
-    // Validate loan transactions specifically
-    if (
-      loanCreateWithDetails.type === TXN_TYPE.LOAN_GIVEN ||
-      loanCreateWithDetails.type === TXN_TYPE.LOAN_TAKEN
-    ) {
+    if (loanCreateWithDetails.type === TXN_TYPE.LOAN_TAKEN) {
+      // Early hard block (Stage 3 interim decision)
+      throw new ValidationError(
+        "LOAN_TAKEN creation is disabled – use LOAN_GIVEN canonical direction"
+      );
+    }
+
+    if (loanCreateWithDetails.type === TXN_TYPE.LOAN_GIVEN) {
       await this.validateLoanTransaction(payerId, loanCreateWithDetails);
     }
 
+    let createdLoan: LoanResponse | null = null;
     await this.db.transaction(async (tx) => {
       try {
         const { srcAcc, dstAcc } =
@@ -355,6 +351,7 @@ export class LoanService {
           loanCreateWithDetails.type === TXN_TYPE.LOAN_TAKEN
         ) {
           if (loanCreateWithDetails.sharedWith === SHARE_TYPE.NONE) {
+            // Direct (non-shared) case - still create ledger entries, but no loan metadata
             await this.transactionService.updateAccountsAndCreateEntries(
               [
                 {
@@ -365,6 +362,9 @@ export class LoanService {
                 },
               ],
               tx
+            );
+            throw new ValidationError(
+              "Direct loan creation requires a shared context (FRIENDS/GROUP) with a single split"
             );
           } else if (
             loanCreateWithDetails.sharedWith === SHARE_TYPE.GROUP ||
@@ -385,19 +385,16 @@ export class LoanService {
             );
             const payerTotal = loanCreateWithDetails.amount - splitTotal;
 
-            // Validate payerTotal based on transaction type
             if (
               loanCreateWithDetails.type === TXN_TYPE.LOAN_GIVEN ||
               loanCreateWithDetails.type === TXN_TYPE.LOAN_TAKEN
             ) {
-              // For loans, payerTotal must be exactly 0
               if (payerTotal !== 0) {
                 throw new ValidationError(
                   `For loan transactions, payer total must be 0, got ${payerTotal}`
                 );
               }
             } else if (loanCreateWithDetails.type === TXN_TYPE.EXPENSE) {
-              // For expenses, payerTotal must be >= 0
               if (payerTotal < 0) {
                 throw new ValidationError(
                   `Split amounts (${splitTotal}) cannot exceed total expense amount (${loanCreateWithDetails.amount})`
@@ -419,11 +416,10 @@ export class LoanService {
               );
             }
 
-            // Get user's currency preference
             const user = await this.userRepository.findById(payerId);
             const userCurrency = user?.currency || "INR";
 
-            await this.createLoanAndHandleSplits(
+            createdLoan = await this.createLoanAndHandleSplits(
               payerId,
               loanCreateWithDetails,
               txnHeader.id,
@@ -449,6 +445,9 @@ export class LoanService {
             ],
             tx
           );
+          throw new ValidationError(
+            "LoanService does not handle INCOME / SAVING transactions"
+          );
         } else {
           throw new NotFoundError("Provided txn type not found");
         }
@@ -457,46 +456,31 @@ export class LoanService {
         throw error;
       }
     });
+
+    if (!createdLoan) {
+      throw new NotFoundError("Loan creation failed");
+    }
+    return createdLoan;
   }
 
   async getLoans(
     userId: number,
-    filters: {
-      page?: number;
-      limit?: number;
-      type?: string;
-    } = {}
+    filters: { page?: number; limit?: number; type?: string } = {}
   ) {
     const { page = 1, limit = 20, type } = filters;
     const offset = (page - 1) * limit;
 
-    // Get loans where user is either payer or participant
     const loans = await this.loanRepository.findAll(limit, offset);
+    const userLoans = loans.filter((loan) => loan.createdBy === userId);
 
-    // Filter loans based on user involvement
-    const userLoans = loans.filter((loan) => {
-      // User is the payer
-      if (loan.createdBy === userId) return true;
-
-      // User is a participant (check splits)
-      // This is a simplified check - in a real implementation,
-      // you'd join with loan_splits table
-      return false;
-    });
-
-    // Apply type filter if specified
     let filteredLoans = userLoans;
     if (type) {
-      filteredLoans = userLoans.filter((_loan) => {
-        // This is a simplified type check - in a real implementation,
-        // you'd check the transaction type from the related transaction
-        return true; // Placeholder
-      });
+      filteredLoans = userLoans.filter(() => true); // placeholder filter
     }
 
     return {
       loans: filteredLoans,
-      total: filteredLoans.length, // This should be a proper count query
+      total: filteredLoans.length,
       page,
       limit,
     };
@@ -504,19 +488,11 @@ export class LoanService {
 
   async getLoanById(loanId: number, userId: number) {
     const loan = await this.loanRepository.findById(loanId);
+    if (!loan) throw new NotFoundError("Loan not found");
 
-    if (!loan) {
-      throw new NotFoundError("Loan not found");
-    }
-
-    // Check if user has access to this loan
-    // User must be the payer or a participant
     if (loan.createdBy !== userId) {
-      // In a real implementation, check if user is in the splits
-      // For now, we'll allow access if user is the creator
       throw new ValidationError("You don't have access to this loan");
     }
-
     return loan;
   }
 
@@ -528,33 +504,20 @@ export class LoanService {
     const { page = 1, limit = 20 } = filters;
     const offset = (page - 1) * limit;
 
-    // Verify user has access to the group
     const group = await this.groupRepository.findById(groupId);
-    if (!group) {
-      throw new NotFoundError("Group not found");
-    }
+    if (!group) throw new NotFoundError("Group not found");
 
-    // Check if user is a member of the group
     const isMember = await this.groupMemberRepository.findByGroupIdAndUserId(
       groupId,
       userId
     );
-    if (!isMember) {
+    if (!isMember)
       throw new ValidationError("You don't have access to this group");
-    }
 
-    // Get loans for the group
     const loans = await this.loanRepository.findAll(limit, offset);
-
-    // Filter loans that belong to this group
     const groupLoans = loans.filter((loan) => loan.groupId === groupId);
 
-    return {
-      loans: groupLoans,
-      total: groupLoans.length, // This should be a proper count query
-      page,
-      limit,
-    };
+    return { loans: groupLoans, total: groupLoans.length, page, limit };
   }
 
   async getFriendLoans(
@@ -565,57 +528,30 @@ export class LoanService {
     const { page = 1, limit = 20 } = filters;
     const offset = (page - 1) * limit;
 
-    // Verify users are friends
     const areFriends = await this.friendService.areFriends(userId, friendId);
     if (!areFriends) {
       throw new ValidationError("You can only view expenses with friends");
     }
 
-    // Get loans where both users are involved
     const loans = await this.loanRepository.findAll(limit, offset);
+    const friendLoans = loans.filter(
+      (loan) => loan.createdBy === userId || loan.createdBy === friendId
+    );
 
-    // Filter loans involving both users
-    const friendLoans = loans.filter((loan) => {
-      // User is the payer and friend is a participant, or vice versa
-      if (loan.createdBy === userId || loan.createdBy === friendId) {
-        return true;
-      }
-      return false;
-    });
-
-    return {
-      loans: friendLoans,
-      total: friendLoans.length, // This should be a proper count query
-      page,
-      limit,
-    };
+    return { loans: friendLoans, total: friendLoans.length, page, limit };
   }
 
   async updateLoan(loanId: number, userId: number, updateData: LoanUpdate) {
-    // Verify expense exists and user has access
-    await this.getLoanById(loanId, userId);
-
-    // Update the loan
+    await this.getLoanById(loanId, userId); // access check
     const updatedLoan = await this.loanRepository.update(loanId, updateData);
-
-    if (!updatedLoan) {
-      throw new NotFoundError("Failed to update loan");
-    }
-
+    if (!updatedLoan) throw new NotFoundError("Failed to update loan");
     return updatedLoan;
   }
 
   async deleteLoan(loanId: number, userId: number) {
-    // Verify loan exists and user has access
-    await this.getLoanById(loanId, userId);
-
-    // Delete the loan
+    await this.getLoanById(loanId, userId); // access check
     const deleted = await this.loanRepository.delete(loanId);
-
-    if (!deleted) {
-      throw new NotFoundError("Failed to delete loan");
-    }
-
+    if (!deleted) throw new NotFoundError("Failed to delete loan");
     return { message: "Loan deleted successfully" };
   }
 }

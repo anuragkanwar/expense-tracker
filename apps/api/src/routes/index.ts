@@ -10,6 +10,9 @@ export * from "./groups";
 // Transaction management routes
 export * from "./transactions";
 
+// Loan routes (direct loans canonical path)
+export * from "./loans";
+
 // Financial tracking routes
 export * from "./passbook";
 

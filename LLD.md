@@ -1,6 +1,6 @@
 # Low Level Design (LLD) - Pocket Pixie (Core Domain Focus)
 
-Updated: 2025-09-14 (Refocused to core logic only – implementation specifics removed)
+Updated: 2025-09-14 (Refocused to core logic only – F5 Stages 1–3 complete: canonical /loans API, standardized error schemas, single LOAN_GIVEN direction)
 
 ## Overview
 
@@ -80,17 +80,17 @@ Flow 2: Income / Saving
 - Invariants: No cross-user state touched.
 - Notes: Provides basis for dashboards (income, savings rates).
 
-Flow 3: Direct Loan (Loan Given / Taken)
+Flow 3: Direct Loan (Loan Given) [Canonical via LoanService]
 
 - Purpose: Represent bilateral lending between two users.
-- Trigger: Loan transaction (LOAN_GIVEN or LOAN_TAKEN) creation.
-- Services: LoanService OR TransactionService (dual pathway – see Flag F5).
-- Tables (W): transaction, transaction_entry, user_balance (two mirrored rows), loan/expense split metadata (legacy), MAY create expense_share in future unification.
+- Trigger: Loan transaction creation (type MUST be LOAN_GIVEN) via /api/v1/loans. LOAN_TAKEN direction is hard blocked (Stage 3 interim decision of Flag F5) – clients must always submit LOAN_GIVEN.
+- Services: LoanService (canonical). TransactionService path BLOCKED (Flag F5 remediation stage 1).
+- Tables (W): transaction, transaction_entry, user_balance (two mirrored rows), loan + loan_payer + loan_splits metadata. (Future: may emit expense_share rows after obligation model unification.)
 - Ledger: LOAN_GIVEN (-) → LOAN_TAKEN (+).
-- User Balance: +amount row for lender perspective, -amount reciprocal for borrower.
+- User Balance: +amount row for lender perspective, -amount reciprocal for borrower (via BalanceAdjustmentService.applyBilateralDelta or InterpersonalDebtEngine.recordDirectLoan when available).
 - Expense Shares: Not created today (loan relies on ledger + balance) – potential future normalization.
-- Invariants: Exactly one split; split amount == transaction amount; payer and split user distinct.
-- Notes: Source of foundational interpersonal debt state. Must remain idempotent within a transaction scope.
+- Invariants: Exactly one split; split amount == transaction amount; payer and split user distinct; creation only allowed through /api/v1/loans endpoint; type must be LOAN_GIVEN.
+- Notes: Canonical interpersonal debt origin; dual-path divergence removed by hard block in TransactionService. Stage 3 interim consolidation removes legacy asymmetric LOAN_TAKEN validation in favor of a single canonical direction. Standardized error schemas (StandardErrorSchema) applied (400 validation, 404 not found).
 
 Flow 4: Direct Friend Settlement (Legacy Debt Reversal)
 
@@ -145,22 +145,55 @@ Flow 7: Aggregation & Derived Views Layering
 2. **Fallback**: Uses "GENERAL" if no specific category found
 3. **Benefits**: Consistent categorization across all transaction types
 
-### Loan Transaction Validation (Conceptual Rules)
+### Loan Transaction Validation (Conceptual Rules & Enforcement Status)
 
-**For LOAN_GIVEN and LOAN_TAKEN transactions, strict validation is applied:**
+**Canonical Direction Only (LOAN_GIVEN)** – LOAN_TAKEN creation requests are rejected (400) as of Flag F5 Stage 3 interim decision.
 
 1. **Split Requirements**:
    - Must have exactly one split entry in the `splits` array
-   - The split amount must exactly match the transaction amount
+   - The split amount must exactly match the transaction amount (implies payerTotal == 0)
 2. **Account Validation**:
    - **Source Account**: Must be the payer's `LOAN_GIVEN` account
    - **Destination Account**: Must be the split user's `LOAN_TAKEN` account
-3. **Transaction Type Specific Rules**:
-   - **LOAN_GIVEN**: Source account belongs to payer, destination account belongs to split user
-   - **LOAN_TAKEN**: Source account belongs to split user, destination account belongs to payer
+3. **Transaction Type Constraint**:
+   - Request `type` must be `LOAN_GIVEN`; any `LOAN_TAKEN` attempt returns `"LOAN_TAKEN creation is disabled – use LOAN_GIVEN canonical direction"`
 4. **Business Logic**:
-   - Loans can only be created between two users (payer and one split user)
+   - Loans can only be created between two distinct users (payer and one split user)
    - Prevents invalid account combinations and ensures proper loan relationship tracking
+
+(Future Consideration: InterpersonalDebtEngine may introduce symmetrical abstractions eliminating the need for a direction field in client payloads.)
+
+### InterpersonalDebtEngine Invariants (Initial Implementation)
+
+Current Scope (Stage 0 Skeleton):
+
+- Provides two methods: recordDirectLoan and recordRepayment.
+- Delegates bilateral balance mutations to BalanceAdjustmentService.applyBilateralDelta.
+- Does not yet emit ledger entries or persist loan metadata (handled by LoanService / transaction systems).
+
+Invariants Enforced:
+
+1. creditorId != debtorId (both methods) -> prevents self-loans/repayments.
+2. amount > 0 (input domain constraint) -> rejects zero / negative raw amounts; repayment semantics invert sign internally.
+3. Positive loan amount increases bilateral obligation (creditor perspective +amount, debtor perspective -amount).
+4. Repayment amount reduces obligation symmetrically (applies -amount delta via BalanceAdjustmentService).
+5. groupId propagation: Provided groupId (number) scopes the bilateral rows; null enforces overall (non-group) rows; undefined leaves repository findBalance queries using undefined to differentiate creation semantics.
+6. Currency is passed through verbatim; no FX normalization (Flag F10 still applicable—multi-currency logic deferred).
+
+Non-Goals / Deferred:
+
+- Idempotency layer at engine boundary (handled at higher service layer today).
+- Ledger emission policy (pending F6 resolution for allocation parity & summarized entries).
+- Validation of existing outstanding before repayment (delegated to higher-level services that understand obligation context or share allocations).
+- Multi-currency conversion or normalization.
+
+Regression Targets (Covered by New Tests):
+
+- Direct loan path calls applyBilateralDelta with +amount.
+- Repayment path calls applyBilateralDelta with -amount.
+- Self-loan and self-repayment rejected early.
+- Non-positive amounts rejected early.
+- Group-scoped vs overall propagation verified.
 
 ### Recurring Item Flows (Conceptual)
 
@@ -469,9 +502,17 @@ async methodName(params, tx?: DBTransactionType): Promise<Result>
 
 ## API Surface (Conceptual Addendum)
 
-### New Endpoint
+### New Endpoints
 
 `POST /api/v1/settlements/allocate`
+
+`POST /api/v1/loans` (NEW - canonical direct loan creation; returns created loan row)
+`GET /api/v1/loans` List user's loans (payer or participant – participant filtering TBD; current implementation returns payer-created loans)
+`GET /api/v1/loans/{loanId}` Get loan details (authorization: creator only until participant join implemented)
+`PUT /api/v1/loans/{loanId}` Update loan (description, loanDate) (creator only)
+`DELETE /api/v1/loans/{loanId}` Delete loan (creator only)
+
+Deprecated: Creating LOAN_GIVEN / LOAN_TAKEN via `/api/v1/transactions` (blocked at service layer).
 Request Body:
 
 ```
@@ -524,7 +565,7 @@ Response:
 - Flag F2 (Overpayment Not Prevented in Direct Settlement): RESOLVED. Direct legacy settlements (Flow 4) now validate requested amount against current outstanding (creditor perspective user_balance row). Attempts where outstanding <= 0 or amount > outstanding are rejected with `Settlement amount X exceeds outstanding Y`. Prevents negative debt states.
 - Flag F3 (Missing Idempotency Documentation / Enforcement for Allocation & Direct Settlement Replay Semantics): RESOLVED. Allocation endpoint and direct settlement endpoints now require Idempotency-Key header; settlement table enforces unique key; direct settlement returns 201 on first creation and 200 on exact replay (same payload). Both direct and allocation flows return 409 (IDMP_KEY_CONFLICT) when the same key is reused with differing payload (payerId, payeeId, amount, currency, groupId). Standardized error schemas (StandardErrorSchema, IdempotencyConflictErrorSchema) applied across balances, group settlement, and allocation routes.
 - Flag F4 (Zero-Amount Payer Share Rows Noise): Flow 5 may create payer share entries with amount 0 but status UNPAID. Planned: Either omit zero rows or mark as PAID at insertion; migration to clean existing noise.
-- Flag F5 (Dual Loan Pathways Divergence): Flow 3 uses both LoanService and TransactionService leading to potential drift in validation or side-effects. Planned: Consolidate through a single orchestrator (LoanService) delegating ledger creation; deprecate alternate path.
+- Flag F5 (Dual Loan Pathways Divergence): RESOLVED (Stages 1–3). Stage 1: TransactionService blocks LOAN_GIVEN / LOAN_TAKEN. Stage 2: Dedicated /loans API with standardized error schemas (400/404). Stage 3: Removed asymmetric validation; LOAN_TAKEN creation hard blocked (single canonical LOAN_GIVEN direction). Future: InterpersonalDebtEngine may abstract away explicit direction in client payloads.
 - Flag F6 (Ledger Omission for Allocations): Flow 6 produces no double-entry representation, breaking full ledger parity. Planned: Phase 1 reconciliation job deriving synthetic ledger snapshots; Phase 2 optional per-allocation micro-entries behind feature flag.
 - Flag F7 (Lack of Reconciliation Utility): No job asserting user_balance matches derived obligations from expense_share/settlement_application (Flows 5 & 6). Planned: Background script + admin endpoint surfacing discrepancies.
 - Flag F8 (Concurrency Race on Parallel Allocations): Parallel Flow 6 requests can over-allocate same shares. Planned: DB-level row locking (when supported) or application mutex keyed by payerId-payeeId-groupId triad.

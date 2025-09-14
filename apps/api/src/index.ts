@@ -9,6 +9,7 @@ import {
   friendRoutes,
   groupRoutes,
   transactionRoutesExport,
+  loanRoutes,
   passbookRoutes,
   budgetRoutes,
   accountRoutes,
@@ -100,6 +101,9 @@ app.route("/api/v1/groups", groupRoutes);
 // Mount transaction management routes
 app.route("/api/v1/transactions", transactionRoutesExport);
 
+// Mount loan routes (direct loans)
+app.route("/api/v1/loans", loanRoutes);
+
 // Mount financial tracking routes
 app.route("/api/v1/passbook", passbookRoutes);
 
@@ -161,7 +165,7 @@ app.notFound((c) => {
         message: "Endpoint not found",
       },
     },
-    404 as any
+    404
   );
 });
 

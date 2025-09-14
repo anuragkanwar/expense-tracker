@@ -7,7 +7,10 @@ const SHARE_TYPE = {
   GROUP: "GROUP",
   NONE: "NONE",
 } as const;
-const TXN_TYPE = { LOAN_GIVEN: "LOAN_GIVEN" } as const; // Focusing on LOAN_GIVEN path due to LOAN_TAKEN validation inconsistency
+const TXN_TYPE = {
+  LOAN_GIVEN: "LOAN_GIVEN",
+  LOAN_TAKEN: "LOAN_TAKEN",
+} as const; // Added LOAN_TAKEN for negative asymmetry test
 const ACCOUNT_TYPE = {
   LOAN_GIVEN: "LOAN_GIVEN",
   LOAN_TAKEN: "LOAN_TAKEN",
@@ -131,8 +134,8 @@ describe("LoanService - LOAN_GIVEN flow", () => {
     });
   });
 
-  it("creates a LOAN_GIVEN with single split, suppressing zero-amount payer entry, and applies bilateral balance delta", async () => {
-    await service.createLoan({
+  it("creates a LOAN_GIVEN with single split (fallback path), suppresses zero-amount payer entry, applies bilateral balance delta, and returns created loan", async () => {
+    const loan = await service.createLoan({
       payer: payerId,
       sourceTransactionAccountID: loanGivenAcc.id,
       targetTransactionAccountID: loanTakenAcc.id,
@@ -143,6 +146,11 @@ describe("LoanService - LOAN_GIVEN flow", () => {
       splitType: "EQUAL" as any,
       splits: [{ userId: borrowerId, amountOwed: amount }],
     } as any);
+
+    expect(loan).toBeTruthy();
+    expect(loan.id).toBe(5000);
+    expect(loan.amount).toBe(amount);
+    expect(loan.createdBy).toBe(payerId);
 
     // updateAccountsAndCreateEntries NOT called for zero payerTotal; only split entry
     expect(
@@ -164,7 +172,7 @@ describe("LoanService - LOAN_GIVEN flow", () => {
       expect.anything()
     );
 
-    // Balance adjustment applied: payer (creditor) vs borrower (debtor)
+    // Balance adjustment applied: payer (creditor) vs borrower (debtor) via fallback
     expect(
       mockBalanceAdjustmentService.applyBilateralDelta
     ).toHaveBeenCalledWith(
@@ -175,6 +183,71 @@ describe("LoanService - LOAN_GIVEN flow", () => {
       null,
       expect.anything()
     );
+  });
+
+  it("delegates to InterpersonalDebtEngine when available (suppresses fallback)", async () => {
+    // Reconfigure mocks for fresh call sequence
+    mockTransactionAccountRepository.findByUserIdAndAccountId
+      .mockResolvedValueOnce(loanGivenAcc)
+      .mockResolvedValueOnce(loanTakenAcc);
+    mockTransactionService.validateTransactionAccounts.mockResolvedValue({
+      srcAcc: loanGivenAcc,
+      dstAcc: loanTakenAcc,
+    });
+    mockTransactionAccountRepository.findByUserIdAndCategoryName
+      .mockResolvedValueOnce(loanTakenAcc)
+      .mockResolvedValueOnce(loanGivenAcc);
+
+    const engineMock = {
+      recordDirectLoan: vi.fn().mockResolvedValue(undefined),
+      recordRepayment: vi.fn(),
+    } as any;
+
+    const engineAwareService = new LoanService({
+      db: mockDb,
+      loanPayerRepository: mockLoanPayerRepository,
+      loanRepository: mockLoanRepository,
+      loanSplitsRepository: mockLoanSplitsRepository,
+      groupMemberRepository: mockGroupMemberRepository,
+      groupRepository: mockGroupRepository,
+      transactionAccountRepository: mockTransactionAccountRepository,
+      userRepository: mockUserRepository,
+      transactionService: mockTransactionService,
+      friendService: mockFriendService,
+      balanceAdjustmentService: mockBalanceAdjustmentService,
+      interpersonalDebtEngine: engineMock,
+    });
+
+    const loan = await engineAwareService.createLoan({
+      payer: payerId,
+      sourceTransactionAccountID: loanGivenAcc.id,
+      targetTransactionAccountID: loanTakenAcc.id,
+      description: "Loan to friend (engine)",
+      amount,
+      type: TXN_TYPE.LOAN_GIVEN,
+      sharedWith: SHARE_TYPE.FRIENDS,
+      splitType: "EQUAL" as any,
+      splits: [{ userId: borrowerId, amountOwed: amount }],
+    } as any);
+
+    expect(loan.id).toBe(5000);
+
+    expect(engineMock.recordDirectLoan).toHaveBeenCalledTimes(1);
+    expect(engineMock.recordDirectLoan).toHaveBeenCalledWith(
+      {
+        creditorId: payerId,
+        debtorId: borrowerId,
+        amount,
+        currency: "USD",
+        groupId: null,
+      },
+      expect.anything()
+    );
+
+    // Fallback NOT used when engine present
+    expect(
+      mockBalanceAdjustmentService.applyBilateralDelta
+    ).not.toHaveBeenCalled();
   });
 
   it("rejects loan creation when more than one split provided", async () => {
@@ -220,10 +293,64 @@ describe("LoanService - LOAN_GIVEN flow", () => {
     ).not.toHaveBeenCalled();
   });
 
-  it.skip("LOAN_TAKEN validation path pending correction (current implementation enforces payer == split user)", () => {
-    // Documenting discovered inconsistency:
-    // validateLoanTransaction looks up source account with payerId then requires it to equal split.userId for LOAN_TAKEN.
-    // This makes distinct-party LOAN_TAKEN logically unreachable without a refactor.
-    // Once fixed, add analogous tests for LOAN_TAKEN ensuring payerTotal == 0 and bilateral delta direction inverts.
+  it("rejects direct loan with sharedWith NONE and does not persist loan metadata", async () => {
+    await expect(
+      service.createLoan({
+        payer: payerId,
+        sourceTransactionAccountID: loanGivenAcc.id,
+        targetTransactionAccountID: loanTakenAcc.id,
+        description: "Invalid NONE loan",
+        amount,
+        type: TXN_TYPE.LOAN_GIVEN,
+        sharedWith: SHARE_TYPE.NONE,
+        splitType: "EQUAL" as any,
+        splits: [{ userId: borrowerId, amountOwed: amount }],
+      } as any)
+    ).rejects.toThrow(/Direct loan creation requires a shared context/i);
+
+    // Ledger entry attempted prior to validation error
+    expect(
+      mockTransactionService.updateAccountsAndCreateEntries
+    ).toHaveBeenCalledTimes(1);
+
+    // No loan metadata persisted
+    expect(mockLoanRepository.create).not.toHaveBeenCalled();
+    expect(mockLoanPayerRepository.create).not.toHaveBeenCalled();
+    expect(mockLoanSplitsRepository.create).not.toHaveBeenCalled();
+
+    // No balance adjustment performed
+    expect(
+      mockBalanceAdjustmentService.applyBilateralDelta
+    ).not.toHaveBeenCalled();
   });
+
+  it("hard blocks LOAN_TAKEN creation with canonical message before any account validation", async () => {
+    await expect(
+      service.createLoan({
+        payer: payerId,
+        sourceTransactionAccountID: loanGivenAcc.id,
+        targetTransactionAccountID: loanTakenAcc.id,
+        description: "LOAN_TAKEN attempt",
+        amount,
+        type: TXN_TYPE.LOAN_TAKEN,
+        sharedWith: SHARE_TYPE.FRIENDS,
+        splitType: "EQUAL" as any,
+        splits: [{ userId: borrowerId, amountOwed: amount }],
+      } as any)
+    ).rejects.toThrow(/LOAN_TAKEN creation is disabled/i);
+
+    // No downstream validation or persistence invoked
+    expect(
+      mockTransactionService.validateTransactionAccounts
+    ).not.toHaveBeenCalled();
+    expect(mockLoanRepository.create).not.toHaveBeenCalled();
+    expect(
+      mockTransactionService.updateAccountsAndCreateEntries
+    ).not.toHaveBeenCalled();
+  });
+
+  // NOTE: Payer total non-zero guard for loan transactions ("For loan transactions, payer total must be 0")
+  // is currently UNREACHABLE because validateLoanTransaction enforces split.amountOwed === amount
+  // (payerTotal = amount - amount == 0). To test that guard we'd need to relax earlier validation
+  // OR remove the redundant guard. Leaving documented here for future refactor.
 });

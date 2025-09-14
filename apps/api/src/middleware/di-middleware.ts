@@ -18,6 +18,7 @@ export type InjectedServices = {
   passbookService: import("@/services/passbook-service").PassbookService;
   recurringService: import("@/services/recurring-service").RecurringService;
   userService: import("@/services/user-service").UserService;
+  interpersonalDebtEngine: import("@/services/interpersonal-debt-engine").InterpersonalDebtEngine;
 };
 
 declare module "hono" {
@@ -46,6 +47,7 @@ export const dependencyInjector = createMiddleware(async (c, next) => {
     passbookService: scope.resolve("passbookService"),
     recurringService: scope.resolve("recurringService"),
     userService: scope.resolve("userService"),
+    interpersonalDebtEngine: scope.resolve("interpersonalDebtEngine"),
   };
 
   c.set("services", services);

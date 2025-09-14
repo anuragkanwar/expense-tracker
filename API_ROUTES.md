@@ -31,6 +31,16 @@ DELETE /api/v1/expenses/{expenseId} Deletes an expense.
 GET /api/v1/groups/{groupId}/expenses Lists all expenses for a specific group.
 GET /api/v1/friends/{userId}/expenses Lists all non-group expenses between the current user and a friend.
 
+Direct loans (canonical)
+POST /api/v1/loans Creates a direct bilateral loan (LOAN_GIVEN path) between user and one participant (single split). (New canonical; TransactionService blocks LOAN_GIVEN/LOAN_TAKEN.)
+GET /api/v1/loans Lists loans created by the user (future: participation filter).
+GET /api/v1/loans/{loanId} Retrieves details of a loan (creator only currently).
+PUT /api/v1/loans/{loanId} Updates a loan (description / date).
+DELETE /api/v1/loans/{loanId} Deletes a loan.
+
+Deprecated / Blocked
+POST /api/v1/transactions (type=LOAN_GIVEN|LOAN_TAKEN) Blocked – must use /api/v1/loans.
+
 Balances and settlments
 GET /api/v1/balances Gets the user's total balance (total owed vs. total owed to you).
 GET /api/v1/balances/friends/{userId} Gets the total consolidated balance with a specific friend.

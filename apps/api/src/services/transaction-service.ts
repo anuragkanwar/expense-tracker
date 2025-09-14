@@ -209,6 +209,16 @@ export class TransactionService {
     transactionCreateWithDetails: TransactionCreateWithDetails,
     userCurrency: string = "INR"
   ) {
+    // Flag F5 (Dual Loan Pathways Divergence): Block direct loan creation here.
+    // Canonical path for LOAN_GIVEN / LOAN_TAKEN is now LoanService via /api/v1/loans.
+    if (
+      transactionCreateWithDetails.type === TXN_TYPE.LOAN_GIVEN ||
+      transactionCreateWithDetails.type === TXN_TYPE.LOAN_TAKEN
+    ) {
+      throw new ValidationError(
+        "Direct loan transactions must be created via /api/v1/loans"
+      );
+    }
     const payerId = transactionCreateWithDetails.payer;
 
     await this.db.transaction(async (tx) => {
