@@ -81,7 +81,8 @@ export class GroupService {
     }
 
     if (group.createdBy !== userId) {
-      throw new ForbiddenError("You do not have access to this group");
+      // Standardize forbidden message to align with route error mapping & tests
+      throw new ForbiddenError();
     }
 
     return group;

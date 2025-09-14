@@ -3,6 +3,8 @@ import {
   IdParamSchema,
   UserIdParamSchema,
   MessageResponseSchema,
+  StandardErrorSchema,
+  IdempotencyConflictErrorSchema,
 } from "./shared-schemas";
 import {
   GroupResponseSchema,
@@ -366,7 +368,16 @@ export const createGroupDirectSettlementRoute = createRoute({
       },
       description: "Idempotent replay - original settlement returned",
     },
-    400: { description: "Validation Error" },
+    400: {
+      description: "Validation Error or Idempotency-Key required",
+      content: { "application/json": { schema: StandardErrorSchema } },
+    },
+    409: {
+      description: "Idempotency-Key conflict (payload mismatch on reuse)",
+      content: {
+        "application/json": { schema: IdempotencyConflictErrorSchema },
+      },
+    },
     401: { description: "Unauthorized" },
   },
 });

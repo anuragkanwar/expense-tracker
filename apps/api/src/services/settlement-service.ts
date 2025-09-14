@@ -273,17 +273,19 @@ export class SettlementService {
         tx
       );
 
-      await this.transactionHelperService.updateAccountsAndCreateEntries(
-        [
-          {
-            srcAcc: payerLoanTakenAcc,
-            dstAcc: payeeLoanGivenAcc,
-            amount,
-            txnId: txn.id,
-          },
-        ],
-        tx
-      );
+      if (amount > 0) {
+        await this.transactionHelperService.updateAccountsAndCreateEntries(
+          [
+            {
+              srcAcc: payerLoanTakenAcc,
+              dstAcc: payeeLoanGivenAcc,
+              amount,
+              txnId: txn.id,
+            },
+          ],
+          tx
+        );
+      }
 
       const created = await this.settlementRepository.create(
         {
@@ -462,17 +464,19 @@ export class SettlementService {
       );
 
       // Post double-entry reversing debt for full applied amount (final amount may be less if partial outstanding)
-      await this.transactionHelperService.updateAccountsAndCreateEntries(
-        [
-          {
-            srcAcc: payerLoanTakenAcc,
-            dstAcc: payeeLoanGivenAcc,
-            amount: amount,
-            txnId: txn.id,
-          },
-        ],
-        tx
-      );
+      if (amount > 0) {
+        await this.transactionHelperService.updateAccountsAndCreateEntries(
+          [
+            {
+              srcAcc: payerLoanTakenAcc,
+              dstAcc: payeeLoanGivenAcc,
+              amount,
+              txnId: txn.id,
+            },
+          ],
+          tx
+        );
+      }
 
       const settlement = await this.settlementRepository.create(
         {

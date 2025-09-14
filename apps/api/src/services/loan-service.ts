@@ -405,17 +405,19 @@ export class LoanService {
               }
             }
 
-            await this.transactionService.updateAccountsAndCreateEntries(
-              [
-                {
-                  srcAcc: srcAcc,
-                  dstAcc: dstAcc,
-                  amount: payerTotal,
-                  txnId: txnHeader.id,
-                },
-              ],
-              tx
-            );
+            if (payerTotal > 0) {
+              await this.transactionService.updateAccountsAndCreateEntries(
+                [
+                  {
+                    srcAcc,
+                    dstAcc,
+                    amount: payerTotal,
+                    txnId: txnHeader.id,
+                  },
+                ],
+                tx
+              );
+            }
 
             // Get user's currency preference
             const user = await this.userRepository.findById(payerId);

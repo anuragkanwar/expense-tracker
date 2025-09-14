@@ -125,7 +125,7 @@ describe("SettlementService - direct + allocation flows", () => {
         balance: 0,
       });
 
-    mockTransactionRepository.create.mockResolvedValue({ id: 500 });
+    mockTransactionRepository.create.mockResolvedValue({ id: 500 }); // txn created even if amount>0; ledger entries suppressed only if amount<=0 (guard)
     const createdSettlement = {
       id: 900,
       amount: 40,

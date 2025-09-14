@@ -35,10 +35,11 @@ Balances and settlments
 GET /api/v1/balances Gets the user's total balance (total owed vs. total owed to you).
 GET /api/v1/balances/friends/{userId} Gets the total consolidated balance with a specific friend.
 GET /api/v1/balances/groups/{groupId} Gets the user's net balance within a specific group.
-POST /api/v1/settlements Records a payment to settle a debt (e.g., "I paid Jane $20"). Requires Idempotency-Key header. Rejects overpayment above current outstanding (400).
+POST /api/v1/settlements Records a payment to settle a debt (e.g., "I paid Jane $20"). Requires Idempotency-Key header. Returns 201 for a new settlement, 200 for an idempotent replay (same payload & key). Rejects overpayment above current outstanding (400). Reuse with differing payload returns 409 with differences map.
 GET /api/v1/settlements/simplify Gets a simplified payment plan for all of the user's debts.
-POST /api/v1/settlements/allocate Allocates a settlement across outstanding expense shares (FIFO). Requires Idempotency-Key header. Replays return 200; mismatched reuse returns 409.
+POST /api/v1/settlements/allocate Allocates a settlement across outstanding expense shares (FIFO). Requires Idempotency-Key header. First success and exact replay both return 200; mismatched reuse returns 409 with differences map.
 GET /api/v1/settlements/groups/{groupId}/simplify Gets a simplified payment plan for a specific group.
+POST /api/v1/groups/{groupId}/settlements Group-scoped direct settlement. Requires Idempotency-Key header. Returns 201 for new, 200 for idempotent replay, 409 on conflicting reuse.
 
 Personal Finance: acconts, passbook, categories
 GET /api/v1/passbook Retrieves a paginated list of all personal transactions (supports filtering).
