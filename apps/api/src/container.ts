@@ -18,6 +18,8 @@ import {
   TransactionEntryRepository,
   TransactionRepository,
   UserRepository,
+  ExpenseShareRepository,
+  SettlementApplicationRepository,
 } from "./repositories";
 import {
   AuthService,
@@ -71,6 +73,12 @@ container.register({
   settlementRepository: asClass(SettlementRepository, {
     lifetime: Lifetime.SCOPED,
   }),
+  expenseShareRepository: asClass(ExpenseShareRepository, {
+    lifetime: Lifetime.SCOPED,
+  }),
+  settlementApplicationRepository: asClass(SettlementApplicationRepository, {
+    lifetime: Lifetime.SCOPED,
+  }),
   passbookRepository: asClass(PassbookRepository, {
     lifetime: Lifetime.SCOPED,
   }),
@@ -114,6 +122,14 @@ container.register({
   transactionService: asClass(TransactionService, {
     lifetime: Lifetime.SCOPED,
   }),
+  balanceAdjustmentService: asClass(
+    // direct import to maintain tree-shaking and TS type safety
+    (await import("./services/balance-adjustment-service"))
+      .BalanceAdjustmentService,
+    {
+      lifetime: Lifetime.SCOPED,
+    }
+  ),
   settlementService: asClass(SettlementService, {
     lifetime: Lifetime.SCOPED,
   }),

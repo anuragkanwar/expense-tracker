@@ -14,6 +14,7 @@ import { ACCOUNT_TYPE, EXPENSE_SHARE_STATUS, type DBType } from "@/db";
 import { TransactionAccountNotFoundError } from "@/errors/transaction-account-errors";
 import { TransactionHelperService } from "./transaction-helper-service";
 import { ExpenseShareRepository } from "@/repositories/expense-share-repository";
+import { BalanceAdjustmentService } from "./balance-adjustment-service";
 import {
   SettlementApplicationRepository,
   type SettlementApplicationResponse,
@@ -37,6 +38,7 @@ export class SettlementService {
   private readonly expenseShareRepository: ExpenseShareRepository;
   private readonly settlementApplicationRepository: SettlementApplicationRepository;
   private readonly balanceRepository: BalanceRepository;
+  private readonly balanceAdjustmentService: BalanceAdjustmentService;
   private readonly db: DBType;
 
   constructor({
@@ -49,6 +51,7 @@ export class SettlementService {
     settlementApplicationRepository,
     balanceRepository,
     db,
+    balanceAdjustmentService,
   }: {
     settlementRepository: SettlementRepository;
     transactionRepository: TransactionRepository;
@@ -58,6 +61,7 @@ export class SettlementService {
     expenseShareRepository: ExpenseShareRepository;
     settlementApplicationRepository: SettlementApplicationRepository;
     balanceRepository: BalanceRepository;
+    balanceAdjustmentService: BalanceAdjustmentService;
     db: DBType;
   }) {
     this.settlementRepository = settlementRepository;
@@ -69,6 +73,7 @@ export class SettlementService {
     this.settlementApplicationRepository = settlementApplicationRepository;
     this.balanceRepository = balanceRepository;
     this.db = db;
+    this.balanceAdjustmentService = balanceAdjustmentService;
   }
 
   // =============================================================
@@ -251,32 +256,15 @@ export class SettlementService {
       );
 
       // Update balances (mirrors allocation balance adjustments semantics)
-      const payeeOwnerBalance = await this.balanceRepository.findBalance(
-        payeeId,
-        payerId,
+      // Canonical settlement: reduce debtor (payerId) -> creditor (payeeId) debt
+      await this.balanceAdjustmentService.applyBilateralDelta(
+        payeeId, // creditor
+        payerId, // debtor
+        -amount, // negative because debt decreases
+        currency,
         groupId ?? null,
         tx
       );
-      if (payeeOwnerBalance) {
-        await this.balanceRepository.update(
-          payeeOwnerBalance.id,
-          { amount: payeeOwnerBalance.amount - amount },
-          tx
-        );
-      }
-      const payerOwnerBalance = await this.balanceRepository.findBalance(
-        payerId,
-        payeeId,
-        groupId ?? null,
-        tx
-      );
-      if (payerOwnerBalance) {
-        await this.balanceRepository.update(
-          payerOwnerBalance.id,
-          { amount: payerOwnerBalance.amount + amount },
-          tx
-        );
-      }
 
       return created;
     });
@@ -463,32 +451,15 @@ export class SettlementService {
       const outstandingAfter = outstandingBefore - totalApplied;
 
       // 4. Adjust user_balance canonical direction
-      const payeeOwnerBalance = await this.balanceRepository.findBalance(
+      // Apply negative delta to reduce debtor's obligation by totalApplied
+      await this.balanceAdjustmentService.applyBilateralDelta(
         payeeId,
         payerId,
+        -totalApplied,
+        currency,
         groupId ?? null,
         tx
       );
-      if (payeeOwnerBalance) {
-        await this.balanceRepository.update(
-          payeeOwnerBalance.id,
-          { amount: payeeOwnerBalance.amount - totalApplied },
-          tx
-        );
-      }
-      const payerOwnerBalance = await this.balanceRepository.findBalance(
-        payerId,
-        payeeId,
-        groupId ?? null,
-        tx
-      );
-      if (payerOwnerBalance) {
-        await this.balanceRepository.update(
-          payerOwnerBalance.id,
-          { amount: payerOwnerBalance.amount + totalApplied },
-          tx
-        );
-      }
 
       return {
         settlement,

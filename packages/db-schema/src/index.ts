@@ -18,3 +18,5 @@ export * from "./tables/transaction";
 export * from "./tables/user-balance";
 export * from "./tables/user";
 export * from "./tables/verification";
+export * from "./tables/expense-share";
+export * from "./tables/settlement-application";

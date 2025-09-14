@@ -16,3 +16,5 @@ export * from "./transaction-repository";
 export * from "./transaction-entry-repository";
 export * from "./transaction-account-repository";
 export * from "./user-repository";
+export * from "./expense-share-repository";
+export * from "./settlement-application-repository";

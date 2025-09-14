@@ -1,6 +1,5 @@
 import { TransactionCreateWithDetails } from "@/dto/transactions.dto";
 import { TransactionAccountNotFoundError } from "@/errors/transaction-account-errors";
-import { UserAuth } from "@/models/auth";
 import {
   TransactionRepository,
   TransactionEntryRepository,
@@ -8,6 +7,7 @@ import {
   GroupRepository,
   BalanceRepository,
   GroupMemberRepository,
+  ExpenseShareRepository,
 } from "@/repositories";
 import { FriendService } from "./friend-service";
 import {
@@ -16,17 +16,17 @@ import {
   type DBTransactionType,
   SHARE_TYPE,
   TXN_TYPE,
+  EXPENSE_SHARE_STATUS,
 } from "@/db";
 import {
   NotFoundError,
   ValidationError,
   ForbiddenError,
 } from "@/errors/base-error";
-import { GroupNotFoundError } from "@/errors/group-errors";
 import { TransactionUpdateWithDetails } from "@/dto/transactions.dto";
-import { mathOperationAndGetFixedNumber } from "@/utils/mathUtils";
 import { TransactionAccountResponse } from "@/models";
-import { TransactionHelperService } from "./transaction-helper-service";
+import { TransactionHelperService } from "./transaction-helper-service"; // helper for double-entry updates
+import { BalanceAdjustmentService } from "./balance-adjustment-service";
 
 export class TransactionService {
   private readonly balanceRepository;
@@ -37,6 +37,8 @@ export class TransactionService {
   private readonly transactionRepository;
   private readonly transactionHelperService;
   private readonly friendService;
+  private readonly expenseShareRepository;
+  private readonly balanceAdjustmentService: BalanceAdjustmentService;
   private db: DBType;
 
   constructor({
@@ -49,6 +51,8 @@ export class TransactionService {
     transactionRepository,
     transactionHelperService,
     friendService,
+    expenseShareRepository,
+    balanceAdjustmentService,
   }: {
     balanceRepository: BalanceRepository;
     db: DBType;
@@ -59,6 +63,8 @@ export class TransactionService {
     transactionRepository: TransactionRepository;
     transactionHelperService: TransactionHelperService;
     friendService: FriendService;
+    expenseShareRepository: ExpenseShareRepository;
+    balanceAdjustmentService: BalanceAdjustmentService;
   }) {
     this.balanceRepository = balanceRepository;
     this.db = db;
@@ -69,6 +75,8 @@ export class TransactionService {
     this.transactionRepository = transactionRepository;
     this.transactionHelperService = transactionHelperService;
     this.friendService = friendService;
+    this.expenseShareRepository = expenseShareRepository;
+    this.balanceAdjustmentService = balanceAdjustmentService;
   }
 
   async validateTransactionAccounts(
@@ -196,71 +204,7 @@ export class TransactionService {
     }
   }
 
-  async updateBalances(
-    payerId: number,
-    payeeId: number,
-    amount: number,
-    currency: string,
-    groupId?: number,
-    tx?: DBTransactionType
-  ) {
-    // Payer owes payee: payee (owner) is owed by payer (counterparty) +amount
-    const payeeBalance = await this.balanceRepository.findBalance(
-      payeeId,
-      payerId,
-      groupId,
-      tx
-    );
-    if (payeeBalance) {
-      await this.balanceRepository.update(
-        payeeBalance.id,
-        {
-          amount: payeeBalance.amount + amount,
-        },
-        tx
-      );
-    } else {
-      await this.balanceRepository.create(
-        {
-          ownerId: payeeId,
-          counterPartyId: payerId,
-          amount: amount,
-          currency,
-          groupId: groupId,
-        },
-        tx
-      );
-    }
-
-    // Payer is owed by payee: payer (owner) is owed by payee (counterparty) -amount
-    const payerBalance = await this.balanceRepository.findBalance(
-      payerId,
-      payeeId,
-      groupId,
-      tx
-    );
-    if (payerBalance) {
-      await this.balanceRepository.update(
-        payerBalance.id,
-        {
-          amount: payerBalance.amount - amount,
-        },
-        tx
-      );
-    } else {
-      await this.balanceRepository.create(
-        {
-          ownerId: payerId,
-          counterPartyId: payeeId,
-          amount: -amount,
-          currency,
-          groupId: groupId,
-        },
-        tx
-      );
-    }
-  }
-
+  /** Legacy updateBalances logic removed - use balanceAdjustmentService */
   async createTransaction(
     transactionCreateWithDetails: TransactionCreateWithDetails,
     userCurrency: string = "INR"
@@ -388,15 +332,64 @@ export class TransactionService {
                   tx
                 );
 
-                await this.updateBalances(
-                  payerId,
-                  split.userId,
+                // Adjust balances using canonical service: payer (creditor) vs participant (debtor)
+                await this.balanceAdjustmentService.applyBilateralDelta(
+                  payerId, // creditor: original payer
+                  split.userId, // debtor: participant
                   split.amountOwed,
                   userCurrency,
-                  transactionCreateWithDetails.groupId,
+                  transactionCreateWithDetails.groupId ?? null,
                   tx
                 );
               }
+            }
+
+            // Upfront expense recognition (expense_share rows) ONLY for EXPENSE transactions
+            if (transactionCreateWithDetails.type === TXN_TYPE.EXPENSE) {
+              const shareRows: any[] = [];
+              const groupIdValue =
+                transactionCreateWithDetails.sharedWith === SHARE_TYPE.GROUP
+                  ? (transactionCreateWithDetails.groupId ?? null)
+                  : null;
+
+              // Payer share row (always insert for consistency)
+              shareRows.push({
+                transactionId: txnHeader.id,
+                payerUserId: payerId,
+                participantUserId: payerId,
+                groupId: groupIdValue,
+                shareType: transactionCreateWithDetails.sharedWith,
+                splitType: transactionCreateWithDetails.splitType,
+                expenseAccountId: dstAcc.id,
+                currency: userCurrency,
+                amount: payerTotal,
+                paidAmount: payerTotal, // payer has already effectively paid their share
+                status:
+                  payerTotal > 0
+                    ? EXPENSE_SHARE_STATUS.PAID
+                    : EXPENSE_SHARE_STATUS.UNPAID,
+                isPayerShare: 1,
+              });
+
+              // Participant shares
+              for (const split of splits) {
+                shareRows.push({
+                  transactionId: txnHeader.id,
+                  payerUserId: payerId,
+                  participantUserId: split.userId,
+                  groupId: groupIdValue,
+                  shareType: transactionCreateWithDetails.sharedWith,
+                  splitType: transactionCreateWithDetails.splitType,
+                  expenseAccountId: dstAcc.id,
+                  currency: userCurrency,
+                  amount: split.amountOwed,
+                  paidAmount: 0,
+                  status: EXPENSE_SHARE_STATUS.UNPAID,
+                  isPayerShare: 0,
+                });
+              }
+
+              await this.expenseShareRepository.createMany(shareRows, tx);
             }
           } else {
             throw new NotFoundError("Provided share type not found");

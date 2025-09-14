@@ -67,3 +67,10 @@ export enum ACCOUNT_TYPE {
   EXTERNAL = "EXTERNAL",
   OUTGOING = "OUTGOING",
 }
+
+// Expense share status enum for upfront expense recognition
+export enum EXPENSE_SHARE_STATUS {
+  UNPAID = "UNPAID",
+  PARTIALLY_PAID = "PARTIALLY_PAID",
+  PAID = "PAID",
+}

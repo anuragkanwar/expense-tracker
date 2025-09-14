@@ -16,6 +16,7 @@ import {
   balanceRoutes,
   dashboardRoutes,
   connectionRoutes,
+  settlementRoutes,
 } from "./routes";
 
 import { cors } from "hono/cors";
@@ -113,6 +114,7 @@ app.route("/api/v1/recurring-items", recurringItemRoutes);
 
 // Mount balances and settlements routes
 app.route("/api/v1/balances", balanceRoutes);
+app.route("/api/v1/settlements", settlementRoutes);
 
 // Mount dashboard routes
 app.route("/api/v1/dashboard", dashboardRoutes);

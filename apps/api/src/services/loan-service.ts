@@ -12,6 +12,7 @@ import {
 } from "@/repositories";
 import { FriendService } from "./friend-service";
 import { TransactionService } from "./transaction-service";
+import { BalanceAdjustmentService } from "./balance-adjustment-service";
 
 import {
   ACCOUNT_TYPE,
@@ -38,6 +39,7 @@ export class LoanService {
 
   private readonly transactionService;
   private readonly friendService;
+  private readonly balanceAdjustmentService: BalanceAdjustmentService;
   private db: DBType;
   constructor({
     db,
@@ -51,6 +53,7 @@ export class LoanService {
 
     transactionService,
     friendService,
+    balanceAdjustmentService,
   }: {
     db: DBType;
     loanPayerRepository: LoanPayerRepository;
@@ -63,6 +66,7 @@ export class LoanService {
 
     transactionService: TransactionService;
     friendService: FriendService;
+    balanceAdjustmentService: BalanceAdjustmentService;
   }) {
     this.db = db;
     this.loanPayerRepository = loanPayerRepository;
@@ -75,6 +79,7 @@ export class LoanService {
 
     this.transactionService = transactionService;
     this.friendService = friendService;
+    this.balanceAdjustmentService = balanceAdjustmentService;
   }
 
   private async validateLoanTransaction(
@@ -237,12 +242,13 @@ export class LoanService {
         tx
       );
 
-      await this.transactionService.updateBalances(
+      // Adjust balances using canonical service (payer is creditor, split.userId is debtor)
+      await this.balanceAdjustmentService.applyBilateralDelta(
         payerId,
         split.userId,
         split.amountOwed,
         currency,
-        loanCreateWithDetails.groupId,
+        loanCreateWithDetails.groupId ?? null,
         tx
       );
 

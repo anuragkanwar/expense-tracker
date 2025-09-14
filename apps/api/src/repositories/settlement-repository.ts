@@ -94,6 +94,26 @@ export class SettlementRepository {
     })) as SettlementResponse[];
   }
 
+  async findByIdempotencyKey(
+    key: string,
+    tx?: DBTransactionType
+  ): Promise<SettlementResponse | null> {
+    const db = tx ?? this.db;
+    const result = await db
+      .select()
+      .from(settlement)
+      .where(eq(settlement.idempotencyKey, key))
+      .limit(1);
+    if (!result.length || !result[0]) return null;
+    const row = result[0];
+    return {
+      ...row,
+      settledAt: row.settledAt.toISOString(),
+      createdAt: row.createdAt.toISOString(),
+      updatedAt: row.updatedAt.toISOString(),
+    } as SettlementResponse;
+  }
+
   async create(
     data: SettlementCreate,
     tx?: DBTransactionType
