@@ -1,45 +1,59 @@
 import { MiddlewareHandler } from "hono";
-import { BaseError, ValidationError } from "../errors/base-error";
+import { BaseError, ValidationError } from "@/errors/base-error";
+import { ZodError, type ZodIssue } from "zod";
+import {
+  getErrorMessage,
+  type HttpStatus,
+} from "@/utils/error-response-handler";
+
+// Narrowed internal representation of a Zod issue we expose
+interface MinimalZodIssue {
+  message: string;
+  path?: (string | number)[];
+  code?: string;
+  [key: string]: unknown;
+}
 
 export const errorHandler = (): MiddlewareHandler => {
   return async (c, next) => {
     try {
       await next();
-    } catch (error) {
-      // Log error in non-production environments
+    } catch (error: unknown) {
+      // Log in non-production for observability
       if (process.env.NODE_ENV !== "production") {
         console.error("Error caught by error handler:", error);
       }
 
-      // Handle custom BaseError instances
+      // 1. Domain / operational errors (already shaped & trusted)
       if (error instanceof BaseError) {
-        return c.json(error.toJSON(), error.statusCode as any);
+        const json = error.toJSON();
+        const status = error.statusCode as HttpStatus;
+        return c.json(json, status);
       }
 
-      // Handle Zod validation errors
-      if (
-        error &&
-        typeof error === "object" &&
-        "name" in error &&
-        error.name === "ZodError"
-      ) {
-        const zodError = error as any;
+      // 2. Zod validation errors → wrap in our ValidationError for uniform contract
+      if (error instanceof ZodError) {
+        const details: MinimalZodIssue[] = (error.issues || []).map(
+          (issue: ZodIssue): MinimalZodIssue => ({
+            message: issue.message,
+            path: issue.path as (string | number)[],
+            code: (issue as unknown as Partial<ZodIssue>).code, // zod's internal code (string)
+          })
+        );
         const validationError = new ValidationError(
           "Validation failed",
-          zodError.errors
+          details
         );
         return c.json(
           validationError.toJSON(),
-          validationError.statusCode as any
+          validationError.statusCode as 400
         );
       }
 
-      // Handle database errors
+      // 3. Database / driver style errors (currently only basic sqlite codes mapped)
       if (error && typeof error === "object" && "code" in error) {
-        const dbError = error as any;
-
-        // SQLite constraint violation (e.g., unique constraint)
-        if (dbError.code === "SQLITE_CONSTRAINT") {
+        const codeVal = (error as { code?: unknown }).code;
+        if (codeVal === "SQLITE_CONSTRAINT") {
           return c.json(
             {
               success: false,
@@ -48,12 +62,10 @@ export const errorHandler = (): MiddlewareHandler => {
                 message: "Database constraint violation",
               },
             },
-            409 as any
+            409
           );
         }
-
-        // SQLite connection errors
-        if (dbError.code === "SQLITE_ERROR") {
+        if (codeVal === "SQLITE_ERROR") {
           return c.json(
             {
               success: false,
@@ -62,26 +74,26 @@ export const errorHandler = (): MiddlewareHandler => {
                 message: "Database operation failed",
               },
             },
-            500 as any
+            500
           );
         }
       }
 
-      // Generic internal server error
-      const internalError = {
-        success: false,
-        error: {
-          code: "INTERNAL_ERROR",
-          message:
-            process.env.NODE_ENV === "production"
-              ? "An unexpected error occurred"
-              : error instanceof Error
-                ? error.message
-                : "Unknown error",
+      // 4. Generic / unknown fallback (avoid leaking details in production)
+      const message =
+        process.env.NODE_ENV === "production"
+          ? "An unexpected error occurred"
+          : getErrorMessage(error);
+      return c.json(
+        {
+          success: false,
+          error: {
+            code: "INTERNAL_ERROR",
+            message,
+          },
         },
-      };
-
-      return c.json(internalError, 500 as any);
+        500
+      );
     }
   };
 };

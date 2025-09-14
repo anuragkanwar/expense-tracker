@@ -19,7 +19,8 @@ const mockFriendRepository = {
   findAcceptedFriendshipBetweenUsers: vi.fn(),
 };
 
-const mockUser = {
+// Casting to any in tests to satisfy UserAuth contract without importing full model
+const mockUser: any = {
   id: 1,
   name: "Test User",
   email: "test@example.com",
@@ -43,7 +44,7 @@ describe("FriendService", () => {
   describe("sendFriendRequest", () => {
     it("should prevent sending friend request to self", async () => {
       await expect(
-        friendService.sendFriendRequest(mockUser, 1)
+        friendService.sendFriendRequest(mockUser as any, 1)
       ).rejects.toThrow("Cannot send friend request to yourself");
     });
 
@@ -58,7 +59,7 @@ describe("FriendService", () => {
       });
 
       await expect(
-        friendService.sendFriendRequest(mockUser, 2)
+        friendService.sendFriendRequest(mockUser as any, 2)
       ).rejects.toThrow("Friend request already exists");
     });
   });

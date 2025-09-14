@@ -12,7 +12,7 @@ import {
 
 import type { TransactionCreateWithDetails } from "@pocket-pixie/contracts";
 import { requireAuthMiddleware } from "@/middleware/require-auth-middleware";
-import { handleRouteError, AppError } from "@/utils/error-response-handler";
+import { handleRouteError } from "@/utils/error-response-handler";
 
 export const transactionRoutesExport = new OpenAPIHono();
 
@@ -32,9 +32,9 @@ transactionRoutesExport.openapi(createTransactionRoute, async (c) => {
       },
       201
     );
-  } catch (error: AppError) {
+  } catch (error: unknown) {
     const { json, status } = handleRouteError(error);
-    return c.json(json, status as any);
+    return c.json(json, status);
   }
 });
 
@@ -55,9 +55,9 @@ transactionRoutesExport.openapi(getTransactionsRoute, async (c) => {
     });
 
     return c.json(result, 200);
-  } catch (error) {
-    const err = error as Error;
-    return c.json({ message: err.message || "Internal server error" }, 500);
+  } catch (error: unknown) {
+    const { json, status } = handleRouteError(error);
+    return c.json(json, status);
   }
 });
 
@@ -77,15 +77,9 @@ transactionRoutesExport.openapi(getTransactionRoute, async (c) => {
     );
 
     return c.json(transaction, 200);
-  } catch (error) {
-    const err = error as Error;
-    if (err.message === "Transaction not found") {
-      return c.json({ message: err.message }, 404);
-    }
-    if (err.message.includes("access")) {
-      return c.json({ message: err.message }, 403);
-    }
-    return c.json({ message: err.message || "Internal server error" }, 500);
+  } catch (error: unknown) {
+    const { json, status } = handleRouteError(error);
+    return c.json(json, status);
   }
 });
 
@@ -110,15 +104,9 @@ transactionRoutesExport.openapi(getGroupTransactionsRoute, async (c) => {
     );
 
     return c.json(result, 200);
-  } catch (error) {
-    const err = error as Error;
-    if (err.message === "Group not found") {
-      return c.json({ message: err.message }, 404);
-    }
-    if (err.message.includes("access")) {
-      return c.json({ message: err.message }, 403);
-    }
-    return c.json({ message: err.message || "Internal server error" }, 500);
+  } catch (error: unknown) {
+    const { json, status } = handleRouteError(error);
+    return c.json(json, status);
   }
 });
 
@@ -143,12 +131,9 @@ transactionRoutesExport.openapi(getFriendTransactionsRoute, async (c) => {
     );
 
     return c.json(result, 200);
-  } catch (error) {
-    const err = error as Error;
-    if (err.message.includes("friends")) {
-      return c.json({ message: err.message }, 403);
-    }
-    return c.json({ message: err.message || "Internal server error" }, 500);
+  } catch (error: unknown) {
+    const { json, status } = handleRouteError(error);
+    return c.json(json, status);
   }
 });
 
@@ -170,15 +155,9 @@ transactionRoutesExport.openapi(updateTransactionRoute, async (c) => {
     );
 
     return c.json(updatedTransaction, 200);
-  } catch (error) {
-    const err = error as Error;
-    if (err.message === "Transaction not found") {
-      return c.json({ message: err.message }, 404);
-    }
-    if (err.message.includes("access")) {
-      return c.json({ message: err.message }, 403);
-    }
-    return c.json({ message: err.message || "Internal server error" }, 500);
+  } catch (error: unknown) {
+    const { json, status } = handleRouteError(error);
+    return c.json(json, status);
   }
 });
 
@@ -198,15 +177,9 @@ transactionRoutesExport.openapi(deleteTransactionRoute, async (c) => {
     );
 
     return c.json(result, 200);
-  } catch (error) {
-    const err = error as Error;
-    if (err.message === "Transaction not found") {
-      return c.json({ message: err.message }, 404);
-    }
-    if (err.message.includes("access")) {
-      return c.json({ message: err.message }, 403);
-    }
-    return c.json({ message: err.message || "Internal server error" }, 500);
+  } catch (error: unknown) {
+    const { json, status } = handleRouteError(error);
+    return c.json(json, status);
   }
 });
 

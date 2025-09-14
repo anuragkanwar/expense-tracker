@@ -359,7 +359,20 @@ export class TransactionService {
 
             // Upfront expense recognition (expense_share rows) ONLY for EXPENSE transactions
             if (transactionCreateWithDetails.type === TXN_TYPE.EXPENSE) {
-              const shareRows: any[] = [];
+              const shareRows: Array<{
+                transactionId: number;
+                payerUserId: number;
+                participantUserId: number;
+                groupId: number | null;
+                shareType: SHARE_TYPE;
+                splitType: typeof transactionCreateWithDetails.splitType;
+                expenseAccountId: number;
+                currency: string;
+                amount: number;
+                paidAmount: number;
+                status: EXPENSE_SHARE_STATUS;
+                isPayerShare: 0 | 1;
+              }> = [];
               const groupIdValue =
                 transactionCreateWithDetails.sharedWith === SHARE_TYPE.GROUP
                   ? (transactionCreateWithDetails.groupId ?? null)
@@ -425,7 +438,7 @@ export class TransactionService {
         } else {
           throw new NotFoundError("Provided transaction type not found");
         }
-      } catch (error: any) {
+      } catch (error: unknown) {
         tx.rollback();
         throw error;
       }
@@ -450,9 +463,9 @@ export class TransactionService {
     );
 
     // Filter transactions based on user involvement
-    const userTransactions = transactions.filter((transaction) => {
+    const userTransactions = transactions.filter((t) => {
       // User is the payer
-      if (transaction.userId === userId) return true;
+      if (t.userId === userId) return true;
 
       // For now, we'll return all transactions - in a real implementation,
       // you'd check if user is involved in the transaction splits
@@ -462,7 +475,7 @@ export class TransactionService {
     // Apply type filter if specified
     let filteredTransactions = userTransactions;
     if (type) {
-      filteredTransactions = userTransactions.filter((transaction) => {
+      filteredTransactions = userTransactions.filter(() => {
         // This is a simplified type check - in a real implementation,
         // you'd check the transaction type from the related transaction entries
         return true; // Placeholder
@@ -526,7 +539,7 @@ export class TransactionService {
     );
 
     // Filter transactions that belong to this group
-    const groupTransactions = transactions.filter((transaction) => {
+    const groupTransactions = transactions.filter(() => {
       // In a real implementation, you'd check if the transaction is associated with the group
       // For now, we'll return a placeholder
       return true;
@@ -583,10 +596,7 @@ export class TransactionService {
     updateData: TransactionUpdateWithDetails
   ) {
     // Verify transaction exists and user has access
-    const existingTransaction = await this.getTransactionById(
-      transactionId,
-      userId
-    );
+    await this.getTransactionById(transactionId, userId);
 
     // Update the transaction
     const updatedTransaction = await this.transactionRepository.update(

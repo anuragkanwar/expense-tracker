@@ -44,7 +44,7 @@ export class LoanRepository {
       loanDate: item.loanDate?.toISOString(),
       createdAt: item.createdAt.toISOString(),
       updatedAt: item.updatedAt.toISOString(),
-    } as any;
+    } as LoanResponse;
   }
 
   async create(
@@ -69,7 +69,7 @@ export class LoanRepository {
       loanDate: item.loanDate?.toISOString(),
       createdAt: item.createdAt.toISOString(),
       updatedAt: item.updatedAt.toISOString(),
-    } as any;
+    } as LoanResponse;
   }
 
   async update(

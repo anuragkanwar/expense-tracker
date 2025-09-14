@@ -1,4 +1,9 @@
-import { NotFoundError, ConflictError, ValidationError } from "./base-error";
+import {
+  NotFoundError,
+  ConflictError,
+  ValidationError,
+  type ValidationErrorDetail,
+} from "./base-error";
 
 export class AccountNotFoundError extends NotFoundError {
   constructor(identifier: string) {
@@ -13,7 +18,7 @@ export class AccountConflictError extends ConflictError {
 }
 
 export class AccountValidationError extends ValidationError {
-  constructor(message: string, details?: any) {
+  constructor(message: string, details?: ValidationErrorDetail[]) {
     super(message, details);
   }
 }

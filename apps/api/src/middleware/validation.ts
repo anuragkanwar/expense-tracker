@@ -11,7 +11,13 @@ export const validateBody = (schema: z.ZodSchema): MiddlewareHandler => {
       await next();
     } catch (error) {
       if (error instanceof z.ZodError) {
-        throw new ValidationError("Request validation failed", error.issues);
+        throw new ValidationError(
+          "Request validation failed",
+          error.issues.map((i) => ({
+            ...i,
+            path: i.path as (string | number)[],
+          }))
+        );
       }
       throw error;
     }
@@ -27,7 +33,13 @@ export const validateQuery = (schema: z.ZodSchema): MiddlewareHandler => {
       await next();
     } catch (error) {
       if (error instanceof z.ZodError) {
-        throw new ValidationError("Query validation failed", error.issues);
+        throw new ValidationError(
+          "Query validation failed",
+          error.issues.map((i) => ({
+            ...i,
+            path: i.path as (string | number)[],
+          }))
+        );
       }
       throw error;
     }
@@ -43,7 +55,13 @@ export const validateParams = (schema: z.ZodSchema): MiddlewareHandler => {
       await next();
     } catch (error) {
       if (error instanceof z.ZodError) {
-        throw new ValidationError("Params validation failed", error.issues);
+        throw new ValidationError(
+          "Params validation failed",
+          error.issues.map((i) => ({
+            ...i,
+            path: i.path as (string | number)[],
+          }))
+        );
       }
       throw error;
     }

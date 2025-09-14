@@ -1,42 +1,82 @@
-import { BaseError, NotFoundError, ForbiddenError } from "@/errors/base-error";
+import { BaseError, ForbiddenError, NotFoundError } from "@/errors/base-error";
 
+// Generic application error union (kept for backwards compatibility with existing imports)
 export type AppError = BaseError | Error | unknown;
 
-export const handleRouteError = (
-  error: AppError
-): { json: any; status: number } => {
-  // Handle custom BaseError instances
+// Narrow HTTP status codes we intentionally emit for error responses
+export type HttpStatus = 400 | 401 | 403 | 404 | 409 | 422 | 500;
+
+export interface ErrorBody {
+  success: false;
+  error: {
+    code: string;
+    message: string;
+    details?: unknown;
+  };
+}
+
+export interface ErrorResponse {
+  json: ErrorBody; // Standardised error body
+  status: HttpStatus; // HTTP status code
+}
+
+/**
+ * Safely derive a human-readable message from an unknown error value.
+ * Never throws – always returns a string.
+ */
+export function getErrorMessage(error: unknown): string {
+  if (error instanceof BaseError) return error.message;
+  if (error instanceof Error) return error.message || "Unknown error";
+  if (typeof error === "string") return error;
+  try {
+    return JSON.stringify(error);
+  } catch {
+    return "Unknown error";
+  }
+}
+
+/**
+ * Convert an unknown error into a serialisable error response adhering
+ * to the project-wide error contract (success: false, error: { ... }).
+ */
+export const handleRouteError = (error: unknown): ErrorResponse => {
+  // Custom domain errors – fully trusted & already shaped
   if (error instanceof BaseError) {
-    return { json: error.toJSON(), status: error.statusCode };
+    return {
+      json: error.toJSON() as ErrorBody,
+      status: error.statusCode as HttpStatus,
+    };
   }
 
-  // Handle Error instances
+  // Standard JS / library Error instances – inspect message heuristically
   if (error instanceof Error) {
-    if (error.message.includes("not found")) {
-      const notFound = new NotFoundError("Resource");
-      return { json: notFound.toJSON(), status: notFound.statusCode };
-    }
-    if (
-      error.message.includes("access") ||
-      error.message.includes("permission")
-    ) {
-      const forbidden = new ForbiddenError("Access denied");
-      return { json: forbidden.toJSON(), status: forbidden.statusCode };
-    }
-    if (error.message.includes("Validation")) {
+    const msg = error.message || "Unknown error";
+
+    if (msg.toLowerCase().includes("not found")) {
       return {
         json: {
           success: false,
-          error: {
-            code: "VALIDATION_ERROR",
-            message: error.message,
-          },
+          error: { code: "NOT_FOUND", message: msg },
+        },
+        status: 404,
+      };
+    }
+
+    if (/(access|permission)/i.test(msg)) {
+      const forbidden = new ForbiddenError("Access denied");
+      return { json: forbidden.toJSON() as ErrorBody, status: 403 };
+    }
+
+    if (/validation/i.test(msg)) {
+      return {
+        json: {
+          success: false,
+          error: { code: "VALIDATION_ERROR", message: msg },
         },
         status: 400,
       };
     }
 
-    // Generic internal server error for Error instances
     return {
       json: {
         success: false,
@@ -45,14 +85,14 @@ export const handleRouteError = (
           message:
             process.env.NODE_ENV === "production"
               ? "An unexpected error occurred"
-              : error.message,
+              : msg,
         },
       },
       status: 500,
     };
   }
 
-  // Handle unknown errors
+  // Unknown / non-Error throw values – coerce safely
   return {
     json: {
       success: false,
@@ -61,7 +101,7 @@ export const handleRouteError = (
         message:
           process.env.NODE_ENV === "production"
             ? "An unexpected error occurred"
-            : "Unknown error",
+            : getErrorMessage(error),
       },
     },
     status: 500,

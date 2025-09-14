@@ -2,7 +2,6 @@ import { createRoute, z } from "@hono/zod-openapi";
 import {
   IdParamSchema,
   UserIdParamSchema,
-  MessageResponseSchema, // kept for potential future reuse
   StandardErrorSchema,
   IdempotencyConflictErrorSchema,
 } from "./shared-schemas";

@@ -41,8 +41,10 @@ balanceRoutes.openapi(getFriendBalanceRoute, async (c) => {
   try {
     const balance = await balanceService.getFriendBalance(userId, friendId);
     return c.json(balance, 200);
-  } catch {
-    return c.json({ message: "Friend not found" }, 404);
+  } catch (error: unknown) {
+    const { handleRouteError } = await import("@/utils/error-response-handler");
+    const { json, status } = handleRouteError(error);
+    return c.json(json, status);
   }
 });
 
@@ -60,8 +62,10 @@ balanceRoutes.openapi(getGroupBalanceRoute, async (c) => {
   try {
     const balance = await balanceService.getGroupBalance(userId, groupId);
     return c.json(balance, 200);
-  } catch {
-    return c.json({ message: "Group not found" }, 404);
+  } catch (error: unknown) {
+    const { handleRouteError } = await import("@/utils/error-response-handler");
+    const { json, status } = handleRouteError(error);
+    return c.json(json, status);
   }
 });
 
@@ -91,19 +95,20 @@ balanceRoutes.openapi(createDirectSettlementRoute, async (c) => {
           idempotencyKey,
         });
       return c.json(settlement, replay ? 200 : 201);
-    } catch (error: any) {
-      if (error instanceof IdempotencyKeyConflictError) {
-        return c.json(error.toJSON(), 409 as any);
-      }
-      return c.json(
-        error.toJSON
-          ? error.toJSON()
-          : { message: error.message || "Failed to record settlement" },
-        error.statusCode || 400
+    } catch (error: unknown) {
+      const { handleRouteError } = await import(
+        "@/utils/error-response-handler"
       );
+      if (error instanceof IdempotencyKeyConflictError) {
+        return c.json(error.toJSON(), 409);
+      }
+      const { json, status } = handleRouteError(error);
+      return c.json(json, status);
     }
-  } catch {
-    return c.json({ message: "Failed to record settlement" }, 400);
+  } catch (error: unknown) {
+    const { handleRouteError } = await import("@/utils/error-response-handler");
+    const { json, status } = handleRouteError(error);
+    return c.json(json, status);
   }
 });
 
@@ -134,7 +139,9 @@ balanceRoutes.openapi(getGroupSettlementPlanRoute, async (c) => {
   try {
     const plan = await balanceService.getGroupSettlementPlan(userId, groupId);
     return c.json(plan, 200);
-  } catch (error) {
-    return c.json({ message: "Group not found" }, 404);
+  } catch (error: unknown) {
+    const { handleRouteError } = await import("@/utils/error-response-handler");
+    const { json, status } = handleRouteError(error);
+    return c.json(json, status);
   }
 });

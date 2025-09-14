@@ -1,5 +1,4 @@
 import { OpenAPIHono } from "@hono/zod-openapi";
-import { requireAuthMiddleware } from "@/middleware/require-auth-middleware";
 import {
   createGroupRoute,
   getGroupsRoute,
@@ -142,17 +141,10 @@ groupRoutes.openapi(addGroupMemberRoute, async (c) => {
     } else {
       return c.json({ message: "Invalid request body" }, 400);
     }
-  } catch (error: any) {
-    if (error.message === "Group not found") {
-      return c.json({ message: "Group not found" }, 404);
-    }
-    if (error.message === "Forbidden") {
-      return c.json({ message: "Forbidden" }, 403);
-    }
-    if (error.message.includes("already a member")) {
-      return c.json({ message: "User is already a member of this group" }, 409);
-    }
-    return c.json({ message: "Failed to add member" }, 400);
+  } catch (error: unknown) {
+    const { handleRouteError } = await import("@/utils/error-response-handler");
+    const { json, status } = handleRouteError(error);
+    return c.json(json, status);
   }
 });
 
@@ -172,14 +164,10 @@ groupRoutes.openapi(removeGroupMemberRoute, async (c) => {
       userId
     );
     return c.json({ message: "Member removed successfully" }, 200);
-  } catch (error: any) {
-    if (error.message === "Group not found") {
-      return c.json({ message: "Group not found" }, 404);
-    }
-    if (error.message === "Forbidden") {
-      return c.json({ message: "Forbidden" }, 403);
-    }
-    return c.json({ message: "Failed to remove member" }, 400);
+  } catch (error: unknown) {
+    const { handleRouteError } = await import("@/utils/error-response-handler");
+    const { json, status } = handleRouteError(error);
+    return c.json(json, status);
   }
 });
 
@@ -198,14 +186,10 @@ groupRoutes.openapi(getGroupBalancesRoute, async (c) => {
       groupId
     );
     return c.json(balances, 200);
-  } catch (error: any) {
-    if (error.message === "Group not found") {
-      return c.json({ message: "Group not found" }, 404);
-    }
-    if (error.message === "Forbidden") {
-      return c.json({ message: "Forbidden" }, 403);
-    }
-    return c.json({ message: "Failed to calculate balances" }, 400);
+  } catch (error: unknown) {
+    const { handleRouteError } = await import("@/utils/error-response-handler");
+    const { json, status } = handleRouteError(error);
+    return c.json(json, status);
   }
 });
 
@@ -224,14 +208,10 @@ groupRoutes.openapi(getSettlementPlanRoute, async (c) => {
       groupId
     );
     return c.json(settlementPlan, 200);
-  } catch (error: any) {
-    if (error.message === "Group not found") {
-      return c.json({ message: "Group not found" }, 404);
-    }
-    if (error.message === "Forbidden") {
-      return c.json({ message: "Forbidden" }, 403);
-    }
-    return c.json({ message: "Failed to calculate settlement plan" }, 400);
+  } catch (error: unknown) {
+    const { handleRouteError } = await import("@/utils/error-response-handler");
+    const { json, status } = handleRouteError(error);
+    return c.json(json, status);
   }
 });
 
@@ -259,7 +239,9 @@ groupRoutes.openapi(createGroupDirectSettlementRoute, async (c) => {
         idempotencyKey,
       });
     return c.json(settlement, replay ? 200 : 201);
-  } catch (error: any) {
-    return c.json({ message: "Failed to record settlement" }, 400);
+  } catch (error: unknown) {
+    const { handleRouteError } = await import("@/utils/error-response-handler");
+    const { json, status } = handleRouteError(error);
+    return c.json(json, status);
   }
 });

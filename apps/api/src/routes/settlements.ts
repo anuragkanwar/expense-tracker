@@ -1,16 +1,21 @@
 import { OpenAPIHono } from "@hono/zod-openapi";
 import { allocateExpenseShareSettlementRoute } from "./settlements.contracts";
-import {
-  IdempotencyKeyConflictError,
-  IdempotencyKeyRequiredError,
-} from "../errors/idempotency-errors";
+import { IdempotencyKeyRequiredError } from "../errors/idempotency-errors";
+import { handleRouteError } from "@/utils/error-response-handler";
 
 export const settlementRoutes = new OpenAPIHono();
 
 settlementRoutes.openapi(allocateExpenseShareSettlementRoute, async (c) => {
   const user = c.get("user");
   if (!user) {
-    return c.json({ message: "Unauthorized" }, 401);
+    const { json, status } = handleRouteError(
+      new (class extends Error {
+        constructor() {
+          super("Unauthorized");
+        }
+      })()
+    );
+    return c.json(json, status);
   }
   const services = c.get("services");
   const body = c.req.valid("json");
@@ -18,7 +23,8 @@ settlementRoutes.openapi(allocateExpenseShareSettlementRoute, async (c) => {
     const idempotencyKey = c.req.header("Idempotency-Key");
     if (!idempotencyKey) {
       const err = new IdempotencyKeyRequiredError();
-      return c.json(err.toJSON(), 400);
+      const { json, status } = handleRouteError(err);
+      return c.json(json, status);
     }
     const result =
       await services.settlementService.allocateExpenseShareSettlement({
@@ -30,16 +36,8 @@ settlementRoutes.openapi(allocateExpenseShareSettlementRoute, async (c) => {
         idempotencyKey,
       });
     return c.json(result, 200);
-  } catch (error: any) {
-    if (error instanceof IdempotencyKeyConflictError) {
-      return c.json(error.toJSON(), 409 as any);
-    }
-    if (error instanceof IdempotencyKeyRequiredError) {
-      return c.json(error.toJSON(), 400 as any);
-    }
-    return c.json(
-      { message: error.message || "Failed to allocate settlement" },
-      400
-    );
+  } catch (error: unknown) {
+    const { json, status } = handleRouteError(error);
+    return c.json(json, status);
   }
 });

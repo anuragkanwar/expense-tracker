@@ -6,8 +6,12 @@ export class IdempotencyKeyRequiredError extends BaseError {
   }
 }
 
-interface IdempotencyConflictDifferences {
-  [field: string]: { original: any; attempted: any };
+export interface IdempotencyConflictDifferencesValue {
+  original: unknown;
+  attempted: unknown;
+}
+export interface IdempotencyConflictDifferences {
+  [field: string]: IdempotencyConflictDifferencesValue;
 }
 
 export class IdempotencyKeyConflictError extends BaseError {

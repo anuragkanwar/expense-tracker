@@ -95,6 +95,17 @@ export const createLoanRoute = createRoute({
   },
 });
 
+export const LoanListQuerySchema = z.object({
+  page: z.coerce.number().int().positive().optional().openapi({ example: 1 }),
+  limit: z.coerce.number().int().positive().optional().openapi({ example: 20 }),
+  type: z.string().optional().openapi({
+    example: "LOAN_GIVEN",
+    description: "Filter placeholder",
+  }),
+});
+
+export type LoanListQuery = z.infer<typeof LoanListQuerySchema>;
+
 export const getLoansRoute = createRoute({
   method: "get",
   path: "/",
@@ -103,24 +114,7 @@ export const getLoansRoute = createRoute({
     "Lists loans the authenticated user created (future: include participation).",
   tags: ["Loans"],
   request: {
-    query: z.object({
-      page: z.coerce
-        .number()
-        .int()
-        .positive()
-        .optional()
-        .openapi({ example: 1 }),
-      limit: z.coerce
-        .number()
-        .int()
-        .positive()
-        .optional()
-        .openapi({ example: 20 }),
-      type: z.string().optional().openapi({
-        example: "LOAN_GIVEN",
-        description: "Filter placeholder",
-      }),
-    }),
+    query: LoanListQuerySchema,
   },
   responses: {
     200: {

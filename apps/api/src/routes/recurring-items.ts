@@ -7,6 +7,7 @@ import {
   deleteRecurringItemRoute,
 } from "./recurring-items.contracts";
 import { RECURRENCE_TYPE, TIME_PERIOD, ACCOUNT_TYPE } from "@/db/constants";
+import { handleRouteError } from "@/utils/error-response-handler";
 
 const periodMap: Record<string, TIME_PERIOD> = {
   monthly: TIME_PERIOD.MONTHLY,
@@ -19,37 +20,48 @@ export const recurringItemRoutes = new OpenAPIHono();
 recurringItemRoutes.openapi(getRecurringItemsRoute, async (c) => {
   const user = c.get("user");
   if (!user) {
-    return c.json({ message: "Unauthorized" }, 401);
+    const { json, status } = handleRouteError(
+      new (class extends Error {
+        constructor() {
+          super("Unauthorized");
+        }
+      })()
+    );
+    return c.json(json, status);
   }
 
   const services = c.get("services");
-  const recurringItems =
-    await services.recurringService.getRecurringItemsByUserId(user.id);
-
-  return c.json(recurringItems, 200);
+  try {
+    const recurringItems =
+      await services.recurringService.getRecurringItemsByUserId(user.id);
+    return c.json(recurringItems, 200);
+  } catch (error: unknown) {
+    const { json, status } = handleRouteError(error);
+    return c.json(json, status);
+  }
 });
 
 recurringItemRoutes.openapi(createRecurringItemRoute, async (c) => {
   const user = c.get("user");
   if (!user) {
-    return c.json({ message: "Unauthorized" }, 401);
+    const { json, status } = handleRouteError(new Error("Unauthorized"));
+    return c.json(json, status);
   }
 
   const services = c.get("services");
   const body = c.req.valid("json");
 
-  // Determine recurrence type
   const recurrenceType =
     body.type === "income" ? RECURRENCE_TYPE.CREDIT : RECURRENCE_TYPE.DEBIT;
 
-  // Map DTO to model
+  // Partial recurring creation data prior to account resolution
   const recurringData = {
-    description: body.description,
-    amount: body.amount,
+    description: body.description as string,
+    amount: body.amount as number,
     period: periodMap[body.period] || TIME_PERIOD.MONTHLY,
     type: recurrenceType,
-    nextDate: body.nextDate,
-  };
+    nextDate: body.nextDate as string | undefined,
+  } as const;
 
   try {
     const recurringItem =
@@ -60,17 +72,18 @@ recurringItemRoutes.openapi(createRecurringItemRoute, async (c) => {
         body.categoryId,
         body.type === "expense" ? ACCOUNT_TYPE.EXPENSE : undefined
       );
-
     return c.json(recurringItem, 201);
-  } catch (error: any) {
-    return c.json({ message: error.message || "Internal server error" }, 500);
+  } catch (error: unknown) {
+    const { json, status } = handleRouteError(error);
+    return c.json(json, status);
   }
 });
 
 recurringItemRoutes.openapi(getRecurringItemRoute, async (c) => {
   const user = c.get("user");
   if (!user) {
-    return c.json({ message: "Unauthorized" }, 401);
+    const { json, status } = handleRouteError(new Error("Unauthorized"));
+    return c.json(json, status);
   }
 
   const services = c.get("services");
@@ -83,32 +96,26 @@ recurringItemRoutes.openapi(getRecurringItemRoute, async (c) => {
         itemId
       );
     return c.json(recurringItem, 200);
-  } catch (error: any) {
-    if (error.message === "Recurring item not found") {
-      return c.json({ message: "Recurring item not found" }, 404);
-    }
-    if (error.message === "Forbidden") {
-      return c.json({ message: "Forbidden" }, 403);
-    }
-    return c.json({ message: "Internal server error" }, 500);
+  } catch (error: unknown) {
+    const { json, status } = handleRouteError(error);
+    return c.json(json, status);
   }
 });
 
 recurringItemRoutes.openapi(updateRecurringItemRoute, async (c) => {
   const user = c.get("user");
   if (!user) {
-    return c.json({ message: "Unauthorized" }, 401);
+    const { json, status } = handleRouteError(new Error("Unauthorized"));
+    return c.json(json, status);
   }
 
   const services = c.get("services");
   const { itemId } = c.req.valid("param");
   const body = c.req.valid("json");
 
-  // Determine recurrence type
   const recurrenceType =
     body.type === "income" ? RECURRENCE_TYPE.CREDIT : RECURRENCE_TYPE.DEBIT;
 
-  // Map DTO to model
   const recurringData = {
     description: body.description,
     amount: body.amount,
@@ -131,25 +138,24 @@ recurringItemRoutes.openapi(updateRecurringItemRoute, async (c) => {
       );
 
     if (!updatedItem) {
-      return c.json({ message: "Recurring item not found" }, 404);
+      const { json, status } = handleRouteError(
+        new Error("Recurring item not found")
+      );
+      return c.json(json, status);
     }
 
     return c.json(updatedItem, 200);
-  } catch (error: any) {
-    if (error.message === "Recurring item not found") {
-      return c.json({ message: "Recurring item not found" }, 404);
-    }
-    if (error.message === "Forbidden") {
-      return c.json({ message: "Forbidden" }, 403);
-    }
-    return c.json({ message: error.message || "Internal server error" }, 500);
+  } catch (error: unknown) {
+    const { json, status } = handleRouteError(error);
+    return c.json(json, status);
   }
 });
 
 recurringItemRoutes.openapi(deleteRecurringItemRoute, async (c) => {
   const user = c.get("user");
   if (!user) {
-    return c.json({ message: "Unauthorized" }, 401);
+    const { json, status } = handleRouteError(new Error("Unauthorized"));
+    return c.json(json, status);
   }
 
   const services = c.get("services");
@@ -158,13 +164,8 @@ recurringItemRoutes.openapi(deleteRecurringItemRoute, async (c) => {
   try {
     await services.recurringService.deleteRecurringItemByUser(user.id, itemId);
     return c.json({ message: "Recurring item deleted successfully" }, 200);
-  } catch (error: any) {
-    if (error.message === "Recurring item not found") {
-      return c.json({ message: "Recurring item not found" }, 404);
-    }
-    if (error.message === "Forbidden") {
-      return c.json({ message: "Forbidden" }, 403);
-    }
-    return c.json({ message: "Internal server error" }, 500);
+  } catch (error: unknown) {
+    const { json, status } = handleRouteError(error);
+    return c.json(json, status);
   }
 });

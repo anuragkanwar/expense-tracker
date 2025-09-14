@@ -22,7 +22,9 @@ export class SettlementApplicationRepository {
     this.db = db;
   }
 
-  private map(row: any): SettlementApplicationResponse {
+  private map(
+    row: typeof settlementApplication.$inferSelect
+  ): SettlementApplicationResponse {
     return {
       id: row.id,
       settlementId: row.settlementId,

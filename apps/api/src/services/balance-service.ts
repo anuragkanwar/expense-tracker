@@ -453,8 +453,8 @@ export class BalanceService {
             );
           }
         }
-      } catch (error: any) {
-        tx.rollback();
+      } catch (error: unknown) {
+        tx.rollback(); // explicit manual rollback then propagate
         throw error;
       }
     });

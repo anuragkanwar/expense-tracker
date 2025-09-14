@@ -1,7 +1,12 @@
 import { expenseShare } from "@/db";
-import { and, asc, eq, inArray } from "drizzle-orm";
+import { and, asc, eq, inArray, isNull } from "drizzle-orm";
 import { type DBType, type DBTransactionType } from "@/db";
 import { EXPENSE_SHARE_STATUS, SHARE_TYPE, SPLIT_TYPE } from "@/db";
+
+// Drizzle inferred row type
+type ExpenseShareSelect = typeof expenseShare.$inferSelect;
+// Condition helpers union we build dynamically
+type Condition = ReturnType<typeof eq> | ReturnType<typeof inArray>;
 
 export interface ExpenseShareCreate {
   transactionId: number;
@@ -17,13 +22,13 @@ export interface ExpenseShareCreate {
   status?: EXPENSE_SHARE_STATUS;
   realizedAt?: Date | null;
   isPayerShare?: number; // 1 or 0
-  metadata?: any;
+  metadata?: unknown; // JSON metadata blob (opaque to domain layer)
 }
 
 export interface ExpenseShareUpdate {
   paidAmount?: number;
   status?: EXPENSE_SHARE_STATUS;
-  metadata?: any;
+  metadata?: unknown;
 }
 
 export interface ExpenseShareResponse {
@@ -41,7 +46,7 @@ export interface ExpenseShareResponse {
   status: EXPENSE_SHARE_STATUS;
   realizedAt?: string | null;
   isPayerShare: number;
-  metadata?: any;
+  metadata?: unknown;
   createdAt: string;
   updatedAt: string;
 }
@@ -52,7 +57,7 @@ export class ExpenseShareRepository {
     this.db = db;
   }
 
-  private map(row: any): ExpenseShareResponse {
+  private map(row: ExpenseShareSelect): ExpenseShareResponse {
     return {
       ...row,
       realizedAt: row.realizedAt ? row.realizedAt.toISOString() : null,
@@ -92,7 +97,7 @@ export class ExpenseShareRepository {
       .where(eq(expenseShare.id, id))
       .limit(1);
     if (!rows.length) return null;
-    return this.map(rows[0]);
+    return this.map(rows[0]!);
   }
 
   async findAllocatableShares(
@@ -103,7 +108,7 @@ export class ExpenseShareRepository {
     tx?: DBTransactionType
   ): Promise<ExpenseShareResponse[]> {
     const db = tx ?? this.db;
-    const conditions: any[] = [
+    const conditions: Condition[] = [
       eq(expenseShare.participantUserId, participantUserId),
       eq(expenseShare.payerUserId, payerUserId),
       eq(expenseShare.currency, currency),
@@ -114,8 +119,12 @@ export class ExpenseShareRepository {
       ]),
     ];
     if (groupId !== undefined) {
-      // groupId can be null (non-group expense) or number; drizzle eq for nullable column expects matching type.
-      conditions.push(eq(expenseShare.groupId as any, groupId as any));
+      // groupId may be null or number
+      conditions.push(
+        groupId === null
+          ? (isNull(expenseShare.groupId) as Condition)
+          : eq(expenseShare.groupId, groupId)
+      );
     }
     const rows = await db
       .select()
@@ -158,16 +167,9 @@ export class ExpenseShareRepository {
     tx?: DBTransactionType
   ): Promise<ExpenseShareResponse[]> {
     const db = tx ?? this.db;
-    const conditions: any[] = [];
 
-    if (filters.isPayer === true) {
-      conditions.push(eq(expenseShare.payerUserId, userId));
-    } else if (filters.isPayer === false) {
-      conditions.push(eq(expenseShare.participantUserId, userId));
-    } else {
-      // either role
-      // (participantUserId = userId OR payerUserId = userId)
-      // Drizzle doesn't have direct OR helper with different columns; use and() with eq(1,1) circumvent? We'll just fetch both separately for simplicity
+    // Role-specific fetch logic
+    if (filters.isPayer === undefined) {
       const payerRowsPromise = db
         .select()
         .from(expenseShare)
@@ -189,7 +191,7 @@ export class ExpenseShareRepository {
         combined = combined.filter((r) => r.status === filters.status);
       }
       // dedupe by id
-      const map = new Map<number, any>();
+      const map = new Map<number, ExpenseShareSelect>();
       for (const r of combined) {
         map.set(r.id, r);
       }
@@ -198,6 +200,12 @@ export class ExpenseShareRepository {
         .map((r) => this.map(r));
     }
 
+    const conditions: Condition[] = [];
+    if (filters.isPayer === true) {
+      conditions.push(eq(expenseShare.payerUserId, userId));
+    } else if (filters.isPayer === false) {
+      conditions.push(eq(expenseShare.participantUserId, userId));
+    }
     if (filters.status) {
       conditions.push(eq(expenseShare.status, filters.status));
     }

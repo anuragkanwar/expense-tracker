@@ -3,7 +3,7 @@ import type {
   SettlementCreate,
   SettlementUpdate,
 } from "@pocket-pixie/contracts";
-import { BadRequestError } from "../errors/base-error";
+import { BadRequestError } from "@/errors/base-error";
 import { SettlementRepository } from "@/repositories/settlement-repository";
 import {
   TransactionRepository,
@@ -20,7 +20,7 @@ import {
   type SettlementApplicationResponse,
 } from "@/repositories/settlement-application-repository";
 import { BalanceRepository } from "@/repositories/balance-repository";
-import { IdempotencyKeyConflictError } from "../errors/idempotency-errors";
+import { IdempotencyKeyConflictError } from "@/errors/idempotency-errors";
 
 interface ExpenseShareSettlementResult {
   settlement: SettlementResponse;
@@ -212,7 +212,10 @@ export class SettlementService {
         );
         if (existing) {
           // Validate payload parity for idempotent replay; mismatch => conflict 409
-          const diffs: Record<string, { original: any; attempted: any }> = {};
+          const diffs: Record<
+            string,
+            { original: unknown; attempted: unknown }
+          > = {};
           if (existing.payerId !== payerId)
             diffs.payerId = { original: existing.payerId, attempted: payerId };
           if (existing.payeeId !== payeeId)
@@ -224,7 +227,7 @@ export class SettlementService {
               original: existing.currency,
               attempted: currency,
             };
-          const existingGroup = (existing as any).groupId ?? null;
+          const existingGroup = existing.groupId ?? null;
           const attemptedGroup = groupId ?? null;
           if (existingGroup !== attemptedGroup)
             diffs.groupId = {
@@ -297,7 +300,7 @@ export class SettlementService {
           settledAt: new Date().toISOString(),
           transactionId: txn.id,
           idempotencyKey: idempotencyKey ?? undefined,
-        } as SettlementCreate,
+        } satisfies SettlementCreate,
         tx
       );
 
@@ -383,7 +386,10 @@ export class SettlementService {
         );
         if (existing) {
           // Replay semantics: verify payload matches; if differs -> conflict
-          const diffs: Record<string, { original: any; attempted: any }> = {};
+          const diffs: Record<
+            string,
+            { original: unknown; attempted: unknown }
+          > = {};
           if (existing.payerId !== payerId)
             diffs.payerId = { original: existing.payerId, attempted: payerId };
           if (existing.payeeId !== payeeId)
@@ -395,7 +401,7 @@ export class SettlementService {
               original: existing.currency,
               attempted: currency,
             };
-          const existingGroup = (existing as any).groupId ?? null;
+          const existingGroup = existing.groupId ?? null;
           const attemptedGroup = groupId ?? null;
           if (existingGroup !== attemptedGroup)
             diffs.groupId = {
@@ -429,7 +435,7 @@ export class SettlementService {
             totalApplied: appliedSum,
             outstandingBefore: outstandingBefore + appliedSum, // approximate prior before
             outstandingAfter: outstandingBefore,
-          } as ExpenseShareSettlementResult;
+          } satisfies ExpenseShareSettlementResult;
         }
       }
 
@@ -488,7 +494,7 @@ export class SettlementService {
           settledAt: new Date().toISOString(),
           transactionId: txn.id,
           idempotencyKey: idempotencyKey ?? undefined,
-        } as SettlementCreate,
+        } satisfies SettlementCreate,
         tx
       );
 
@@ -545,7 +551,7 @@ export class SettlementService {
         totalApplied,
         outstandingBefore,
         outstandingAfter,
-      } as ExpenseShareSettlementResult;
+      } satisfies ExpenseShareSettlementResult;
     });
 
     return result;

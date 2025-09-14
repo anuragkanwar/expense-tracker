@@ -454,7 +454,7 @@ export class LoanService {
         } else {
           throw new NotFoundError("Provided txn type not found");
         }
-      } catch (error: any) {
+      } catch (error: unknown) {
         tx.rollback();
         throw error;
       }

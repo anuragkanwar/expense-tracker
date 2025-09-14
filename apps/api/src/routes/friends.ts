@@ -18,8 +18,10 @@ friendRoutes.openapi(getFriendsRoute, async (c) => {
     }
     const friends = await friendService.getFriends(user);
     return c.json(friends, 200);
-  } catch (error: any) {
-    return c.json({ message: error.message || "Internal server error" }, 500);
+  } catch (error: unknown) {
+    const { handleRouteError } = await import("@/utils/error-response-handler");
+    const { json, status } = handleRouteError(error);
+    return c.json(json, status);
   }
 });
 
@@ -33,14 +35,10 @@ friendRoutes.openapi(sendFriendRequestRoute, async (c) => {
     }
     const friendship = await friendService.sendFriendRequest(user, friendId);
     return c.json(friendship, 201);
-  } catch (error: any) {
-    if (error.message.includes("already")) {
-      return c.json({ message: error.message }, 409);
-    }
-    if (error.message.includes("yourself")) {
-      return c.json({ message: error.message }, 400);
-    }
-    return c.json({ message: error.message || "Internal server error" }, 500);
+  } catch (error: unknown) {
+    const { handleRouteError } = await import("@/utils/error-response-handler");
+    const { json, status } = handleRouteError(error);
+    return c.json(json, status);
   }
 });
 
@@ -53,8 +51,10 @@ friendRoutes.openapi(getFriendRequestsRoute, async (c) => {
     }
     const requests = await friendService.getFriendRequests(user);
     return c.json(requests, 200);
-  } catch (error: any) {
-    return c.json({ message: error.message || "Internal server error" }, 500);
+  } catch (error: unknown) {
+    const { handleRouteError } = await import("@/utils/error-response-handler");
+    const { json, status } = handleRouteError(error);
+    return c.json(json, status);
   }
 });
 
@@ -73,17 +73,10 @@ friendRoutes.openapi(respondToFriendRequestRoute, async (c) => {
       action
     );
     return c.json(result, 200);
-  } catch (error: any) {
-    if (error.message === "Friend request not found") {
-      return c.json({ message: error.message }, 404);
-    }
-    if (
-      error.message.includes("not pending") ||
-      error.message.includes("not authorized")
-    ) {
-      return c.json({ message: error.message }, 400);
-    }
-    return c.json({ message: error.message || "Internal server error" }, 500);
+  } catch (error: unknown) {
+    const { handleRouteError } = await import("@/utils/error-response-handler");
+    const { json, status } = handleRouteError(error);
+    return c.json(json, status);
   }
 });
 
@@ -97,10 +90,9 @@ friendRoutes.openapi(removeFriendRoute, async (c) => {
     }
     const result = await friendService.removeFriend(user, userId);
     return c.json(result, 200);
-  } catch (error: any) {
-    if (error.message === "Friendship not found") {
-      return c.json({ message: error.message }, 404);
-    }
-    return c.json({ message: error.message || "Internal server error" }, 500);
+  } catch (error: unknown) {
+    const { handleRouteError } = await import("@/utils/error-response-handler");
+    const { json, status } = handleRouteError(error);
+    return c.json(json, status);
   }
 });

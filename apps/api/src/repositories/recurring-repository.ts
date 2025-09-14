@@ -85,10 +85,7 @@ export class RecurringRepository {
       nextDate: data.nextDate ? new Date(data.nextDate) : undefined,
     };
 
-    const result = await db
-      .insert(recurring)
-      .values(insertData as any)
-      .returning();
+    const result = await db.insert(recurring).values(insertData).returning();
 
     if (result.length === 0) {
       throw new Error("Failed to create recurring item");
@@ -100,7 +97,7 @@ export class RecurringRepository {
       nextDate: item.nextDate?.toISOString(),
       createdAt: item.createdAt.toISOString(),
       updatedAt: item.updatedAt.toISOString(),
-    } as any;
+    };
   }
 
   async update(

@@ -71,7 +71,7 @@ const IdempotencyDifferenceValueSchema = z.object({
 export const IdempotencyConflictErrorSchema = StandardErrorSchema.extend({
   error: StandardErrorSchema.shape.error.extend({
     differences: z
-      .record(IdempotencyDifferenceValueSchema)
+      .record(z.string(), IdempotencyDifferenceValueSchema)
       .optional()
       .openapi({
         example: {

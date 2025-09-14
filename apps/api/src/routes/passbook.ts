@@ -22,14 +22,16 @@ passbookRoutes.openapi(getPassbookRoute, async (c) => {
     const limit = query.limit ? parseInt(query.limit) : 20;
 
     // Build filters
-    const filters: any = {};
+    const filters: PassbookFilters = {};
 
     if (query.startDate) {
-      filters.startDate = query.startDate;
+      const parsed = new Date(query.startDate);
+      if (!isNaN(parsed.getTime())) filters.startDate = parsed;
     }
 
     if (query.endDate) {
-      filters.endDate = query.endDate;
+      const parsed = new Date(query.endDate);
+      if (!isNaN(parsed.getTime())) filters.endDate = parsed;
     }
 
     if (query.categoryId) {
@@ -49,11 +51,9 @@ passbookRoutes.openapi(getPassbookRoute, async (c) => {
     );
 
     return c.json(result, 200);
-  } catch (error: any) {
-    console.error("Passbook route error:", error);
-    return c.json(
-      { message: error.message || "Failed to retrieve passbook entries" },
-      500
-    );
+  } catch (error: unknown) {
+    const { handleRouteError } = await import("@/utils/error-response-handler");
+    const { json, status } = handleRouteError(error);
+    return c.json(json, status);
   }
 });

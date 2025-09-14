@@ -11,8 +11,8 @@ import {
   BadRequestError,
   NotFoundError,
   ForbiddenError,
-  ConflictError,
-} from "../errors/base-error";
+  // ConflictError, // reserved for future group invariants
+} from "@/errors/base-error";
 import { GroupRepository } from "@/repositories/group-repository";
 import { GroupMemberService } from "./group-member-service";
 import { LoanService } from "./loan-service";
@@ -107,8 +107,12 @@ export class GroupService {
         );
 
         return group;
-      } catch (error: any) {
-        console.error("Failed to create group:", error);
+      } catch (error: unknown) {
+        // rollback handled implicitly by driver after throw
+        // Swallow original low-level error details in production; log in non-prod
+        if (process.env.NODE_ENV !== "production") {
+          console.error("Failed to create group:", error);
+        }
         throw new BadRequestError("Failed to create group");
       }
     });
@@ -241,10 +245,12 @@ export class GroupService {
         });
 
         results.added.push(memberId);
-      } catch (error: any) {
+      } catch (error: unknown) {
+        const message =
+          error instanceof Error ? error.message : "Failed to add member";
         results.failed.push({
           userId: memberId,
-          reason: error.message || "Failed to add member",
+          reason: message,
         });
       }
     }
@@ -323,8 +329,8 @@ export class GroupService {
   }
 
   private calculateGroupBalances(
-    members: any[],
-    expenses: any[]
+    members: Array<{ userId: number }>,
+    expenses: Array<{ amount: number; createdBy: number }>
   ): GroupBalancesResponse {
     // This is a simplified balance calculation
     // In a real implementation, you'd need to consider:

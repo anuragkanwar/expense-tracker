@@ -23,7 +23,9 @@ export class BalanceRepository {
   /**
    * Helper method to format balance rows with ISO timestamps
    */
-  private formatBalanceRow(row: any): UserBalanceResponse {
+  private formatBalanceRow(
+    row: typeof userBalance.$inferSelect
+  ): UserBalanceResponse {
     return {
       ...row,
       createdAt: row.createdAt.toISOString(),
