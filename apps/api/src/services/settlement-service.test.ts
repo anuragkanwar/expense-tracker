@@ -1,6 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { SettlementService } from "./settlement-service";
-import { IdempotencyKeyConflictError } from "../errors/idempotency-errors";
 
 // Local enum replicas (simplified)
 const ACCOUNT_TYPE = {
@@ -237,7 +236,7 @@ describe("SettlementService - direct + allocation flows", () => {
   });
 
   // ---------- Allocation Tests ----------
-  it("allocates settlement FIFO across multiple shares updating statuses and balances", async () => {
+  it("allocates settlement FIFO across multiple shares updating statuses, balances, and emits ledger transaction", async () => {
     const shares = [
       {
         id: 1,
@@ -342,6 +341,8 @@ describe("SettlementService - direct + allocation flows", () => {
     // Applications created
     expect(mockSettlementApplicationRepository.create).toHaveBeenCalledTimes(2);
 
+    // Ledger transaction created exactly once
+    expect(mockTransactionRepository.create).toHaveBeenCalledTimes(1);
     // Balance adjusted negative totalApplied (reduces debt)
     expect(
       mockBalanceAdjustmentService.applyBilateralDelta
@@ -380,7 +381,7 @@ describe("SettlementService - direct + allocation flows", () => {
     ).rejects.toThrow(/exceeds outstanding/i);
   });
 
-  it("replays idempotent allocation returning previous context", async () => {
+  it("replays idempotent allocation returning previous context without creating new ledger transaction", async () => {
     const shares = [
       {
         id: 1,
@@ -431,6 +432,7 @@ describe("SettlementService - direct + allocation flows", () => {
     expect(
       mockBalanceAdjustmentService.applyBilateralDelta
     ).not.toHaveBeenCalled();
+    expect(mockTransactionRepository.create).not.toHaveBeenCalled();
   });
 
   it("throws conflict when idempotency key reused with different payload (allocation)", async () => {
