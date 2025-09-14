@@ -1,5 +1,9 @@
 import { OpenAPIHono } from "@hono/zod-openapi";
 import { allocateExpenseShareSettlementRoute } from "./settlements.contracts";
+import {
+  IdempotencyKeyConflictError,
+  IdempotencyKeyRequiredError,
+} from "../errors/idempotency-errors";
 
 export const settlementRoutes = new OpenAPIHono();
 
@@ -26,6 +30,12 @@ settlementRoutes.openapi(allocateExpenseShareSettlementRoute, async (c) => {
       });
     return c.json(result, 200);
   } catch (error: any) {
+    if (error instanceof IdempotencyKeyConflictError) {
+      return c.json(error.toJSON(), 409 as any);
+    }
+    if (error instanceof IdempotencyKeyRequiredError) {
+      return c.json(error.toJSON(), 400 as any);
+    }
     return c.json(
       { message: error.message || "Failed to allocate settlement" },
       400

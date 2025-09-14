@@ -112,6 +112,8 @@ export const createDirectSettlementRoute = createRoute({
   },
   responses: {
     201: {
+      // 201 indicates newly created direct settlement (not a replay)
+
       content: {
         "application/json": {
           // Return full settlement details

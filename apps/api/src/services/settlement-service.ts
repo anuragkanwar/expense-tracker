@@ -20,6 +20,7 @@ import {
   type SettlementApplicationResponse,
 } from "@/repositories/settlement-application-repository";
 import { BalanceRepository } from "@/repositories/balance-repository";
+import { IdempotencyKeyConflictError } from "../errors/idempotency-errors";
 
 interface ExpenseShareSettlementResult {
   settlement: SettlementResponse;
@@ -341,12 +342,42 @@ export class SettlementService {
       }
 
       // Idempotency check (if key provided)
+      // Enhanced semantics: if key exists and payload differs -> conflict
+      // We compare critical fields (payerId, payeeId, amount, currency, groupId)
+      // NOTE: At this layer groupId null vs undefined treated equivalently
+
       if (idempotencyKey) {
         const existing = await this.settlementRepository.findByIdempotencyKey(
           idempotencyKey,
           tx
         );
         if (existing) {
+          // Replay semantics: verify payload matches; if differs -> conflict
+          const diffs: Record<string, { original: any; attempted: any }> = {};
+          if (existing.payerId !== payerId)
+            diffs.payerId = { original: existing.payerId, attempted: payerId };
+          if (existing.payeeId !== payeeId)
+            diffs.payeeId = { original: existing.payeeId, attempted: payeeId };
+          if (Math.abs(existing.amount - amount) > 1e-8)
+            diffs.amount = { original: existing.amount, attempted: amount };
+          if (existing.currency !== currency)
+            diffs.currency = {
+              original: existing.currency,
+              attempted: currency,
+            };
+          const existingGroup = (existing as any).groupId ?? null;
+          const attemptedGroup = groupId ?? null;
+          if (existingGroup !== attemptedGroup)
+            diffs.groupId = {
+              original: existingGroup,
+              attempted: attemptedGroup,
+            };
+          if (Object.keys(diffs).length) {
+            throw new IdempotencyKeyConflictError(
+              "Idempotency-Key reuse with differing payload",
+              diffs
+            );
+          }
           // Replay: return previous allocation context (applications fetch)
           const applications =
             await this.settlementApplicationRepository.findBySettlementId(

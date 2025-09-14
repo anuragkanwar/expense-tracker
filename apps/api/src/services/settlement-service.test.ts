@@ -356,4 +356,38 @@ describe("SettlementService - direct + allocation flows", () => {
       mockBalanceAdjustmentService.applyBilateralDelta
     ).not.toHaveBeenCalled();
   });
+
+  it("throws conflict when idempotency key reused with different payload", async () => {
+    const shares = [
+      {
+        id: 1,
+        amount: 40,
+        paidAmount: 10,
+        currency,
+        status: EXPENSE_SHARE_STATUS.PARTIALLY_PAID,
+      },
+    ];
+    mockExpenseShareRepository.findAllocatableShares.mockResolvedValueOnce(
+      shares
+    );
+
+    mockSettlementRepository.findByIdempotencyKey.mockResolvedValueOnce({
+      id: 555,
+      amount: 30, // ORIGINAL amount 30
+      payerId,
+      payeeId,
+      currency,
+    });
+
+    await expect(
+      service.allocateExpenseShareSettlement({
+        payerId,
+        payeeId,
+        amount: 25, // DIFFERENT amount
+        currency,
+        groupId,
+        idempotencyKey: "idem-conflict",
+      })
+    ).rejects.toThrow(/Idempotency-Key reuse with differing payload/i);
+  });
 });

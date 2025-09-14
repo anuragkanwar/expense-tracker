@@ -31,6 +31,8 @@ export const allocateExpenseShareSettlementRoute = createRoute({
   },
   responses: {
     200: {
+      // 200 returned for both first successful allocation and idempotent replay
+
       content: {
         "application/json": {
           schema: ExpenseShareSettlementAllocateResponseSchema,
@@ -39,6 +41,9 @@ export const allocateExpenseShareSettlementRoute = createRoute({
       description: "Settlement allocated successfully",
     },
     400: { description: "Validation Error or allocation failure" },
+    409: {
+      description: "Idempotency-Key conflict (payload mismatch on reuse)",
+    },
     401: { description: "Unauthorized" },
   },
 });
