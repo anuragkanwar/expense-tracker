@@ -3,7 +3,7 @@ import {
   getBalanceSummaryRoute,
   getFriendBalanceRoute,
   getGroupBalanceRoute,
-  createSettlementRoute,
+  createDirectSettlementRoute,
   getGlobalSettlementPlanRoute,
   getGroupSettlementPlanRoute,
 } from "./balances.contracts";
@@ -61,7 +61,7 @@ balanceRoutes.openapi(getGroupBalanceRoute, async (c) => {
   }
 });
 
-balanceRoutes.openapi(createSettlementRoute, async (c) => {
+balanceRoutes.openapi(createDirectSettlementRoute, async (c) => {
   const user = c.get("user");
   if (!user) {
     return c.json({ message: "Unauthorized" }, 401);
@@ -71,8 +71,28 @@ balanceRoutes.openapi(createSettlementRoute, async (c) => {
   const { balanceService } = c.get("services");
 
   try {
-    await balanceService.createSettlement(settlementData);
-    return c.json({ message: "Settlement recorded successfully" }, 201);
+    const idempotencyKey = c.req.header("Idempotency-Key");
+    if (!idempotencyKey) {
+      return c.json({ message: "Idempotency-Key header required" }, 400);
+    }
+    const services = c.get("services");
+    try {
+      const settlement =
+        await services.settlementService.createDirectSettlement({
+          payerId: user.id,
+          payeeId: settlementData.payeeId,
+          amount: settlementData.amount,
+          currency: settlementData.currency,
+          groupId: settlementData.groupId ?? null,
+          idempotencyKey,
+        });
+      return c.json(settlement, 201);
+    } catch (error: any) {
+      return c.json(
+        { message: error.message || "Failed to record settlement" },
+        400
+      );
+    }
   } catch {
     return c.json({ message: "Failed to record settlement" }, 400);
   }

@@ -2,14 +2,15 @@ import { createRoute, z } from "@hono/zod-openapi";
 import {
   IdParamSchema,
   UserIdParamSchema,
-  MessageResponseSchema,
+  MessageResponseSchema, // kept for potential future reuse
 } from "./shared-schemas";
 import {
-  SettlementCreateSchema,
   BalanceSummaryResponseSchema,
   FriendBalanceResponseSchema,
   GroupBalanceResponseSchema,
   BalancesSettlementPlanResponseSchema,
+  DirectSettlementRequestSchema,
+  DirectSettlementResponseSchema,
 } from "@pocket-pixie/contracts";
 
 export const getBalanceSummaryRoute = createRoute({
@@ -82,17 +83,29 @@ export const getGroupBalanceRoute = createRoute({
   },
 });
 
-export const createSettlementRoute = createRoute({
+export const createDirectSettlementRoute = createRoute({
+  // Idempotency-Key header required
+  // Direct settlement returns full SettlementResponse
+
   method: "post",
   path: "/",
   summary: "Record settlement",
   description: "Records a payment to settle a debt (e.g., 'I paid Jane $20').",
   tags: ["Settlements"],
   request: {
+    headers: z
+      .object({
+        "Idempotency-Key": z.string().min(1).openapi({
+          description:
+            "Idempotency key to safely retry settlement creation requests without creating duplicates",
+          example: "settle-123e4567-e89b-12d3-a456-426614174000",
+        }),
+      })
+      .openapi({ description: "Required idempotency header" }),
     body: {
       content: {
         "application/json": {
-          schema: SettlementCreateSchema,
+          schema: DirectSettlementRequestSchema, // Direct payer/payee settlement requires Idempotency-Key header
         },
       },
     },
@@ -101,9 +114,8 @@ export const createSettlementRoute = createRoute({
     201: {
       content: {
         "application/json": {
-          schema: MessageResponseSchema.openapi({
-            example: { message: "Settlement recorded successfully" },
-          }),
+          // Return full settlement details
+          schema: DirectSettlementResponseSchema,
         },
       },
       description: "Settlement recorded successfully",

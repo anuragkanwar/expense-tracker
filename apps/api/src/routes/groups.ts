@@ -11,7 +11,7 @@ import {
   removeGroupMemberRoute,
   getGroupBalancesRoute,
   getSettlementPlanRoute,
-  createSettlementRoute,
+  createGroupDirectSettlementRoute,
 } from "./groups.contracts";
 
 export const groupRoutes = new OpenAPIHono();
@@ -235,7 +235,7 @@ groupRoutes.openapi(getSettlementPlanRoute, async (c) => {
   }
 });
 
-groupRoutes.openapi(createSettlementRoute, async (c) => {
+groupRoutes.openapi(createGroupDirectSettlementRoute, async (c) => {
   const user = c.get("user");
   if (!user) {
     return c.json({ message: "Unauthorized" }, 401);
@@ -245,11 +245,19 @@ groupRoutes.openapi(createSettlementRoute, async (c) => {
   const body = c.req.valid("json");
 
   try {
-    await services.settlementService.createSettlement({
-      ...body,
+    const idempotencyKey = c.req.header("Idempotency-Key");
+    if (!idempotencyKey) {
+      return c.json({ message: "Idempotency-Key header required" }, 400);
+    }
+    const settlement = await services.settlementService.createDirectSettlement({
       payerId: user.id,
+      payeeId: body.payeeId,
+      amount: body.amount,
+      currency: body.currency,
+      groupId: body.groupId ?? null,
+      idempotencyKey,
     });
-    return c.json({ message: "Settlement recorded successfully" }, 201);
+    return c.json(settlement, 201);
   } catch (error: any) {
     return c.json({ message: "Failed to record settlement" }, 400);
   }

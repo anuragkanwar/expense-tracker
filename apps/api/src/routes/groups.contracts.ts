@@ -11,7 +11,8 @@ import {
   GroupMemberCreateSchema,
   GroupMemberBulkCreateSchema,
   GroupMemberBulkResponseSchema,
-  SettlementCreateSchema,
+  DirectSettlementRequestSchema,
+  DirectSettlementResponseSchema,
   GroupBalancesResponseSchema,
   SettlementPlanResponseSchema,
 } from "@pocket-pixie/contracts";
@@ -323,7 +324,7 @@ export const getGroupMembersRoute = createRoute({
   },
 });
 
-export const createSettlementRoute = createRoute({
+export const createGroupDirectSettlementRoute = createRoute({
   method: "post",
   path: "/settlements",
   summary: "Record settlement",
@@ -331,10 +332,19 @@ export const createSettlementRoute = createRoute({
     "Records that a payment has been made to settle a debt. This action triggers balance updates and settlement events.",
   tags: ["Groups"],
   request: {
+    headers: z
+      .object({
+        "Idempotency-Key": z.string().min(1).openapi({
+          description:
+            "Idempotency key to safely retry settlement creation requests without creating duplicates",
+          example: "group-settle-123e4567-e89b-12d3-a456-426614174000",
+        }),
+      })
+      .openapi({ description: "Required idempotency header" }),
     body: {
       content: {
         "application/json": {
-          schema: SettlementCreateSchema,
+          schema: DirectSettlementRequestSchema,
         },
       },
     },
@@ -343,11 +353,7 @@ export const createSettlementRoute = createRoute({
     201: {
       content: {
         "application/json": {
-          schema: z.object({
-            message: z
-              .string()
-              .openapi({ example: "Settlement recorded successfully" }),
-          }),
+          schema: DirectSettlementResponseSchema,
         },
       },
       description: "Settlement recorded successfully",

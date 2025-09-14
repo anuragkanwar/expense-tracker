@@ -18,11 +18,11 @@ export const SettlementResponseSchema = createSelectSchema(settlement)
     }),
     payerId: z.number().openapi({
       example: 123,
-      description: "Payer user ID",
+      description: "Payer user ID (debtor / participant paying)",
     }),
     payeeId: z.number().openapi({
       example: 123,
-      description: "Payee user ID",
+      description: "Payee user ID (original payer receiving)",
     }),
     amount: z.number().openapi({
       example: 50.0,
@@ -32,6 +32,14 @@ export const SettlementResponseSchema = createSelectSchema(settlement)
       example: "USD",
       description: "Currency code",
     }),
+    transactionId: z
+      .number()
+      .nullable()
+      .openapi({ example: 555, description: "Linked ledger transaction id" }),
+    idempotencyKey: z
+      .string()
+      .nullable()
+      .openapi({ example: "alloc-req-uuid", description: "Idempotency key" }),
     settledAt: z.string().openapi({
       example: "2025-09-01T12:00:00.000Z",
       description: "Settlement date",
@@ -70,12 +78,22 @@ export const SettlementCreateSchema = createInsertSchema(settlement, {
   }),
   payerId: z.number().openapi({
     example: 123,
-    description: "Payer user ID",
+    description: "Payer user ID (debtor / participant paying)",
   }),
   payeeId: z.number().openapi({
     example: 123,
-    description: "Payee user ID",
+    description: "Payee user ID (original payer receiving)",
   }),
+  transactionId: z
+    .number()
+    .nullable()
+    .optional()
+    .openapi({ example: 555, description: "Linked ledger transaction id" }),
+  idempotencyKey: z
+    .string()
+    .nullable()
+    .optional()
+    .openapi({ example: "alloc-req-uuid", description: "Idempotency key" }),
 })
   .omit({
     id: true,
