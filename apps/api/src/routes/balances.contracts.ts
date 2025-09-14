@@ -3,6 +3,8 @@ import {
   IdParamSchema,
   UserIdParamSchema,
   MessageResponseSchema, // kept for potential future reuse
+  StandardErrorSchema,
+  IdempotencyConflictErrorSchema,
 } from "./shared-schemas";
 import {
   BalanceSummaryResponseSchema,
@@ -113,17 +115,35 @@ export const createDirectSettlementRoute = createRoute({
   responses: {
     201: {
       // 201 indicates newly created direct settlement (not a replay)
-
       content: {
         "application/json": {
-          // Return full settlement details
           schema: DirectSettlementResponseSchema,
         },
       },
-      description: "Settlement recorded successfully",
+      description: "Settlement recorded successfully (new)",
     },
-    400: { description: "Validation Error" },
+    200: {
+      // 200 for idempotent replay of an existing direct settlement
+      content: {
+        "application/json": {
+          schema: DirectSettlementResponseSchema,
+        },
+      },
+      description: "Idempotent replay - original settlement returned",
+    },
+    400: {
+      description: "Validation Error or Idempotency-Key required",
+      content: {
+        "application/json": { schema: StandardErrorSchema },
+      },
+    },
     401: { description: "Unauthorized" },
+    409: {
+      description: "Idempotency-Key conflict (payload mismatch on reuse)",
+      content: {
+        "application/json": { schema: IdempotencyConflictErrorSchema },
+      },
+    },
   },
 });
 

@@ -3,6 +3,10 @@ import {
   ExpenseShareSettlementAllocateRequestSchema,
   ExpenseShareSettlementAllocateResponseSchema,
 } from "@pocket-pixie/contracts";
+import {
+  StandardErrorSchema,
+  IdempotencyConflictErrorSchema,
+} from "./shared-schemas";
 
 export const allocateExpenseShareSettlementRoute = createRoute({
   method: "post",
@@ -40,9 +44,15 @@ export const allocateExpenseShareSettlementRoute = createRoute({
       },
       description: "Settlement allocated successfully",
     },
-    400: { description: "Validation Error or allocation failure" },
+    400: {
+      description: "Validation Error or allocation failure",
+      content: { "application/json": { schema: StandardErrorSchema } },
+    },
     409: {
       description: "Idempotency-Key conflict (payload mismatch on reuse)",
+      content: {
+        "application/json": { schema: IdempotencyConflictErrorSchema },
+      },
     },
     401: { description: "Unauthorized" },
   },

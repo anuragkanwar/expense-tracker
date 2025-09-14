@@ -17,7 +17,8 @@ settlementRoutes.openapi(allocateExpenseShareSettlementRoute, async (c) => {
   try {
     const idempotencyKey = c.req.header("Idempotency-Key");
     if (!idempotencyKey) {
-      return c.json({ message: "Idempotency-Key header required" }, 400);
+      const err = new IdempotencyKeyRequiredError();
+      return c.json(err.toJSON(), 400);
     }
     const result =
       await services.settlementService.allocateExpenseShareSettlement({

@@ -47,3 +47,41 @@ export const SettlementMessageResponseSchema = MessageResponseSchema.openapi({
 export const DeletionMessageResponseSchema = MessageResponseSchema.openapi({
   example: { message: "Resource deleted successfully" },
 });
+
+// -------------------------------------------------------------
+// Standardized Error Schemas (shared across OpenAPI contracts)
+// -------------------------------------------------------------
+
+export const StandardErrorSchema = z
+  .object({
+    success: z.literal(false).openapi({ example: false }),
+    error: z.object({
+      code: z.string().openapi({ example: "BAD_REQUEST" }),
+      message: z.string().openapi({ example: "Invalid request" }),
+    }),
+  })
+  .openapi({ description: "Standard error response wrapper" });
+
+// Differences map used for idempotency conflict errors
+const IdempotencyDifferenceValueSchema = z.object({
+  original: z.any().openapi({ example: 100 }),
+  attempted: z.any().openapi({ example: 120 }),
+});
+
+export const IdempotencyConflictErrorSchema = StandardErrorSchema.extend({
+  error: StandardErrorSchema.shape.error.extend({
+    differences: z
+      .record(IdempotencyDifferenceValueSchema)
+      .optional()
+      .openapi({
+        example: {
+          amount: { original: 100, attempted: 120 },
+          currency: { original: "USD", attempted: "EUR" },
+        },
+        description:
+          "Field-level differences between the original idempotent request payload and the conflicting replay attempt",
+      }),
+  }),
+}).openapi({
+  description: "Idempotency conflict error with field differences",
+});

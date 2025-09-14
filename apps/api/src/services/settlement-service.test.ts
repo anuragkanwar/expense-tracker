@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { SettlementService } from "./settlement-service";
+import { IdempotencyKeyConflictError } from "../errors/idempotency-errors";
 
 // Local enum replicas (simplified)
 const ACCOUNT_TYPE = {
@@ -125,13 +126,16 @@ describe("SettlementService - direct + allocation flows", () => {
       });
 
     mockTransactionRepository.create.mockResolvedValue({ id: 500 });
-    mockSettlementRepository.create.mockResolvedValue({
+    const createdSettlement = {
       id: 900,
       amount: 40,
       payerId,
       payeeId,
       currency,
-    });
+      settledAt: new Date().toISOString(),
+      idempotencyKey: "direct-1",
+    } as any;
+    mockSettlementRepository.create.mockResolvedValue(createdSettlement);
 
     // Simulate outstanding exactly 40
     mockBalanceRepository.findBalance = vi
@@ -144,6 +148,7 @@ describe("SettlementService - direct + allocation flows", () => {
       amount: 40,
       currency,
       groupId,
+      idempotencyKey: "direct-1",
     });
 
     expect(result).toMatchObject({ id: 900, amount: 40 });
@@ -158,6 +163,75 @@ describe("SettlementService - direct + allocation flows", () => {
       groupId,
       expect.anything()
     );
+  });
+
+  it("replays idempotent direct settlement returning original record", async () => {
+    mockExpenseShareRepository.findAllocatableShares.mockResolvedValueOnce([]);
+
+    const existing = {
+      id: 901,
+      payerId,
+      payeeId,
+      amount: 55,
+      currency,
+      settledAt: new Date(Date.now() - 5000).toISOString(),
+      idempotencyKey: "direct-replay",
+    } as any;
+
+    mockSettlementRepository.findByIdempotencyKey.mockResolvedValueOnce(
+      existing
+    );
+
+    // Simulate outstanding exactly 55 now
+    mockBalanceRepository.findBalance = vi
+      .fn()
+      .mockResolvedValueOnce({ amount: 55 });
+
+    const result = await service.createDirectSettlement({
+      payerId,
+      payeeId,
+      amount: 55,
+      currency,
+      groupId,
+      idempotencyKey: "direct-replay",
+    });
+
+    expect(result).toBe(existing);
+    expect(mockSettlementRepository.create).not.toHaveBeenCalled();
+  });
+
+  it("throws conflict on direct settlement idempotency key reuse with differing payload", async () => {
+    mockExpenseShareRepository.findAllocatableShares.mockResolvedValueOnce([]);
+
+    const existing = {
+      id: 902,
+      payerId,
+      payeeId,
+      amount: 60,
+      currency,
+      settledAt: new Date(Date.now() - 3000).toISOString(),
+      idempotencyKey: "direct-conflict",
+    } as any;
+
+    mockSettlementRepository.findByIdempotencyKey.mockResolvedValueOnce(
+      existing
+    );
+
+    // Simulate outstanding exactly 65 now (irrelevant since conflict will trigger first)
+    mockBalanceRepository.findBalance = vi
+      .fn()
+      .mockResolvedValueOnce({ amount: 65 });
+
+    await expect(
+      service.createDirectSettlement({
+        payerId,
+        payeeId,
+        amount: 65, // different from existing 60
+        currency,
+        groupId,
+        idempotencyKey: "direct-conflict",
+      })
+    ).rejects.toThrow(/Idempotency-Key reuse with differing payload/);
   });
 
   // ---------- Allocation Tests ----------
@@ -357,7 +431,7 @@ describe("SettlementService - direct + allocation flows", () => {
     ).not.toHaveBeenCalled();
   });
 
-  it("throws conflict when idempotency key reused with different payload", async () => {
+  it("throws conflict when idempotency key reused with different payload (allocation)", async () => {
     const shares = [
       {
         id: 1,

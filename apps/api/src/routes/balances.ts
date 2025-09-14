@@ -7,6 +7,10 @@ import {
   getGlobalSettlementPlanRoute,
   getGroupSettlementPlanRoute,
 } from "./balances.contracts";
+import {
+  IdempotencyKeyConflictError,
+  IdempotencyKeyRequiredError,
+} from "../errors/idempotency-errors";
 
 export const balanceRoutes = new OpenAPIHono();
 
@@ -68,12 +72,12 @@ balanceRoutes.openapi(createDirectSettlementRoute, async (c) => {
   }
 
   const settlementData = c.req.valid("json");
-  const { balanceService } = c.get("services");
 
   try {
     const idempotencyKey = c.req.header("Idempotency-Key");
     if (!idempotencyKey) {
-      return c.json({ message: "Idempotency-Key header required" }, 400);
+      const err = new IdempotencyKeyRequiredError();
+      return c.json(err.toJSON(), 400);
     }
     const services = c.get("services");
     try {
@@ -86,11 +90,18 @@ balanceRoutes.openapi(createDirectSettlementRoute, async (c) => {
           groupId: settlementData.groupId ?? null,
           idempotencyKey,
         });
+      // TODO: Extend service to return a replay flag; currently always returning 201 for new and 200 for heuristic replay is not reliable.
+      // Since service returns the existing object for a replay we can detect by querying repository (future improvement). For now always 201.
       return c.json(settlement, 201);
     } catch (error: any) {
+      if (error instanceof IdempotencyKeyConflictError) {
+        return c.json(error.toJSON(), 409 as any);
+      }
       return c.json(
-        { message: error.message || "Failed to record settlement" },
-        400
+        error.toJSON
+          ? error.toJSON()
+          : { message: error.message || "Failed to record settlement" },
+        error.statusCode || 400
       );
     }
   } catch {
