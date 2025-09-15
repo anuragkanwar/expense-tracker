@@ -52,6 +52,45 @@ export const handleRouteError = (error: unknown): ErrorResponse => {
   if (error instanceof Error) {
     const msg = error.message || "Unknown error";
 
+    // Respect explicit statusCode/status if provided (e.g. from mocked or 3rd-party errors)
+    const explicitStatus = (error as any)?.statusCode ?? (error as any)?.status;
+    const allowedStatuses: number[] = [400, 401, 403, 404, 409, 422];
+    if (
+      typeof explicitStatus === "number" &&
+      allowedStatuses.includes(explicitStatus)
+    ) {
+      // If the error exposes a toJSON that matches our contract, trust it
+      if (typeof (error as any).toJSON === "function") {
+        try {
+          const candidate = (error as any).toJSON();
+          if (candidate && candidate.success === false && candidate.error) {
+            return {
+              json: candidate as ErrorBody,
+              status: explicitStatus as HttpStatus,
+            };
+          }
+        } catch {
+          // fall through to generic mapping
+        }
+      }
+      // Fallback mapping based on status code
+      const codeMap: Record<number, string> = {
+        400: "BAD_REQUEST",
+        401: "UNAUTHORIZED",
+        403: "FORBIDDEN",
+        404: "NOT_FOUND",
+        409: "CONFLICT",
+        422: "UNPROCESSABLE_ENTITY",
+      };
+      return {
+        json: {
+          success: false,
+          error: { code: codeMap[explicitStatus] || "ERROR", message: msg },
+        },
+        status: explicitStatus as HttpStatus,
+      };
+    }
+
     if (msg.toLowerCase().includes("not found")) {
       return {
         json: {
