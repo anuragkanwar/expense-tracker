@@ -142,12 +142,16 @@ export class TransactionService {
 
   async createTransactionHeader(
     payerId: number,
-    description: string,
+    description?: string,
     tx?: DBTransactionType
   ) {
+    const finalDescription =
+      typeof description === "string" && description.trim().length > 0
+        ? description.trim()
+        : "";
     return await this.transactionRepository.create(
       {
-        description,
+        description: finalDescription,
         userId: payerId,
       },
       tx

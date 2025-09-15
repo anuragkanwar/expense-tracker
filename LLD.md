@@ -1,528 +1,337 @@
-# Low Level Design (LLD) - Pocket Pixie (Core Domain Focus)
+# Low Level Design (LLD) - Pocket Pixie
 
-Updated: 2025-09-14 (F5 Stages 1–3 complete; F6 resolved: allocation emits ledger transaction)
+Updated: 2025-09-15
 
-## Overview
+---
 
-Pocket Pixie is a comprehensive financial management application supporting individual and group expense tracking with advanced settlement capabilities. The system uses double-entry accounting to ensure financial integrity and provides real-time balance calculations. A new canonical settlement allocation flow (FIFO across upfront recognized expense shares) has been introduced to replace legacy direct debt reversal settlements.
+## 1. Overview
 
-## Core Architecture Principles
+Pocket Pixie is a financial collaboration platform for individual and group expense tracking, bilateral loans, and structured repayments. The platform is grounded in double-entry accounting and an explicit obligation layer (expense shares + settlement allocations) with a materialized bilateral balance table for fast lookups.
 
-### Double-Entry Accounting System
+Core pillars:
 
-- **Every transaction affects two accounts** with equal but opposite amounts (applies to allocation settlements as of Flag F6 resolution)
-- **Maintains financial integrity** through balanced entries
-- **Supports complex operations** like settlements, loans, and group expenses
-
-### Data Sources
-
-- **Transaction Entries**: Primary source for historical ledger (double-entry)
-- **User Balance Table**: Materialized view of net debt between users (performance optimization)
-- **Expense/Split Tables**: Metadata for group expense relationships (legacy model)
-- **Expense Share Table (NEW)**: Upfront recognition of per-user obligation per expense
-- **Settlement Application Table (NEW)**: Allocation fragments linking settlements to specific expense shares
-
-## Transaction System Architecture (Conceptual Only)
-
-### Core Concepts
-
-- **Account Types**: INCOME, EXPENSE, OUTGOING, LOAN_GIVEN, LOAN_TAKEN, EXTERNAL, SAVING
-- **Sign Convention**: Positive amounts = money coming in, Negative amounts = money going out
-- **Aggregation Strategy**: Sum only positive amounts per account type (except loan accounts which use net aggregation)
-
-### Account Structure
-
-- **Single Accounts** (one per user):
-  - 1 INCOME account (salary, dividends, etc.)
-  - 1 OUTGOING account (user's cash/wallet)
-  - 1 EXTERNAL account (external sources/sinks)
-  - 1 LOAN_GIVEN account (money lent to others)
-  - 1 LOAN_TAKEN account (money borrowed from others)
-  - 1 SAVING account (user's savings)
-
-- **Multiple Accounts** (user can create many):
-  - Multiple EXPENSE accounts (Rent, Groceries, Entertainment, etc.)
-
-### Key Transaction Flows (Conceptual)
-
-1. **Expense Recording**: `OUTGOING (-) → EXPENSE (+)`
-2. **Income Recording**: `EXTERNAL (-) → INCOME (+)`
-3. **Saving**: `OUTGOING (-) → SAVING (+)`
-4. **Loan Creation**: `LOAN_GIVEN (-) → LOAN_TAKEN (+)`
-5. **Settlement (Legacy Direct)**: Debt reversal + optional expense cash flow entries
-6. **Settlement (New Allocation)**: User balance + expense share status adjustments + ledger reversal (F6)
-
-#### Detailed Domain Flows (Operational Design Decisions)
-
-These flows formalize the end-to-end behaviors and are treated as explicit design decisions. Each flow lists: Purpose, Trigger (primary entrypoint), Tables Written (W) / Read (R), Ledger Entries, User Balance Effect, Share / Settlement Artifacts, Core Invariants, Notes (including flagged risks where applicable).
-
-Flow 1: Personal Expense (Non-Shared)
-
-- Purpose: Record a user's own expense with no interpersonal obligation.
-- Trigger: Transaction creation (type EXPENSE) with only payer context.
-- Services: TransactionService.
-- Tables (W): transaction, transaction_entry, (optionally expense metadata). No expense_share rows.
-- Ledger: OUTGOING (-) → EXPENSE (+) (double-entry).
-- User Balance: None (no rows updated in user_balance).
-- Expense Shares: None created.
-- Invariants: Sum(entry amounts) = 0 (double-entry); no splits referencing other users.
-- Notes: Purely impacts personal analytics and category reporting.
-
-Flow 2: Income / Saving
-
-- Purpose: Capture inflows (INCOME) or transfers to savings (SAVING) for analytical aggregation.
-- Trigger: Transaction creation (types INCOME / SAVING sequences as per conceptual mapping).
-- Services: TransactionService.
-- Tables (W): transaction, transaction_entry.
-- Ledger: EXTERNAL (-) → INCOME (+) OR OUTGOING (-) → SAVING (+).
-- User Balance: None.
-- Expense Shares: None.
-- Invariants: No cross-user state touched.
-- Notes: Provides basis for dashboards (income, savings rates).
-
-Flow 3: Direct Loan (Loan Given) [Canonical via LoanService]
-
-- Purpose: Represent bilateral lending between two users.
-- Trigger: Loan transaction creation (type MUST be LOAN_GIVEN) via /api/v1/loans. LOAN_TAKEN direction is hard blocked (Stage 3 interim decision of Flag F5) – clients must always submit LOAN_GIVEN.
-- Services: LoanService (canonical). TransactionService path BLOCKED (Flag F5 remediation stage 1).
-- Tables (W): transaction, transaction_entry, user_balance (two mirrored rows), loan + loan_payer + loan_splits metadata. (Future: may emit expense_share rows after obligation model unification.)
-- Ledger: LOAN_GIVEN (-) → LOAN_TAKEN (+).
-- User Balance: +amount row for lender perspective, -amount reciprocal for borrower (via BalanceAdjustmentService.applyBilateralDelta or InterpersonalDebtEngine.recordDirectLoan when available).
-- Expense Shares: Not created today (loan relies on ledger + balance) – potential future normalization.
-- Invariants: Exactly one split; split amount == transaction amount; payer and split user distinct; creation only allowed through /api/v1/loans endpoint; type must be LOAN_GIVEN.
-- Notes: Canonical interpersonal debt origin; dual-path divergence removed by hard block in TransactionService. Stage 3 interim consolidation removes legacy asymmetric LOAN_TAKEN validation in favor of a single canonical direction. Standardized error schemas (StandardErrorSchema) applied (400 validation, 404 not found).
-
-Flow 4: Direct Friend Settlement (Legacy Debt Reversal)
-
-- Purpose: Settle (partially or fully) an outstanding bilateral loan without referencing specific historical expense shares.
-- Trigger: BalanceService.createSettlement (legacy endpoint).
-- Tables (W): transaction, transaction_entry (reversal), settlement, user_balance updates.
-- Ledger: LOAN_TAKEN (-) → LOAN_GIVEN (+) (reversing prior direction) plus optional expense/outgoing pair in group legacy variant.
-- User Balance: Decrease debt magnitude (moves toward zero for both mirrored rows).
-- Expense Shares: Not consulted (risk of divergence with share-based canonical model).
-- Invariants: Settlement amount > 0; parties distinct.
-- Notes: Does NOT cap against net outstanding (Flag F2). Maintained for backward compatibility.
-
-Flow 5: Shared Expense (Group or Friends)
-
-- Purpose: Record multi-party expense where one user fronts payment for others.
-- Trigger: Expense creation with participant splits (type EXPENSE with splits count > 0 and multi-user).
-- Services: ExpenseService + TransactionService (loan-style entries) + (NEW) ExpenseShare creation logic.
-- Tables (W): transaction, transaction_entry (OUTGOING/EXPENSE + loan pair entries per participant), expense_share (one per participant + optional payer share), user_balance rows updated.
-- Ledger: Combination of personal expense entry (if payer share) plus per-participant loan entries (LOAN_GIVEN/LOAN_TAKEN directionality).
-- User Balance: Payer gains positive balances vs each participant; participants get reciprocal negatives (and group-scoped rows if groupId present).
-- Expense Shares: Created upfront – authoritative obligation representation.
-- Invariants: Σ(participant shares including payer share) == total expense; payer share row excluded from future allocations (isPayerShare=1).
-- Notes: Balance sign inconsistency risk in update path (Flag F1).
+- Double-entry ledger for immutable monetary facts
+- Obligation layer for per-expense outstanding amounts and audited allocations
+- Materialized bilateral/net balances for performant UI & analytics
+- Strong service-layer validation + explicit, propagated database transactions
 
-Flow 6: Settlement Allocation (Canonical FIFO)
+---
 
-- Purpose: Allocate a participant's repayment across multiple historical outstanding shares to a payer (optionally within a group) deterministically (FIFO by realizedAt, id).
-- Trigger: SettlementService.allocateExpenseShareSettlement.
-- Tables (R/W): expense_share (R/W), settlement (W), settlement_application (W), user_balance (W), transaction (W), transaction_entry (W).
-- Ledger: LOAN_TAKEN (-) → LOAN_GIVEN (+) single reversing pair (payer LOAN_TAKEN src, payee LOAN_GIVEN dst) for the requested amount (one transaction per allocation request, idempotent replay emits none).
-- User Balance: Net interpersonal amount reduced by totalApplied; mirrored rows adjusted.
-- Expense Shares: paidAmount + status transitions (UNPAID → PARTIALLY_PAID → PAID).
-- Invariants: amount <= outstandingBefore + ε; currency homogeneous; atomic allocation.
-- Notes: Canonical path for repayments; idempotency & ledger parity achieved (F3 & F6 resolved).
+## 2. Architectural Layers
 
-Flow 7: Aggregation & Derived Views Layering
-
-- Purpose: Clarify separation of concerns across financial data strata.
-- Layers:
-  1. Ledger (transaction / transaction_entry): Chronological double-entry facts.
-  2. Obligation Layer (expense_share + settlement_application): Deterministic obligations & allocation audit.
-  3. Net Balance (user_balance): Materialized interpersonal net positions for fast retrieval.
-  4. Reporting (dashboard summaries, category analytics): Consumes ledger + net balance; eventually to read shares directly for obligation-focused UI.
-- Design Decision: user_balance is authoritative for current net interpersonal debt; expense_share is authoritative for remaining per-expense obligations; ledger retains full historical truth and (as of F6 resolution) includes allocation settlement repayments.
-- Reconciliation Need: Periodic job (Flag F7) to assert user_balance == derived(sum(unpaid shares) - allocations) under chosen sign convention.
+1. Ledger Layer: transaction + transaction_entry (chronological, immutable double-entry facts)
+2. Obligation Layer: expense_share + settlement_application (recognized obligations + allocation audit trail)
+3. Net Balance Layer: user_balance (materialized bilateral positions, overall + group scoped)
+4. Reporting Layer: Aggregations (dashboards, summaries) derived from the above
 
-### Category Derivation (Conceptual)
+Principle: user_balance must remain derivable from (recognized obligations - applied allocations) under a consistent sign convention.
 
-**Recent Enhancement**: Settlement categories are derived from transaction account names rather than expense descriptions:
+---
 
-1. **Query Flow**: `expense.transactionId → transactionEntry (positive amount) → transactionAccount.name`
-2. **Fallback**: Uses "GENERAL" if no specific category found
-3. **Benefits**: Consistent categorization across all transaction types
+## 3. Accounting & Data Sources
 
-### Loan Transaction Validation (Conceptual Rules & Enforcement Status)
+- Every transaction posts two entries whose signed amounts sum to zero (current design gap: allocation flow does not yet emit entries)
+- Sign convention (conceptual): Positive entry values = inflow to that account; negative = outflow (directional interpretive semantics depend on account type)
+- Data sources:
+  - Ledger: transaction_entry
+  - Obligation: expense_share + settlement_application
+  - Materialized Net: user_balance
+  - Metadata Legacy: legacy expense/split records (superseded by expense_share)
 
-**Canonical Direction Only (LOAN_GIVEN)** – LOAN_TAKEN creation requests are rejected (400) as of Flag F5 Stage 3 interim decision.
+---
 
-1. **Split Requirements**:
-   - Must have exactly one split entry in the `splits` array
-   - The split amount must exactly match the transaction amount (implies payerTotal == 0)
-2. **Account Validation**:
-   - **Source Account**: Must be the payer's `LOAN_GIVEN` account
-   - **Destination Account**: Must be the split user's `LOAN_TAKEN` account
-3. **Transaction Type Constraint**:
-   - Request `type` must be `LOAN_GIVEN`; any `LOAN_TAKEN` attempt returns `"LOAN_TAKEN creation is disabled – use LOAN_GIVEN canonical direction"`
-4. **Business Logic**:
-   - Loans can only be created between two distinct users (payer and one split user)
-   - Prevents invalid account combinations and ensures proper loan relationship tracking
+## 4. Account Model
 
-(Future Consideration: InterpersonalDebtEngine may introduce symmetrical abstractions eliminating the need for a direction field in client payloads.)
+Account Types (per user unless noted): INCOME, EXPENSE (many), OUTGOING, EXTERNAL, LOAN_GIVEN, LOAN_TAKEN, SAVING.
 
-### InterpersonalDebtEngine Invariants (Initial Implementation)
+Typical flows:
 
-Current Scope (Stage 0 Skeleton):
+1. Personal Expense: OUTGOING (-) → EXPENSE (+)
+2. Income: EXTERNAL (-) → INCOME (+)
+3. Saving: OUTGOING (-) → SAVING (+)
+4. Direct Loan: LOAN_GIVEN (-) → LOAN_TAKEN (+)
+5. Settlement (legacy direct): LOAN_TAKEN (-) → LOAN_GIVEN (+)
+6. Allocation (canonical repayment): obligation + user_balance updates (ledger entries pending)
 
-- Provides two methods: recordDirectLoan and recordRepayment.
-- Delegates bilateral balance mutations to BalanceAdjustmentService.applyBilateralDelta.
-- Does not yet emit ledger entries or persist loan metadata (handled by LoanService / transaction systems).
+Aggregation guidance:
 
-Invariants Enforced:
+- For analytic totals (income/expense/saving categories) sum positive amounts in destination accounts
+- Loan accounts (LOAN_GIVEN / LOAN_TAKEN) require net aggregation (sum all signed amounts) because reversals introduce mixed signs
 
-1. creditorId != debtorId (both methods) -> prevents self-loans/repayments.
-2. amount > 0 (input domain constraint) -> rejects zero / negative raw amounts; repayment semantics invert sign internally.
-3. Positive loan amount increases bilateral obligation (creditor perspective +amount, debtor perspective -amount).
-4. Repayment amount reduces obligation symmetrically (applies -amount delta via BalanceAdjustmentService).
-5. groupId propagation: Provided groupId (number) scopes the bilateral rows; null enforces overall (non-group) rows; undefined leaves repository findBalance queries using undefined to differentiate creation semantics.
-6. Currency is passed through verbatim; no FX normalization (Flag F10 still applicable—multi-currency logic deferred).
+---
 
-Non-Goals / Deferred:
+## 5. Domain Flows
 
-- Idempotency layer at engine boundary (handled at higher service layer today).
-- Ledger emission policy (future optimization for summarization only; correctness covered by F6 resolution).
-- Validation of existing outstanding before repayment (delegated to higher-level services that understand obligation context or share allocations).
-- Multi-currency conversion or normalization.
+Each flow lists: Purpose, Trigger/Service, Tables Written (W) / Read (R), Ledger Entries, Balance Effects, Invariants, Notes.
 
-Regression Targets (Covered by New Tests):
+### 5.1 Personal Expense (Non-Shared)
 
-- Direct loan path calls applyBilateralDelta with +amount.
-- Repayment path calls applyBilateralDelta with -amount.
-- Self-loan and self-repayment rejected early.
-- Non-positive amounts rejected early.
-- Group-scoped vs overall propagation verified.
+- Trigger: TransactionService (type EXPENSE, no splits)
+- W: transaction, transaction_entry
+- Ledger: OUTGOING (-) → EXPENSE (+)
+- user_balance: none
+- Invariants: Sum(entries)=0; single-user context
 
-### Recurring Item Flows (Conceptual)
+### 5.2 Income / Saving
 
-1. **Income (CREDIT)**: `EXTERNAL (-) → INCOME (+)`
-2. **Expense (DEBIT)**: `OUTGOING (-) → EXPENSE (+)`
-3. **Saving (DEBIT)**: `OUTGOING (-) → SAVING (+)`
+- Trigger: TransactionService
+- W: transaction, transaction_entry
+- Ledger: EXTERNAL (-) → INCOME (+) or OUTGOING (-) → SAVING (+)
+- user_balance: none
+- Invariants: No cross-user state
 
-### Aggregation Logic (Conceptual)
+### 5.3 Symmetric Loan Creation (/api/v1/loans/symmetric)
 
-- **Income**: `SUM(amount > 0)` from INCOME accounts (inflows only)
-- **Expenses**: `SUM(amount > 0)` from EXPENSE accounts (inflows only)
-- **Savings**: `SUM(amount > 0)` from SAVING accounts (inflows only)
-- **Assets**: `SUM(all amounts)` from LOAN_GIVEN accounts (net position)
-- **Liabilities**: `SUM(all amounts)` from LOAN_TAKEN accounts (net position)
-- **Net Worth**: Assets - Liabilities
+- Endpoint: POST /api/v1/loans/symmetric
+- Trigger: LoanService.create (symmetric path; type LOAN_GIVEN)
+- W: transaction, transaction_entry, loan, loan_split, user_balance (2 mirrored rows overall + optional group)
+- Ledger: LOAN_GIVEN (-) → LOAN_TAKEN (+)
+- user_balance: +amount (creditor perspective), -amount (debtor perspective)
+- Payload: debtorId, amount, currency (3-letter), optional groupId, description, loanDate
+- Implicit: Auth user = creditor
+- Invariants:
+  1. creditorId != debtorId
+  2. amount > 0
+  3. currency length = 3 (no FX yet)
+  4. Context: (groupId present AND both members) OR existing friendship
+  5. Single implicit split == amount
+  6. Description normalized: blank → ""
+  7. Canonical direction only (creditor LOAN_GIVEN → debtor LOAN_TAKEN)
+  8. Created only via /api/v1/loans/symmetric
+- Failure (400): self-loan, invalid context, non-positive amount, invalid currency
+- Notes: Potential future normalization to also emit expense_share rows (for consistency with shared expenses)
 
-**Note**: Loan accounts (LOAN_GIVEN, LOAN_TAKEN) use net aggregation because settlements create both positive and negative entries that must be summed together to get the correct outstanding balance.
+### 5.4 Direct Settlement (Legacy Debt Reversal)
 
-## User Balance System
+- Trigger: BalanceService.createSettlement (legacy endpoint)
+- W: transaction, transaction_entry, settlement, user_balance
+- Ledger: LOAN_TAKEN (-) → LOAN_GIVEN (+) (reversal); optional expense cash flow pair in legacy group variant
+- Invariants: amount > 0; parties distinct
+- Notes: Does not inherently cap to net outstanding (legacy behavior) – present only for backward compatibility
 
-**Materialized view** of net debt between users for performance:
+### 5.5 Shared Expense (Multi-Party Upfront Recognition)
 
-- **Structure**: `(ownerId, counterPartyId, groupId, amount, currency)`
-- **Purpose**: Fast lookups without complex transaction queries
+- Trigger: ExpenseService with participant splits
+- W: transaction, transaction_entry (expense + per-participant loan style entries), expense_share (one per participant + optional payer share), user_balance
+- Ledger: OUTGOING (-) → EXPENSE (+) payer share (if any) plus LOAN_GIVEN (-) → LOAN_TAKEN (+) per owing participant
+- user_balance: payer gains positive vs each participant; reciprocal negatives
+- Invariants: Sum(shares) == expense total; payer share flagged isPayerShare=1 and excluded from allocations
 
-### Balance Types
+### 5.6 Settlement Allocation (Canonical FIFO Repayment)
 
-1. **Overall Balance** `(owner, counterParty, NULL, amount)`:
-   - Net debt across all contexts (direct + groups)
-   - `+amount`: counterParty owes owner
-   - `-amount`: owner owes counterParty
-2. **Group Balance** `(owner, counterParty, groupId, amount)`:
-   - Debt within specific group context
-   - Separate tracking per group membership
+- Trigger: SettlementService.allocateExpenseShareSettlement
+- W/R: expense_share (update paidAmount/status), settlement (insert), settlement_application (insert), user_balance (update)
+- Ledger: (Design gap) no transaction entries yet
+- Algorithm: FIFO by realizedAt, id across debtor’s outstanding shares to a specific payer (+ optional group scope)
+- Invariants: amount > 0; amount ≤ totalOutstanding + ε (ε≈1e-8); homogeneous currency & group; payerId != payeeId
+- Result: Outstanding reduced; shares’ status transitions UNPAID → PARTIALLY_PAID → PAID
+- Design Gap: Missing ledger parity (pending summarized or per-allocation entries)
 
-### Key Properties
+### 5.7 Aggregation & Derived Views
 
-- **Owner's perspective**: Always from owner's viewpoint
-- **Real-time updates**: Modified on loan creation, settlement, and (new) allocation
-- **Performance critical**: Enables fast UI balance displays
+Layer interaction and derivability assumptions; reconciliation process (future) will assert user_balance consistency with obligations.
 
-## Group Expense & Settlement System
+---
 
-### Legacy Expense Creation Flow (Pre-Expense Share Table)
+## 6. Expense Share Model
 
-#### For Regular Expenses (TXN_TYPE.EXPENSE):
+Table: expense_share
+Fields: id, transactionId, payerUserId, participantUserId, groupId (nullable), shareType, splitType, expenseAccountId (optional), currency, amount, paidAmount, status (UNPAID|PARTIALLY_PAID|PAID), realizedAt, isPayerShare, metadata
+Invariants:
 
-1. **Payer Expense**: `OUTGOING (-) → EXPENSE (+)` for payer's share (when payerTotal > 0)
-2. **No Payer Expense**: When payerTotal = 0 (payer's share fully covered by splits)
-3. **Error Condition**: When payerTotal < 0 (splits exceed total amount)
-4. **Loan Generation**: `LOAN_GIVEN (-) → LOAN_TAKEN (+)` for each participant
-5. **Balance Updates**: Update user_balance table to reflect loan relationships
-6. **Metadata Storage**: Expense and split records in relational tables
+- 0 ≤ paidAmount ≤ amount
+- Status monotonic: UNPAID → PARTIALLY_PAID → PAID
+- isPayerShare=1 rows excluded from allocations
+- Currency homogeneous per allocation request
 
-#### For Loan Transactions (TXN_TYPE.LOAN_GIVEN/LOAN_TAKEN):
+---
 
-1. **No Payer Expense**: Loans don't create expense transactions
-2. **Direct Loan Transfer**: `LOAN_GIVEN (-) → LOAN_TAKEN (+)` for the full amount
-3. **Validation**: Split amount must equal total amount (ensures payerTotal = 0)
-4. **Balance Updates**: Update user_balance table to reflect loan relationships
-5. **Metadata Storage**: Expense and split records in relational tables (for tracking)
+## 7. Settlement Allocation Details (Updated: Idempotency & Concurrency Semantics)
 
-### Legacy Settlement Flow (Direct Debt Settlement)
-
-#### Direct Debt Settlement
-
-1. **Debt Reversal**: `LOAN_TAKEN (-) → LOAN_GIVEN (+)` to negate original loan
-2. **Settlement Record**: Stored for audit trail
-
-#### Group Debt Settlement
-
-1. **Debt Reversal**: `LOAN_TAKEN (-) → LOAN_GIVEN (+)` to negate original loan
-2. **Expense Cash Flow**: `OUTGOING (-) → EXPENSE (+)` to record the underlying shared expense payment
-3. **Settlement Record**: Stored for audit trail
-
-### Detailed Direct Settlement Database Operations (Legacy)
-
-1. **Transaction Header**: Created with settlement description
-2. **Transaction Entries**: 2 entries (double-entry) - payer's `LOAN_TAKEN (-)` and payee's `LOAN_GIVEN (+)`
-3. **Account Balance Updates**: Corresponding updates to account balances
-4. **User Balance Table Updates**: Two rows mirrored (owner/counterparty perspectives)
-5. **Settlement Table**: Audit record
-
-### Balance Update Flow (Applies to Legacy + New)
-
-For each participant in a shared expense:
-
-1. **Payee Balance**: `payee (owner) owes payer (counterparty) -amount` OR (if payer advanced funds) owner=original payer has positive amount relative to participant
-2. **Payer Balance**: `payer (owner) is owed by payee (counterparty) +amount`
-3. **Group Context**: If expense is group-based, balances are tracked per group
-4. **Overall Balance**: Non-group balances also maintained for cross-context settlements
-
-### Upfront Expense Recognition & Expense Shares (Canonical Model)
-
-The system now normalizes shared expense obligations at creation time into the `expense_share` table. This replaces implicit reliance on original loan splits for tracking outstanding amounts.
-
-#### Goals
-
-- Explicit, query-efficient representation of each participant's obligation
-- Support partial settlements across multiple historical expenses (FIFO)
-- Provide per-share lifecycle status (UNPAID → PARTIALLY_PAID → PAID)
-- Decouple settlement application logic from raw transaction splits
-
-#### Expense Share Data Model
-
-Table: `expense_share`
-Fields:
-
-- `id` PK
-- `transactionId` (FK -> transaction) original expense transaction header
-- `payerUserId` user who fronted the expense
-- `participantUserId` user owing this share (can be same as payer when `isPayerShare=1`)
-- `groupId` nullable group context
-- `shareType` (FRIENDS | GROUP | NONE)
-- `splitType` (EQUAL | PERCENTAGE | SHARE)
-- `expenseAccountId` optional expense account reference (for category lineage)
-- `currency` 3-letter code (no FX conversion yet)
-- `amount` total obligation for this share
-- `paidAmount` cumulative settled amount applied (<= amount)
-- `status` UNPAID | PARTIALLY_PAID | PAID
-- `realizedAt` timestamp when share was recognized
-- `isPayerShare` (0/1) flag identifying payer’s own share (excluded from allocations when 1)
-- `metadata` arbitrary JSON (future: original percentage, notes, etc.)
-
-#### Invariants
-
-- `0 <= paidAmount <= amount`
-- `status` transitions: UNPAID → PARTIALLY_PAID → PAID (monotonic; no reversal without corrective admin workflow)
-- Payer share rows (`isPayerShare=1`) must not be allocated against settlements
-- Currency homogeneity per allocation request
-
-### Settlement Allocation Flow (Canonical)
-
-Endpoint: `POST /api/v1/settlements/allocate`
-
-Purpose: Allocate a payment made by a participant (debtor) to an original payer across that debtor’s outstanding shares owed to the payer using FIFO ordering (earliest recognized first: `createdAt ASC, id ASC`).
-
-#### Inputs
-
-- `payeeId` (original payer receiving funds)
-- Implicit `payerId` from authenticated user (participant paying back)
-- `amount` positive numeric
-- `currency` 3-letter ISO code (must match target outstanding shares)
-- Optional `groupId` (null or number — if provided, only those shares considered)
-
-#### Validation
-
-1. `payerId != payeeId`
-2. `amount > 0`
-3. At least one allocatable share exists (participantUserId = payerId, payerUserId = payeeId, status in {UNPAID, PARTIALLY_PAID}, `isPayerShare=0`, currency + group criteria match)
-4. `amount <= totalOutstanding + ε` (ε = 1e-8 tolerance for floating precision)
-
-#### Allocation Logic (FIFO Concept)
+Endpoint: POST /api/v1/settlements/allocate (Idempotent via Idempotency-Key header)
+Inputs: payeeId, (implicit payerId = auth user), amount, currency, optional groupId
+Validation: payerId != payeeId; amount > 0; at least one allocatable share (participantUserId=payerId, payerUserId=payeeId, status in {UNPAID, PARTIALLY_PAID}, isPayerShare=0) matching currency/group; amount ≤ totalOutstanding + ε
+Algorithm (pseudo):
 
 ```
-shares = fetchAllocatableShares(payerId, payeeId, currency, groupId) // ordered
-outstandingBefore = Σ (share.amount - share.paidAmount)
-assert amount <= outstandingBefore
-create settlement record (payerId pays payeeId) + ledger loan reversal (payer LOAN_TAKEN -> payee LOAN_GIVEN)
+shares = fetchAllocatableShares(... FIFO)
+outstandingBefore = Σ(shareRemaining)
+assert amount ≤ outstandingBefore
+create settlement
 remaining = amount
-for share in shares (while remaining > 0):
-  shareRemaining = share.amount - share.paidAmount
+for share in shares while remaining>0:
   apply = min(shareRemaining, remaining)
-  newPaid = share.paidAmount + apply
-  newStatus = (≈share.amount) ? PAID : PARTIALLY_PAID
-  update share(paidAmount=newPaid, status=newStatus)
-  insert settlement_application(settlementId, expenseShareId, appliedAmount=apply)
+  update share (paidAmount += apply, status= PAID if ≈ amount else PARTIALLY_PAID)
+  insert settlement_application
   remaining -= apply
-update user_balance (payeeOwnerRow.amount -= totalApplied)
-update user_balance (payerOwnerRow.amount += totalApplied)
-compute outstandingAfter = outstandingBefore - totalApplied
+update user_balance mirrored rows (+/- totalApplied)
+outstandingAfter = outstandingBefore - amount
 return settlement + applications + totals
 ```
 
-#### Settlement Application (Conceptual Data Model)
+User Balance Adjustments:
 
-Table: `settlement_application`
+- Row(owner=payeeId, counterParty=payerId) decreases by applied amount
+- Reciprocal row(owner=payerId, counterParty=payeeId) increases by applied amount
+  Precision:
+- 1e-8 tolerance for classification as fully paid
+  Error Scenarios (400): self settlement, non-positive amount, no outstanding shares, over-allocation
+  Concurrency & Idempotency:
+- Entire allocation processed in a single DB transaction.
+- Idempotency-Key header REQUIRED. First request with a key creates settlement (HTTP 200) and persists key + hashed payload reference; exact replay with same payload returns existing settlement (HTTP 200). Any differing payload reuse of the key causes conflict (HTTP 409).
+- Direct (legacy) settlement endpoints (/api/v1/balances, /api/v1/groups/{groupId}/settlements) also require Idempotency-Key: first use 201 Created, subsequent exact replay 200 OK, mismatch 409 Conflict.
+- Allocation always 200 (even on first creation) to simplify client logic (idempotent PUT-like semantics); legacy direct settlements retain 201 for initial creation.
+- Current concurrency window: two parallel allocations for same (payer, payee, group?) pair could interleave and slightly over-allocate within ε; mitigation pending (future row-level locking or logical mutex keyed by payer-payee-[group]).
+  Ledger Gap:
+- No double-entry representation yet; future: per-allocation or summarized ledger entries
 
-- `id` PK
-- `settlementId` FK → settlement
-- `expenseShareId` FK → expense_share
-- `appliedAmount` amount applied to that share
-- `createdAt` timestamp
+Comparison (Legacy vs Allocation):
+| Aspect | Legacy Direct Settlement | Allocation Flow |
+|--------|--------------------------|-----------------|
+| Granularity | Single debt reversal | Multi-expense FIFO |
+| Ledger Entries | Yes (double-entry) | Not yet (gap) |
+| Partial Allocation | By splitting settlement amount | Native per-share partials |
+| Share Status Tracking | Implicit via loans | Explicit (UNPAID/PARTIALLY_PAID/PAID) |
+| Flexibility | Limited | High |
+| Recommended Use | Backward compatibility | Primary path |
 
-#### User Balance Adjustment Semantics (Conceptual)
+---
 
-- Row with `ownerId=payeeId` & `counterPartyId=payerId` decreases by `totalApplied` (payer owes less → payer's debt reduced)
-- Reciprocal row with `ownerId=payerId` increases by `totalApplied` (payer’s perspective improves / becomes less negative)
-- If balances hit 0, rows are retained (no auto-delete) for audit continuity (future optimization: prune zero rows)
+## 8. Category Derivation
 
-#### Precision Handling (Conceptual Guidance)
+Category for an expense/settlement is derived from the positive transaction entry’s account name; fallback GENERAL if none.
 
-- Floating comparison tolerance: 1e-8 to classify a share as fully paid
-- Avoid cumulative drift by applying min(shareRemaining, remaining) and deriving outstandingAfter from before - applied
+---
 
-#### Error Scenarios (Allocation - Conceptual)
+## 9. Loan Transaction Validation (Canonical Rules)
 
-| Condition             | Error | Message Example                             |
-| --------------------- | ----- | ------------------------------------------- |
-| Self settlement       | 400   | "Cannot settle with self"                   |
-| Non-positive amount   | 400   | "Settlement amount must be positive"        |
-| No outstanding shares | 400   | "No outstanding shares to settle"           |
-| Over-allocation       | 400   | `Settlement amount X exceeds outstanding Y` |
+Rules enforced by LoanService:
 
-#### Concurrency & Idempotency (Conceptual)
+1. Exactly one split
+2. Split amount == transaction amount (payerTotal == 0)
+3. Source account = payer’s LOAN_GIVEN
+4. Destination account = split user’s LOAN_TAKEN
+5. Type must be LOAN_GIVEN (LOAN_TAKEN creation rejected)
+6. Distinct users
 
-- Entire allocation executes inside a single database transaction.
-- Idempotency: Allocation endpoint requires Idempotency-Key; identical payload + key returns prior context without new ledger transaction.
-- Race Condition (open): Parallel allocations between same payer/payee pair could both read pre-allocation outstanding. Mitigation (future - Flag F8): row locking or application-level mutex.
+Symmetric endpoint (/loans/symmetric) applies same core invariants implicitly.
 
-#### Ledger Consistency (Allocation Parity Achieved)
+---
 
-- Principle: every monetary movement is represented as double-entry ledger entries.
-- Current State: `allocateExpenseShareSettlement` emits a single reversing loan transaction (`LOAN_TAKEN (-) → LOAN_GIVEN (+)`) plus obligation + balance updates.
-- Implication: Loan account aggregations and ledger-based analytics reflect repayments immediately; reconciliation (F7) focuses on validating obligation-layer consistency rather than compensating for missing ledger entries.
-- Future Enhancement: Optional summarization/aggregation layer may still be introduced for performance/compaction (not correctness).
+## 10. Interpersonal Debt Engine
 
-### Legacy vs Canonical Flow (Conceptual Comparison)
+Methods: recordDirectLoan, recordRepayment
+Semantics:
 
-| Aspect                | Legacy Direct Settlement         | New Allocation Flow                   |
-| --------------------- | -------------------------------- | ------------------------------------- |
-| Granularity           | Single debt at a time            | Spans multiple historical shares FIFO |
-| Ledger Entries        | Yes (double-entry)               | Yes (double-entry reversal)           |
-| Partial Allocation    | Indirect (by smaller settlement) | Native per-share partials             |
-| Share Status Tracking | Implicit via loans               | Explicit (UNPAID/PARTIALLY_PAID/PAID) |
-| Flexibility           | Limited                          | High (multi-expense allocation)       |
-| Recommended Use       | Backward compatibility only      | Primary path                          |
+- Positive loan increases creditor’s net position; reciprocal negative for debtor
+- Repayment decreases outstanding (applies negative delta)
+  Invariants: creditorId != debtorId; amount > 0; groupId optional scoping; currency pass-through (no FX normalization yet)
+  Deferred: ledger emission, idempotency boundary logic, outstanding validation, FX
 
-### Key Features
+---
 
-- **Multi-party splits**: Complex group expense distribution
-- **Flexible settlements**: Partial and full debt resolution (improved with FIFO allocation)
-- **Upfront Expense Recognition (NEW)**: Explicit per-user obligations
-- **FIFO Settlement Allocation (NEW)**: Deterministic allocation order with ledger parity
-- **Direct loan support**: Non-group loan scenarios
-- **Expense Share Status Lifecycle (NEW)**: UNPAID → PARTIALLY_PAID → PAID
-- **Consistent Balance Tracking**: User balances updated across all flows
+## 11. Recurring Item Flows
 
-## Implementation Architecture (Brief Domain Mapping Only)
+- Income (CREDIT): EXTERNAL (-) → INCOME (+)
+- Expense (DEBIT): OUTGOING (-) → EXPENSE (+)
+- Saving (DEBIT): OUTGOING (-) → SAVING (+)
 
-### Service Layer
+---
 
-- **ExpenseService**: Manages expense creation with automatic loan/share generation (future: create expense_share records directly if not already)
-- **SettlementService**: Processes debt settlements & share allocation
-- **BalanceService**: Handles direct loans/settlements with transaction entries
-- **TransactionHelperService**: Manages double-entry transaction creation and account updates
-- **DashboardService**: Provides aggregated financial analytics
-- **AuthService**: Handles user authentication and account initialization
-- **GroupService**: Manages group operations and member relationships
-- **FriendService**: Manages user friendships and social connections
+## 12. Aggregation Logic (Analytics)
 
-### Design Patterns
+- Income: SUM(positive INCOME entries)
+- Expenses: SUM(positive EXPENSE entries)
+- Savings: SUM(positive SAVING entries)
+- Assets (Loans Given): Net sum LOAN_GIVEN
+- Liabilities (Loans Taken): Net sum LOAN_TAKEN
+- Net Worth: Assets - Liabilities
 
-- **Repository Pattern**: Data access abstraction
-- **Service Layer**: Business logic encapsulation
-- **Dependency Injection**: Loose coupling
-- **Transaction Management**: Atomic financial operations
+---
 
-### Transaction Management & Error Handling (Conceptual)
+## 13. User Balance System
 
-#### Database Transaction Strategy
+user_balance schema: (ownerId, counterPartyId, groupId nullable, amount, currency)
+Semantics: +amount means counterParty owes owner; -amount owner owes counterParty
+Two mirroring rows per relationship (overall and group-specific as applicable) updated in real time for loans, shared expenses, allocations, and legacy settlements.
 
-**Critical Operations Requiring Transactions:**
+---
 
-- `ExpenseService.createExpense()`
-- `BalanceService.createSettlement()` (legacy)
-- `BalanceService.recordLoan()`
-- `AuthService.signUp()`
-- `SettlementService.allocateExpenseShareSettlement()` (NEW)
+## 14. Legacy Expense & Settlement Details (For Reference)
 
-**Transaction Pattern:**
+Legacy Expense Creation (pre-expense_share) included constructing loan relationships from splits; now superseded by explicit expense_share obligations. Legacy direct settlement performs immediate loan reversal entries and updates user_balance; lacks allocation granularity and outstanding capping (except where later guarded in service logic). Detailed legacy DB operations (transaction header, two ledger entries, mirrored user_balance updates, settlement audit row) remain for backward compatibility but are not the canonical repayment path.
 
-```typescript
-await this.db.transaction(async (tx) => {
-  // Multiple operations using tx (atomic)
+---
+
+## 15. Implementation Architecture
+
+### 15.1 Services
+
+- ExpenseService: Creates expenses + shares + associated ledger entries
+- SettlementService: Allocation flow + (legacy) debt settlement orchestration
+- BalanceService: Direct loan & settlement (legacy) abstractions
+- LoanService: Canonical loan creation/update/delete/fetch
+- TransactionHelperService: Double-entry construction & account updates
+- DashboardService: Aggregations & summaries
+- AuthService: User authentication & account initialization
+- GroupService / FriendService: Social + membership context
+
+### 15.2 Design Patterns
+
+- Repository pattern for data access
+- Service layer for business logic
+- Dependency Injection (Awilix) for request-scoped service resolution
+- Separation of concerns (handlers only parse and delegate)
+
+### 15.3 Transaction Management
+
+All multi-write operations execute within an explicit transaction propagated via optional tx parameter; nested service calls reuse existing tx.
+Pattern:
+
+```ts
+await db.transaction(async (tx) => {
+  // repository calls with tx
 });
 ```
 
-**Repository Method Signature:**
+Repository signature:
 
-```typescript
-async methodName(params, tx?: DBTransactionType): Promise<Result>
+```ts
+async method(params, tx?: DBTransactionType): Promise<Result>
 ```
 
-#### Error Handling Strategy
+### 15.4 Error Handling & Validation
 
-- **Validation Errors**: Input validation failures (400 Bad Request)
-- **Not Found Errors**: Missing resources (404 Not Found)
-- **Transaction Errors**: Database constraint violations (500 Internal Server Error)
-- **Authentication Errors**: Unauthorized access attempts
-- **Atomic Rollbacks**: All-or-nothing transaction behavior
+Categories:
 
-### Critical Integration Evolution
+- Validation (400)
+- Not Found (404)
+- Authentication (401) / Authorization (current simplification sometimes 400; future 403 distinction)
+- Constraint / Internal (500)
+  Handlers: parse + delegate + shape error; services own domain validation.
 
-**Previous Guarantee**: All financial activities produced both ledger entries and user_balance updates.
+### 15.5 Security & Access (Current Rules)
 
-**Current Nuance**:
+- Direct loan creation: authenticated user (creditor) + debtor must be friend OR co-member of groupId if provided
+- Loan fetch/update/delete: creator-only (future participant visibility)
+- Allocation: debtor (payer) paying original creditor; future stricter group membership enforcement
+- Symmetric endpoint inherits same access controls
 
-- Direct loans: Create `LOAN_GIVEN (-) → LOAN_TAKEN (+)` entries + user_balance
-- Direct settlements (legacy): Ledger reversal entries + user_balance
-- Group settlements (legacy): Debt reversal + expense cash flow + user_balance
-- Shared expenses: Loan (or share) creation with ledger entries + user_balance
-- Allocation settlements (NEW): Share + user_balance updates + single loan reversal ledger transaction
+---
 
-## API Surface (Conceptual Addendum)
+## 16. API Surface (Current – High-Level Excerpt)
 
-### New Endpoints
+NOTE: Full authoritative per-endpoint listing maintained in API_ROUTES.md. This section only highlights core loan & allocation surfaces.
 
-`POST /api/v1/settlements/allocate`
+POST /api/v1/loans/symmetric Create direct loan (canonical convenience path; implicit single debtor split)
+GET /api/v1/loans List loans (creator scope; participant extension future)
+GET /api/v1/loans/{loanId} Get loan details (creator)
+PUT /api/v1/loans/{loanId} Update loan (description, loanDate)
+DELETE /api/v1/loans/{loanId} Delete loan (creator)
+POST /api/v1/settlements/allocate Allocate repayment across expense shares (FIFO)
+(Legacy settlement endpoints retained but not canonical)
 
-`POST /api/v1/loans` (NEW - canonical direct loan creation; returns created loan row)
-`GET /api/v1/loans` List user's loans (payer or participant – participant filtering TBD; current implementation returns payer-created loans)
-`GET /api/v1/loans/{loanId}` Get loan details (authorization: creator only until participant join implemented)
-`PUT /api/v1/loans/{loanId}` Update loan (description, loanDate) (creator only)
-`DELETE /api/v1/loans/{loanId}` Delete loan (creator only)
-
-Deprecated: Creating LOAN_GIVEN / LOAN_TAKEN via `/api/v1/transactions` (blocked at service layer).
-Request Body:
-
-```
-{
-  "payeeId": number,
-  "amount": number,
-  "currency": "USD",
-  "groupId?": number
-}
-```
-
-Response:
+Allocation Response Shape (conceptual):
 
 ```
 {
@@ -534,68 +343,497 @@ Response:
 }
 ```
 
-### Backward Compatibility
+### 16.1 Idempotency & Concurrency Summary
 
-- Existing settlement endpoints remain; clients should migrate to allocation for multi-expense paydowns.
-- Mobile client pending integration for allocation.
+Key Principles:
 
-## Current Domain Status (Summary)
+- Idempotency-Key header REQUIRED for: POST /api/v1/settlements/allocate, POST /api/v1/balances (legacy), POST /api/v1/groups/{groupId}/settlements (legacy)
+- Key uniqueness scope: (userId, idempotencyKey, endpoint)
+- First request persists canonical record + normalized payload hash
+- Exact replay (same key + identical normalized payload) returns 200 (allocation) or 200 (legacy uses 201 on first, 200 on replay) without duplication
+- Mismatched payload reuse => 409 Conflict (no side effects)
 
-### ✅ Established Domain Capabilities
+Status Codes:
 
-- Double-entry accounting system (core ledger)
-- Group expense creation with automatic loan relationship generation
-- Settlement flow (legacy) with debt reversal and payment recording
-- Upfront expense share recognition (NEW)
-- FIFO settlement allocation across expense shares (NEW) with ledger parity
-- Direct loan/settlement integration with transaction system
-- Transaction account-based category derivation system
-- User balance table for optimized balance calculations
-- Comprehensive transaction validation and error handling
-- Repository pattern implementation with transaction support
+- Allocation: 200 on creation and repeat
+- Legacy direct settlements: 201 Created first, 200 OK subsequent
 
-### ⚠️ Known Domain Gaps / Transitional Debt
+Concurrency:
 
-#### Flag Register (Active Design Risks)
+- Single DB transaction wraps each settlement / allocation
+- No pessimistic locking yet; parallel allocations between same payer/payee[/group] may slightly over-allocate within ε (1e-8) before future mutex/locking
 
-(Each flag references the flow(s) it impacts and planned remediation track.)
+Determinism & Hashing:
 
-- Flag F2 (Overpayment Not Prevented in Direct Settlement): RESOLVED. Direct legacy settlements (Flow 4) now validate requested amount against current outstanding (creditor perspective user_balance row). Attempts where outstanding <= 0 or amount > outstanding are rejected with `Settlement amount X exceeds outstanding Y`. Prevents negative debt states.
-- Flag F3 (Missing Idempotency Documentation / Enforcement for Allocation & Direct Settlement Replay Semantics): RESOLVED. Allocation endpoint and direct settlement endpoints now require Idempotency-Key header; settlement table enforces unique key; direct settlement returns 201 on first creation and 200 on exact replay (same payload). Both direct and allocation flows return 409 (IDMP_KEY_CONFLICT) when the same key is reused with differing payload (payerId, payeeId, amount, currency, groupId). Standardized error schemas (StandardErrorSchema, IdempotencyConflictErrorSchema) applied across balances, group settlement, and allocation routes.
-- Flag F4 (Zero-Amount Payer Share Rows Noise): Flow 5 may create payer share entries with amount 0 but status UNPAID. Planned: Either omit zero rows or mark as PAID at insertion; migration to clean existing noise.
-- Flag F5 (Dual Loan Pathways Divergence): RESOLVED (Stages 1–3). Stage 1: TransactionService blocks LOAN_GIVEN / LOAN_TAKEN. Stage 2: Dedicated /loans API with standardized error schemas (400/404). Stage 3: Removed asymmetric validation; LOAN_TAKEN creation hard blocked (single canonical LOAN_GIVEN direction). Future: InterpersonalDebtEngine may abstract away explicit direction in client payloads.
-- Flag F6 (Ledger Omission for Allocations): RESOLVED. Allocation flow now emits a single loan reversal double-entry (`LOAN_TAKEN (-) → LOAN_GIVEN (+)`) per request restoring ledger parity. Remaining follow-up deferred to F7 (reconciliation) and optional future summarization (performance, not correctness).
-- Flag F7 (Lack of Reconciliation Utility): No job asserting user_balance matches derived obligations from expense_share/settlement_application (Flows 5 & 6). Planned: Background script + admin endpoint surfacing discrepancies.
-- Flag F8 (Concurrency Race on Parallel Allocations): Parallel Flow 6 requests can over-allocate same shares. Planned: DB-level row locking (when supported) or application mutex keyed by payerId-payeeId-groupId triad.
-- Flag F9 (Incomplete OpenAPI / Contract Coverage): Allocation endpoint further docs & share listing endpoints absent (affects discoverability for Flows 5 & 6). Planned: Extend contracts + SDK generation.
-- Flag F10 (No FX / Multi-Currency Normalization): Cross-currency settlements undefined (affects potential future Flows 5 & 6). Planned: Currency normalization layer + stored functional currency per group/user.
+- Payload normalization: sorted JSON keys, trimmed strings, numeric amount canonicalized to string with up to 8 decimal places before hashing (implementation detail; see SettlementService)
 
-#### Resolved Flags (Historical)
+Future Work:
 
-- Flag F1 (Balance Sign Inconsistency): RESOLVED. A canonical bilateral mutation path was introduced via BalanceAdjustmentService.applyBilateralDelta(creditorId, debtorId, amount). All shared expense and settlement flows now conform: positive amount increases debtor obligation; negative amount reduces it. Legacy inconsistent mutation paths removed/refactored. Existing user_balance rows created under old convention were aligned during refactor (future data migration note if historical data existed pre-refactor).
-
-- Concurrency control (locking) for simultaneous allocations not implemented (F8)
-- Share listing & filtering API endpoints (participant vs payer, status) not exposed yet (F9)
-- Zero-balance pruning not implemented
-
-### 🔄 Planned Domain Evolutions
-
-- Advanced transaction aggregation optimization
-- Multi-table relationship performance tuning
-- Optional ledger summarization for allocation settlements (performance only)
-- Share query endpoints & dashboard adjustments to use expense_share directly
-- Multi-currency support & FX normalization
-- Enhanced API documentation and OpenAPI compliance
-
-### 🎯 Future Domain Enhancements (High-Level)
-
-- Multi-currency transaction support
-- Advanced transaction indexing strategies
-- Distributed transaction management
-- Real-time balance synchronization
-- Ledger reconciliation service for allocation entries (verification focus)
-- Enhanced API documentation & discoverability
+- Introduce row-level or advisory locks to prevent parallel over-allocation
+- Expand idempotency to loan creation and future AI transaction endpoint if client retries become common
 
 ---
 
-_This LLD serves as the architectural foundation for Pocket Pixie. For implementation details, refer to the codebase, service layer logic, and repository contracts. The document reflects the state after introduction of the expense share & FIFO settlement allocation flow with ledger parity (2025-09-14)._
+## 17. Known Gaps (Non-Flag Form)
+
+- Allocation ledger parity absent (no transaction entries yet)
+- Concurrency protection for parallel allocations pending (row locks / mutex)
+- Reconciliation utility (derive & compare user_balance vs obligations) pending
+- Share listing / filtering endpoints for richer obligation queries pending
+- Zero-balance row pruning optimization not implemented
+- Multi-currency normalization & FX handling deferred
+- Optional summarized or per-allocation ledger emission design pending
+
+---
+
+## 18. Recently Standardized (Informational)
+
+- Canonical loan direction unified (LOAN_GIVEN only)
+- Bilateral balance mutation path centralized (applyBilateralDelta) ensuring consistent sign semantics (creditor positive / debtor negative)
+- Upfront expense obligation recognition via expense_share replaces implicit split-based outstanding derivation
+
+---
+
+## 19. Planned Enhancements (High-Level)
+
+- Ledger entries for allocation (micro vs summarized strategy)
+- Reconciliation & audit tooling
+- Concurrency controls for allocation (row locking / logical mutex)
+- Multi-currency normalization / functional currency support
+- Share query & participant/ payer filtering endpoints
+- Enhanced OpenAPI/contract coverage & SDK generation
+- Advanced transaction indexing + performance tuning
+- Real-time balance sync refinements
+
+---
+
+## 20. Document Scope
+
+This LLD is authoritative for current domain architecture and flows. It merges prior detailed and concise versions without log-style flag annotations. Historical change rationale resides in version control history.
+
+---
+
+## 21. Database Schema Overview & Table Roles
+
+This section provides a concise overview of all current tables (21.1–21.9) and their relationships, followed by an authoritative Table Role Catalog (21.10) that defines each table’s architectural role, mutability, invariants, and rationale. Use 21.10 as the single source of truth for refactors and audits.
+
+Legend:
+
+- PK primary key (auto-increment integer unless noted)
+- FK -> referenced_table.column
+- Optional fields noted (nullable)
+- Cardinality examples: User 1..\* Transaction (a user creates many transactions)
+
+### 21.1 Auth & Identity
+
+1. user
+   - Purpose: Core identity & profile; default currency preference.
+   - Key Fields: id (PK), name, email (unique), currency.
+   - Relationships:
+     - 1..\* account, session, verification
+     - 1..\* transaction_account
+     - 1..\* transaction (creator)
+     - 1..\* budget, recurring
+     - 1..\* loan (createdBy)
+     - 1..\* group (createdBy)
+     - 1..\* group_member (membership rows)
+     - 1..\* friendship (as userId1 or userId2)
+     - 1..\* expense_share (as payerUserId or participantUserId)
+     - 1..\* settlement (as payerId or payeeId)
+     - 1..\* loan_split (participant / debtor)
+     - 1..\* loan_payer (repayment participant)
+     - 1..\* user_balance (as ownerId or counterPartyId)
+
+2. account
+   - Purpose: OAuth / external auth provider linkage.
+   - FKs: userId -> user.id
+
+3. session
+   - Purpose: Auth session/token persistence.
+   - FKs: userId -> user.id
+
+4. verification
+   - Purpose: Email / credential verification tokens.
+
+### 21.2 Social & Context
+
+5. friendship
+   - Purpose: Bilateral relationship enabling direct loans & shared expenses outside groups.
+   - Fields: userId1, userId2, status (PENDING|ACCEPTED).
+   - Unique Index: (userId1, userId2, status) prevents duplicates.
+   - Cardinality: user 1..\* friendship (two roles; app logic enforces ordering / normalization outside schema).
+
+6. group
+   - Purpose: Container for shared expenses & scoped balances.
+   - FKs: createdBy -> user.id
+
+7. group_member
+   - Purpose: Membership mapping.
+   - FKs: groupId -> group.id, userId -> user.id
+   - Cardinality: group 1.._ group_member; user 1.._ group_member.
+
+### 21.3 Core Ledger & Accounts
+
+8. transaction_account
+   - Purpose: Represents a user-owned categorization or financial account (EXPENSE, INCOME, LOAN_GIVEN, LOAN_TAKEN, SAVING, EXTERNAL, OUTGOING).
+   - FKs: userId -> user.id
+   - Notes: balance column currently present (materialized / auxiliary); double-entry integrity enforced at service layer, not by constraint.
+
+9. transaction
+   - Purpose: Logical ledger event header (descriptive metadata & date) created by a user (creator context / initiating actor).
+   - FKs: userId -> user.id
+   - Cardinality: transaction 1..\* transaction_entry; (some flows also spawn expense_share, loan, etc.).
+
+10. transaction_entry
+    - Purpose: Immutable double-entry line items linking a transaction to specific accounts.
+    - FKs: transactionId -> transaction.id, transactionAccountId -> transaction_account.id
+    - Invariant: Sum(amount for a transaction) == 0 (enforced in service layer).
+
+### 21.4 Budgeting & Recurrence
+
+11. budget
+    - Purpose: Per-account periodic spending target.
+    - FKs: userId -> user.id, transactionAccountId -> transaction_account.id
+
+12. recurring
+    - Purpose: Template for automated periodic postings (income, expense, saving transfers).
+    - FKs: userId -> user.id, sourceTransactionAccountID -> transaction_account.id, targetTransactionAccountID -> transaction_account.id
+
+### 21.5 Loans, Obligations, Settlements & Balances
+
+13. loan (Canonical direct loan header)
+    - Purpose: Represents a bilateral loan (currently exactly one debtor split required in canonical path).
+    - FKs: groupId (optional) -> group.id; createdBy -> user.id; transactionId -> transaction.id
+    - Notes: transaction references the ledger posting LOAN_GIVEN (-) → LOAN_TAKEN (+).
+
+14. loan_split
+    - Purpose: Participant obligation rows for a loan (canonical direct loans: exactly one row for the debtor; model supports multi-debtor extension).
+    - FKs: loanId -> loan.id; userId -> user.id
+    - Fields: amountOwed, splitType (EQUAL | PERCENTAGE | SHARE), metadata (JSON).
+
+15. loan_payer (Legacy / transitional)
+    - Purpose: Tracks amounts repaid directly toward a loan via legacy flows (not used by the allocation-based expense share settlement engine).
+    - FKs: loanId -> loan.id; userId -> user.id
+    - Notes: Retained for backward compatibility & historical analytics.
+
+16. expense_share
+    - Purpose: Upfront recognition of each participant’s obligation for a shared expense (plus optional payer share row marked isPayerShare=1).
+    - FKs: transactionId -> transaction.id; payerUserId -> user.id; participantUserId -> user.id; groupId (optional) -> group.id; expenseAccountId (optional) -> transaction_account.id
+    - Notes: Basis for allocation (repayment) workflow; paidAmount and status track settlement progress.
+
+17. settlement
+    - Purpose: A repayment event (either legacy direct loan reversal or canonical allocation event header). For allocation-based repayment, it groups multiple applications.
+    - FKs: groupId (optional) -> group.id; payerId -> user.id; payeeId -> user.id; transactionId (optional currently) -> transaction.id
+    - Fields: amount, currency, idempotencyKey (optional), settledAt.
+
+18. settlement_application
+    - Purpose: Junction table allocating a settlement’s amount to specific expense_share rows FIFO.
+    - FKs: settlementId -> settlement.id; expenseShareId -> expense_share.id
+    - Cardinality: settlement 1.._ settlement_application; expense_share 0.._ settlement_application.
+
+19. user_balance
+    - Purpose: Materialized bilateral net position between two users (optionally scoped by group). Mirrors are maintained (owner/counterParty swapped).
+    - FKs: ownerId -> user.id; counterPartyId -> user.id; groupId (optional) -> group.id
+    - Semantics: amount > 0 means counterParty owes owner; amount < 0 inverse.
+
+### 21.6 Ancillary / Misc
+
+20. student
+    - Purpose: Example / test table (not part of core domain flows). Safe to ignore for production logic.
+
+### 21.7 Cross-Domain Relationship Graph (Conceptual) (See also Section 21.10 for authoritative role semantics)
+
+User → (creates) Transaction → (has many) TransactionEntry → (references) TransactionAccount (owned by User)
+Shared Expense Flow: Transaction (payer initiated) → ExpenseShare (one per participant) → (later) Settlement → SettlementApplication → ExpenseShare (status/paidAmount updated)
+Loan Flow: Transaction → Loan (header) → LoanSplit (debtor obligation) → (legacy repayment) LoanPayer OR (canonical future) Settlement / Allocation adjusting UserBalance
+Bilateral Netting: ExpenseShare & Loan & Settlement(Allocation) mutate UserBalance (mirrored rows) via service-layer delta application.
+
+### 21.8 Integrity & Derivability Notes
+
+- user_balance must be recomputable from (Σ recognized obligations per pair - Σ allocations / repayments) once allocation entries have ledger parity (future work).
+- loan_split currently single-row canonical; schema supports future multi-split loans (would then behave more like expense_share but without payer share concept).
+- settlement_application provides auditable replay to confirm paidAmount in each expense_share (paidAmount == Σ appliedAmount where expenseShareId matches).
+- Legacy direct settlements produce ledger entries (via transaction) whereas allocation settlements presently do not (gap listed in Known Gaps).
+
+### 21.9 Potential Future Schema Evolutions
+
+- Introduce ledger entries for allocation: either one summarized LOAN_TAKEN → LOAN_GIVEN per settlement or granular per expense_share application.
+- Add unique composite index on user_balance (ownerId, counterPartyId, groupId, currency) to enforce singular row per dimension (if not already at migration layer).
+- Add status or soft-delete flags for logical archival (loans, expense shares) once fully settled.
+- Introduce dedicated reconciliation_snapshot table for periodic balance audits.
+- Add FX rate reference table if multi-currency normalization proceeds.
+
+---
+
+## 21.10 Table Role Catalog (Authoritative & Explicit)
+
+This catalog supersedes the brief descriptions in Section 21 for the purpose of clearly stating the ROLE of each table (why it exists, what layer it belongs to, and how it is used). Use this section when reasoning about ownership, mutability, derivation, auditing, and future refactors.
+
+Role Type Glossary:
+
+- SourceOfTruth: Canonical authoritative data; other tables may derive from it.
+- ImmutableFact: Append-only facts (no updates after insert) – ledger correctness & audit.
+- EventHeader: Grouping meta for a set of fact rows (can allow minor edits like description/date).
+- AuditMapping: Provides verifiable linkage (e.g., allocation mapping) – immutable.
+- Derived / MaterializedSummary: Performance-oriented projection recomputable from sources.
+- TransitionalLegacy: Kept only for backward compatibility / migration; target for deprecation.
+- Auxiliary: Support/lookup/metadata not central to financial semantics.
+- Ephemeral: Short‑lived auth / verification data (time-bound or consumable).
+
+Legend for fields below:
+Layer: Architectural / domain layer bucket
+Primary Writers: Services that create/update rows
+Mutability: Immutable | AppendOnly | Semi (restricted) | Mutable
+Deletes: Hard | Cascade | Logical (future) | Rare | N/A
+Key FKs: Principal foreign keys (direction shows dependency)
+Invariants: Critical correctness constraints (enforced in code if not DB)
+Why Exists: Concise rationale for existence
+
+---
+
+### 21.10.1 Auth & Identity
+
+Table: user
+Layer: Auth
+Role: SourceOfTruth (principal identity)
+Primary Writers: AuthService
+Mutability: Mutable (profile fields)
+Deletes: Hard (cascades to dependent rows via FKs)
+Key FKs: (referenced by many tables)
+Invariants: email unique; currency default always set
+Why Exists: Anchor entity for all ownership, permissions, balances.
+
+Table: account
+Layer: Auth
+Role: Auxiliary (OAuth / external linkage)
+Primary Writers: AuthService
+Mutability: Semi (tokens rotate)
+Deletes: Hard
+Key FKs: userId -> user
+Invariants: provider scoped uniqueness (enforced in higher layer)
+Why Exists: Persist provider credentials separate from core identity.
+
+Table: session
+Layer: Auth
+Role: Ephemeral (auth session)
+Primary Writers: AuthService
+Mutability: Semi (expiresAt refresh)
+Deletes: Hard (logout / expiry cleanup)
+Key FKs: userId -> user
+Invariants: token unique; expiresAt > now on creation
+Why Exists: Stateful session continuity for API.
+
+Table: verification
+Layer: Auth
+Role: Ephemeral (verification token)
+Primary Writers: AuthService
+Mutability: AppendOnly (practically) / removable on consume
+Deletes: Hard (after use / expiry)
+Why Exists: Decouple verification flows from user table.
+
+---
+
+### 21.10.2 Social & Context
+
+Table: friendship
+Layer: Social
+Role: SourceOfTruth (relationship gate)
+Primary Writers: FriendService
+Mutability: Semi (status transitions PENDING→ACCEPTED)
+Deletes: Hard (unfriend)
+Invariants: (userId1,userId2,status) unique; reflexive duplicates prevented in service
+Why Exists: Authorizes out-of-group bilateral financial interactions.
+
+Table: group
+Layer: Social
+Role: SourceOfTruth (collaboration scope)
+Primary Writers: GroupService
+Mutability: Mutable (name, coverPhotoURL)
+Deletes: Hard (cascades)
+Why Exists: Scopes shared expenses & group-specific balances.
+
+Table: group_member
+Layer: Social
+Role: SourceOfTruth (membership join)
+Primary Writers: GroupService
+Mutability: Append/Delete (join/leave)
+Deletes: Hard (on group or user removal)
+Invariants: (groupId,userId) uniqueness (implicit/enforced at service)
+Why Exists: Determines visibility and permission to create group expenses / loans.
+
+---
+
+### 21.10.3 Ledger Core
+
+Table: transaction
+Layer: Ledger
+Role: EventHeader
+Primary Writers: TransactionService, ExpenseService, LoanService, BalanceService (legacy), (future) SettlementService
+Mutability: Semi (description/date edits allowed)
+Deletes: Hard (only via cascading when entire flow rolled back; normally not deleted)
+Invariants: At least 2 transaction_entry rows expected; semantic type inferred by entry account types
+Why Exists: Provides grouping + narrative metadata for atomic ledger entries.
+
+Table: transaction_entry
+Layer: Ledger
+Role: ImmutableFact (double-entry line)
+Primary Writers: Above services via helper
+Mutability: Immutable
+Deletes: Hard only if parent transaction deleted
+Invariants: Sum(amount) per transaction == 0; exactly two lines for current flows (may expand later)
+Why Exists: Core atomic monetary truth; audit base.
+
+Table: transaction_account
+Layer: Ledger
+Role: SourceOfTruth (chart of accounts per user)
+Primary Writers: Account setup logic / services
+Mutability: Mutable (name, payment source flag)
+Invariants: Type constrained; balance adjustments consistent with entries
+Why Exists: Categorization & separation of financial flows; mapping for analytics.
+
+---
+
+### 21.10.4 Budgeting & Recurrence
+
+Table: budget
+Layer: Budgeting
+Role: SourceOfTruth
+Primary Writers: BudgetService
+Mutability: Mutable
+Invariants: amount > 0; period enum valid
+Why Exists: Drive spending analytics targets.
+
+Table: recurring
+Layer: Budgeting
+Role: SourceOfTruth (schedule template)
+Primary Writers: RecurringService
+Mutability: Mutable (nextDate progression)
+Invariants: amount > 0; period & type valid
+Why Exists: Automates periodic postings (income/expense/saving).
+
+---
+
+### 21.10.5 Loans & Legacy
+
+Table: loan
+Layer: Loan
+Role: SourceOfTruth (loan header)
+Primary Writers: LoanService
+Mutability: Semi (description, loanDate)
+Invariants: amount > 0; matches loan_split aggregate; single-split canonical current
+Why Exists: Persistent identity & metadata of a direct loan event.
+
+Table: loan_split
+Layer: Loan
+Role: SourceOfTruth (participant obligation)
+Primary Writers: LoanService
+Mutability: Immutable (post creation)
+Invariants: Σ(amountOwed) == loan.amount; userId != creator for debtor row
+Why Exists: Structured support for multi-party extension & explicit debtor obligation.
+
+Table: loan_payer
+Layer: Loan (Legacy)
+Role: TransitionalLegacy (repayment marker)
+Primary Writers: BalanceService (legacy)
+Mutability: AppendOnly
+Invariants: amountPaid > 0; foreign keys valid
+Why Exists: Historical debt repayment recording pre-allocation; slated for deprecation.
+
+---
+
+### 21.10.6 Shared Expense & Allocation
+
+Table: expense_share
+Layer: Obligation
+Role: SourceOfTruth (explicit obligation)
+Primary Writers: ExpenseService
+Mutability: Semi (paidAmount/status progress only)
+Invariants: 0 ≤ paidAmount ≤ amount; status monotonic; isPayerShare excludes row from allocation
+Why Exists: Canonical outstanding representation enabling auditable allocations.
+
+Table: settlement
+Layer: Allocation
+Role: EventHeader (repayment action)
+Primary Writers: SettlementService, BalanceService (legacy variant)
+Mutability: Immutable core (except updatedAt)
+Invariants: amount > 0; payerId != payeeId; currency stable
+Why Exists: Groups allocation applications and future ledger parity entries.
+
+Table: settlement_application
+Layer: Allocation
+Role: AuditMapping
+Primary Writers: SettlementService
+Mutability: Immutable
+Invariants: appliedAmount > 0; sum across applications == settlement.amount; each <= share remaining at allocation time
+Why Exists: Traceable mapping from settlement to exact obligation reductions.
+
+---
+
+### 21.10.7 Materialized Summary
+
+Table: user_balance
+Layer: Materialized
+Role: Derived / MaterializedSummary
+Primary Writers: ExpenseService, LoanService, SettlementService, BalanceService (legacy)
+Mutability: Mutable (amount updates)
+Invariants: Mirror pair rows (A,B) == -(B,A); currency consistent per pair; recalculable from sources
+Why Exists: Fast UI & analytic access to net positions without recomputing obligations each request.
+
+---
+
+### 21.10.8 Ancillary
+
+Table: student
+Layer: Ancillary / Test
+Role: Auxiliary (demo)
+Primary Writers: Test utilities / demo code
+Mutability: Mutable
+Why Exists: Non-domain scaffold (safe to remove in production environments).
+
+---
+
+### 21.10.9 Relationship Adjacency (Directional Summaries)
+
+user -> transaction_account (1:N)
+user -> transaction (1:N)
+transaction -> transaction_entry (1:N)
+transaction -> loan (1:0..1) (loan has mandatory transactionId)
+loan -> loan_split (1:N)
+loan -> loan_payer (1:N, legacy)
+transaction -> expense_share (1:0..N)
+expense_share -> settlement_application (1:0..N)
+settlement -> settlement_application (1:N)
+(user A, user B [, group]) -> user_balance (materialized pair rows)
+settlement (allocation) -> (future) transaction (when ledger parity added)
+
+---
+
+### 21.10.10 Derivation Map
+
+Source Layers: transaction_entry, expense_share, loan_split, settlement_application
+Materialized: user_balance = f(loans + shared expense obligations - allocations/repayments)
+Legacy Influence: loan_payer + legacy settlement transaction entries (still included in user_balance deltas)
+
+---
+
+### 21.10.11 Deprecation Targets & Migration Notes
+
+- loan_payer: Remove after allocation repayment fully covers UI & analytics; migrate historical aggregates into derived reports.
+- Add allocation ledger entries: settlement will always have transactionId (NOT NULL) referencing summarized or granular entries.
+- Potential introduction of reconciliation_snapshot: periodic derived audit table (Derived, AppendOnly).
+
+---
+
+### 21.10.12 Quick Audit Checklist (Per Table Type)
+
+ImmutableFact: Ensure no UPDATE statements (transaction_entry, settlement_application, loan_split, loan_payer)
+SourceOfTruth: Validate domain invariants before insert/update (loan, expense_share, transaction_account)
+Derived: Recomputability test (periodic reconciliation for user_balance)
+EventHeader: Must have ≥1 child fact/application row (transaction, settlement, loan)
+AuditMapping: Must align sums with parent header (settlement_application vs settlement)
+
+---
+
+(End of Section 21.10)
+
+End of Document.

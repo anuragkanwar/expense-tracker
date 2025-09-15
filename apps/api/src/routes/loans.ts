@@ -1,6 +1,6 @@
 import { OpenAPIHono } from "@hono/zod-openapi";
 import {
-  createLoanRoute,
+  createLoanSymmetricRoute,
   getLoansRoute,
   getLoanRoute,
   updateLoanRoute,
@@ -8,34 +8,18 @@ import {
 } from "./loans.contracts";
 import { requireAuthMiddleware } from "@/middleware/require-auth-middleware";
 import { handleRouteError } from "@/utils/error-response-handler";
-import { TXN_TYPE, SHARE_TYPE, SPLIT_TYPE } from "@/db";
 
 export const loanRoutes = new OpenAPIHono();
 
 loanRoutes.use(requireAuthMiddleware());
 
-loanRoutes.openapi(createLoanRoute, async (c) => {
+loanRoutes.openapi(createLoanSymmetricRoute, async (c) => {
   try {
     const user = c.get("user");
     if (!user) return c.json({ message: "Unauthorized" }, 401);
-    const body = c.req.valid("json"); // validated via OpenAPI schema (typed by contract)
+    const body = c.req.valid("json");
     const { loanService } = c.get("services");
-
-    const created = await loanService.createLoan({
-      // casting due to contract narrowing to literal
-      ...body,
-      payer: user.id,
-      type: TXN_TYPE.LOAN_GIVEN, // narrowed literal
-      sharedWith: (body.sharedWith || SHARE_TYPE.FRIENDS) as SHARE_TYPE,
-      splitType: body.splitType as SPLIT_TYPE, // contract restricts to SPLIT_TYPE
-    });
-
-    // fetch created loan? current service returns void. For now return generic success (improvement: service returns loan id)
-    // To keep parity with response contract expecting LoanResponse, we'd need loanService to return created loan.
-    // Interim: modify service in future. Here we simply 201 with message placeholder (could violate contract). Better: throw until implemented.
-    // For now we will just return 400 if service does not give loan. So adapt: No change to service, so respond message.
-    // However OpenAPI contract expects LoanResponseSchema. Adjust: until service refactor, throw not implemented.
-
+    const created = await loanService.createDirectLoanSymmetric(body, user.id);
     return c.json(created, 201);
   } catch (error: unknown) {
     const { json, status } = handleRouteError(error);
