@@ -1,6 +1,6 @@
 # Low Level Design (LLD) - Pocket Pixie
 
-Updated: 2025-09-15
+Updated: 2025-09-16
 
 ---
 
@@ -66,7 +66,7 @@ Each flow lists: Purpose, Trigger/Service, Tables Written (W) / Read (R), Ledger
 
 ### 5.1 Personal Expense (Non-Shared)
 
-- Trigger: TransactionService (type EXPENSE, no splits)
+- Trigger: `TransactionService` (type EXPENSE, no splits)
 - W: transaction, transaction_entry
 - Ledger: OUTGOING (-) → EXPENSE (+)
 - user_balance: none
@@ -74,7 +74,7 @@ Each flow lists: Purpose, Trigger/Service, Tables Written (W) / Read (R), Ledger
 
 ### 5.2 Income / Saving
 
-- Trigger: TransactionService
+- Trigger: `TransactionService`
 - W: transaction, transaction_entry
 - Ledger: EXTERNAL (-) → INCOME (+) or OUTGOING (-) → SAVING (+)
 - user_balance: none
@@ -415,7 +415,7 @@ This LLD is authoritative for current domain architecture and flows. It merges p
 
 ## 21. Database Schema Overview & Table Roles
 
-This section provides a concise overview of all current tables (21.1–21.9) and their relationships, followed by an authoritative Table Role Catalog (21.10) that defines each table’s architectural role, mutability, invariants, and rationale. Use 21.10 as the single source of truth for refactors and audits.
+This section provides a concise overview of all current tables (21.1–21.6) and their relationships, followed by an authoritative Table Role Catalog (21.10) that defines each table’s architectural role, mutability, invariants, and rationale. Use 21.10 as the single source of truth for refactors and audits.
 
 Legend:
 
@@ -441,7 +441,6 @@ Legend:
      - 1..\* expense_share (as payerUserId or participantUserId)
      - 1..\* settlement (as payerId or payeeId)
      - 1..\* loan_split (participant / debtor)
-     - 1..\* loan_payer (repayment participant)
      - 1..\* user_balance (as ownerId or counterPartyId)
 
 2. account
@@ -511,41 +510,36 @@ Legend:
     - FKs: loanId -> loan.id; userId -> user.id
     - Fields: amountOwed, splitType (EQUAL | PERCENTAGE | SHARE), metadata (JSON).
 
-15. loan_payer (Legacy / transitional)
-    - Purpose: Tracks amounts repaid directly toward a loan via legacy flows (not used by the allocation-based expense share settlement engine).
-    - FKs: loanId -> loan.id; userId -> user.id
-    - Notes: Retained for backward compatibility & historical analytics.
-
-16. expense_share
+15. expense_share
     - Purpose: Upfront recognition of each participant’s obligation for a shared expense (plus optional payer share row marked isPayerShare=1).
     - FKs: transactionId -> transaction.id; payerUserId -> user.id; participantUserId -> user.id; groupId (optional) -> group.id; expenseAccountId (optional) -> transaction_account.id
     - Notes: Basis for allocation (repayment) workflow; paidAmount and status track settlement progress.
 
-17. settlement
+16. settlement
     - Purpose: A repayment event (either legacy direct loan reversal or canonical allocation event header). For allocation-based repayment, it groups multiple applications.
     - FKs: groupId (optional) -> group.id; payerId -> user.id; payeeId -> user.id; transactionId (optional currently) -> transaction.id
     - Fields: amount, currency, idempotencyKey (optional), settledAt.
 
-18. settlement_application
+17. settlement_application
     - Purpose: Junction table allocating a settlement’s amount to specific expense_share rows FIFO.
     - FKs: settlementId -> settlement.id; expenseShareId -> expense_share.id
     - Cardinality: settlement 1.._ settlement_application; expense_share 0.._ settlement_application.
 
-19. user_balance
+18. user_balance
     - Purpose: Materialized bilateral net position between two users (optionally scoped by group). Mirrors are maintained (owner/counterParty swapped).
     - FKs: ownerId -> user.id; counterPartyId -> user.id; groupId (optional) -> group.id
     - Semantics: amount > 0 means counterParty owes owner; amount < 0 inverse.
 
 ### 21.6 Ancillary / Misc
 
-20. student
+19. student
     - Purpose: Example / test table (not part of core domain flows). Safe to ignore for production logic.
 
 ### 21.7 Cross-Domain Relationship Graph (Conceptual) (See also Section 21.10 for authoritative role semantics)
 
 User → (creates) Transaction → (has many) TransactionEntry → (references) TransactionAccount (owned by User)
 Shared Expense Flow: Transaction (payer initiated) → ExpenseShare (one per participant) → (later) Settlement → SettlementApplication → ExpenseShare (status/paidAmount updated)
-Loan Flow: Transaction → Loan (header) → LoanSplit (debtor obligation) → (legacy repayment) LoanPayer OR (canonical future) Settlement / Allocation adjusting UserBalance
+Loan Flow: Transaction → Loan (header) → LoanSplit (debtor obligation) → Settlement / Allocation adjusting UserBalance
 Bilateral Netting: ExpenseShare & Loan & Settlement(Allocation) mutate UserBalance (mirrored rows) via service-layer delta application.
 
 ### 21.8 Integrity & Derivability Notes
@@ -713,7 +707,7 @@ Why Exists: Automates periodic postings (income/expense/saving).
 
 ---
 
-### 21.10.5 Loans & Legacy
+### 21.10.5 Loans
 
 Table: loan
 Layer: Loan
@@ -730,14 +724,6 @@ Primary Writers: LoanService
 Mutability: Immutable (post creation)
 Invariants: Σ(amountOwed) == loan.amount; userId != creator for debtor row
 Why Exists: Structured support for multi-party extension & explicit debtor obligation.
-
-Table: loan_payer
-Layer: Loan (Legacy)
-Role: TransitionalLegacy (repayment marker)
-Primary Writers: BalanceService (legacy)
-Mutability: AppendOnly
-Invariants: amountPaid > 0; foreign keys valid
-Why Exists: Historical debt repayment recording pre-allocation; slated for deprecation.
 
 ---
 
@@ -799,7 +785,6 @@ user -> transaction (1:N)
 transaction -> transaction_entry (1:N)
 transaction -> loan (1:0..1) (loan has mandatory transactionId)
 loan -> loan_split (1:N)
-loan -> loan_payer (1:N, legacy)
 transaction -> expense_share (1:0..N)
 expense_share -> settlement_application (1:0..N)
 settlement -> settlement_application (1:N)
@@ -812,13 +797,12 @@ settlement (allocation) -> (future) transaction (when ledger parity added)
 
 Source Layers: transaction_entry, expense_share, loan_split, settlement_application
 Materialized: user_balance = f(loans + shared expense obligations - allocations/repayments)
-Legacy Influence: loan_payer + legacy settlement transaction entries (still included in user_balance deltas)
+Legacy Influence: legacy settlement transaction entries (still included in user_balance deltas)
 
 ---
 
 ### 21.10.11 Deprecation Targets & Migration Notes
 
-- loan_payer: Remove after allocation repayment fully covers UI & analytics; migrate historical aggregates into derived reports.
 - Add allocation ledger entries: settlement will always have transactionId (NOT NULL) referencing summarized or granular entries.
 - Potential introduction of reconciliation_snapshot: periodic derived audit table (Derived, AppendOnly).
 
@@ -826,7 +810,7 @@ Legacy Influence: loan_payer + legacy settlement transaction entries (still incl
 
 ### 21.10.12 Quick Audit Checklist (Per Table Type)
 
-ImmutableFact: Ensure no UPDATE statements (transaction_entry, settlement_application, loan_split, loan_payer)
+ImmutableFact: Ensure no UPDATE statements (transaction_entry, settlement_application, loan_split)
 SourceOfTruth: Validate domain invariants before insert/update (loan, expense_share, transaction_account)
 Derived: Recomputability test (periodic reconciliation for user_balance)
 EventHeader: Must have ≥1 child fact/application row (transaction, settlement, loan)

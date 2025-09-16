@@ -17,7 +17,7 @@ export * from "./recurring";
 export * from "./group";
 export * from "./group-member";
 export * from "./loan";
-export * from "./loan-payer";
+
 export * from "./loan-split";
 export * from "./user-balance";
 export * from "./settlement";

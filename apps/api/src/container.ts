@@ -5,7 +5,6 @@ import {
   BudgetRepository,
   ConnectionRepository,
   DashboardRepository,
-  LoanPayerRepository,
   LoanSplitsRepository,
   LoanRepository,
   FriendRepository,
@@ -58,9 +57,7 @@ container.register({
   dashboardRepository: asClass(DashboardRepository, {
     lifetime: Lifetime.SCOPED,
   }),
-  loanPayerRepository: asClass(LoanPayerRepository, {
-    lifetime: Lifetime.SCOPED,
-  }),
+
   loanSplitsRepository: asClass(LoanSplitsRepository, {
     lifetime: Lifetime.SCOPED,
   }),

@@ -4,7 +4,6 @@ import {
   LoanRepository,
   TransactionAccountRepository,
   GroupRepository,
-  LoanPayerRepository,
   LoanSplitsRepository,
   GroupMemberRepository,
   UserRepository,
@@ -37,7 +36,6 @@ import {
  * BalanceAdjustmentService during the transition period.
  */
 export class LoanService {
-  private readonly loanPayerRepository;
   private readonly loanRepository: LoanRepository;
   private readonly loanSplitsRepository: LoanSplitsRepository;
   private readonly groupMemberRepository: GroupMemberRepository;
@@ -52,7 +50,7 @@ export class LoanService {
   private db: DBType;
   constructor({
     db,
-    loanPayerRepository,
+
     loanRepository,
     loanSplitsRepository,
     groupMemberRepository,
@@ -65,7 +63,7 @@ export class LoanService {
     interpersonalDebtEngine, // optional during transition
   }: {
     db: DBType;
-    loanPayerRepository: LoanPayerRepository;
+
     loanRepository: LoanRepository;
     loanSplitsRepository: LoanSplitsRepository;
     groupMemberRepository: GroupMemberRepository;
@@ -78,7 +76,7 @@ export class LoanService {
     interpersonalDebtEngine?: InterpersonalDebtEngine;
   }) {
     this.db = db;
-    this.loanPayerRepository = loanPayerRepository;
+
     this.loanRepository = loanRepository;
     this.loanSplitsRepository = loanSplitsRepository;
     this.groupMemberRepository = groupMemberRepository;
@@ -229,15 +227,6 @@ export class LoanService {
             transactionId: txnHeader.id,
             loanDate: loanDate,
           } as any, // cast to LoanCreate (fields align)
-          tx
-        );
-
-        await this.loanPayerRepository.create(
-          {
-            amountPaid: amount,
-            loanId: loanRecord.id,
-            userId: creditorId,
-          },
           tx
         );
 

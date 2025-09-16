@@ -5,7 +5,7 @@ export * from "./tables/budget";
 export * from "./tables/friendship";
 export * from "./tables/group-member";
 export * from "./tables/group";
-export * from "./tables/loan-payer";
+
 export * from "./tables/loan-splits";
 export * from "./tables/loan";
 export * from "./tables/recurring";

@@ -21,7 +21,7 @@ export { recurring } from "./recurring";
 export { group } from "./group";
 export { groupMember } from "./group-member";
 export { loan } from "./loan";
-export { loanPayer } from "./loan-payer";
+
 export { loanSplit } from "./loan-splits";
 export { userBalance } from "./user-balance";
 export { settlement } from "./settlement";

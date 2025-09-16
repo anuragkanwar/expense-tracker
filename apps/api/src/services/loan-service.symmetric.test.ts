@@ -46,7 +46,7 @@ describe("LoanService.createDirectLoanSymmetric", () => {
     update: vi.fn(),
     delete: vi.fn(),
   } as any;
-  const mockLoanPayerRepository = { create: vi.fn() } as any;
+
   const mockLoanSplitsRepository = { create: vi.fn() } as any;
   const mockGroupMemberRepository = {
     findByGroupIdAndUserId: vi.fn(),
@@ -91,7 +91,7 @@ describe("LoanService.createDirectLoanSymmetric", () => {
     mockLoanRepository.create.mockImplementation((data: any) =>
       Promise.resolve({ id: 555, ...data })
     );
-    mockLoanPayerRepository.create.mockResolvedValue({ id: 600 });
+
     mockLoanSplitsRepository.create.mockResolvedValue({ id: 700 });
 
     // Friendship default success
@@ -99,7 +99,6 @@ describe("LoanService.createDirectLoanSymmetric", () => {
 
     service = new LoanService({
       db: mockDb,
-      loanPayerRepository: mockLoanPayerRepository,
       loanRepository: mockLoanRepository,
       loanSplitsRepository: mockLoanSplitsRepository,
       groupMemberRepository: mockGroupMemberRepository,
@@ -113,7 +112,6 @@ describe("LoanService.createDirectLoanSymmetric", () => {
 
     engineAwareService = new LoanService({
       db: mockDb,
-      loanPayerRepository: mockLoanPayerRepository,
       loanRepository: mockLoanRepository,
       loanSplitsRepository: mockLoanSplitsRepository,
       groupMemberRepository: mockGroupMemberRepository,

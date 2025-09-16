@@ -4,7 +4,7 @@ export * from "./budget-repository";
 export * from "./connection-repository";
 export * from "./dashboard-repository";
 export * from "./loan-repository";
-export * from "./loan-payer-repository";
+
 export * from "./loan-splits-repository";
 export * from "./friend-repository";
 export * from "./group-repository";
