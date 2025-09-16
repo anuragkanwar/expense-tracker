@@ -98,13 +98,25 @@ export const createLoanSymmetricRoute = createRoute({
 export const LoanListQuerySchema = z.object({
   page: z.coerce.number().int().positive().optional().openapi({ example: 1 }),
   limit: z.coerce.number().int().positive().optional().openapi({ example: 20 }),
-  type: z.string().optional().openapi({
-    example: "LOAN_GIVEN",
-    description: "Filter placeholder",
+  type: z.enum(["given", "taken", "all"]).optional().openapi({
+    example: "given",
+    description:
+      "Filter loans by user's role: 'given' (as creditor), 'taken' (as debtor), or 'all' (both)",
+  }),
+});
+
+export const GroupLoanListQuerySchema = z.object({
+  page: z.coerce.number().int().positive().optional().openapi({ example: 1 }),
+  limit: z.coerce.number().int().positive().optional().openapi({ example: 20 }),
+  type: z.enum(["given", "taken", "all"]).optional().openapi({
+    example: "all",
+    description:
+      "Filter loans by user's role in the group: 'given' (as creditor), 'taken' (as debtor), or 'all' (both)",
   }),
 });
 
 export type LoanListQuery = z.infer<typeof LoanListQuerySchema>;
+export type GroupLoanListQuery = z.infer<typeof GroupLoanListQuerySchema>;
 
 export const getLoansRoute = createRoute({
   method: "get",
@@ -227,6 +239,251 @@ export const deleteLoanRoute = createRoute({
     404: {
       description: "Loan not found",
       content: { "application/json": { schema: StandardErrorSchema } },
+    },
+  },
+});
+
+// Add Friend Loan Query Schema
+export const FriendLoanListQuerySchema = z.object({
+  page: z.coerce.number().int().positive().optional().openapi({ example: 1 }),
+  limit: z.coerce.number().int().positive().optional().openapi({ example: 20 }),
+});
+
+export type FriendLoanListQuery = z.infer<typeof FriendLoanListQuerySchema>;
+
+// Friend Loans API Contracts
+export const getFriendLoansRoute = createRoute({
+  method: "get",
+  path: "/friends/{friendId}/loans",
+  summary: "List loans between friends",
+  description:
+    "Lists loans between the authenticated user and a specific friend. Requires active friendship. " +
+    "Returns loans where either the authenticated user is the creditor and the friend is the debtor, " +
+    "or where the friend is the creditor and the authenticated user is the debtor. " +
+    "This endpoint provides a consolidated view of the bilateral loan relationship between two friends, " +
+    "showing both money lent and borrowed. Results are paginated and sorted by creation date (most recent first).",
+  tags: ["Loans", "Friends"],
+  request: {
+    params: z.object({
+      friendId: IdParamSchema.openapi({ description: "Friend ID" }),
+    }),
+    query: FriendLoanListQuerySchema,
+  },
+  responses: {
+    200: {
+      content: {
+        "application/json": {
+          schema: z
+            .object({
+              loans: z.array(LoanResponseSchema),
+              total: z.number(),
+              page: z.number(),
+              limit: z.number(),
+            })
+            .openapi("FriendLoanListResponse"),
+          examples: {
+            "friend-loans": {
+              value: {
+                loans: [
+                  {
+                    id: 101,
+                    amount: 50,
+                    currency: "USD",
+                    description: "Dinner",
+                    creditorId: 100,
+                    debtorId: 200,
+                    transactionId: 401,
+                    createdAt: "2025-09-16T12:00:00Z",
+                  },
+                  {
+                    id: 102,
+                    amount: 75.5,
+                    currency: "USD",
+                    description: "Movie tickets",
+                    creditorId: 200,
+                    debtorId: 100,
+                    transactionId: 402,
+                    createdAt: "2025-09-17T15:30:00Z",
+                  },
+                ],
+                total: 2,
+                page: 1,
+                limit: 20,
+              },
+            },
+          },
+        },
+      },
+      description: "Friend loans retrieved successfully",
+    },
+    400: {
+      description: "Validation Error",
+      content: {
+        "application/json": {
+          schema: StandardErrorSchema,
+          examples: {
+            "not-friends": {
+              value: {
+                success: false,
+                error: {
+                  code: "INVALID_RELATIONSHIP",
+                  message: "You can only view expenses with friends",
+                },
+              },
+            },
+            "invalid-params": {
+              value: {
+                success: false,
+                error: {
+                  code: "VALIDATION_ERROR",
+                  message: "Invalid pagination parameters",
+                },
+              },
+            },
+            "self-reference": {
+              value: {
+                success: false,
+                error: {
+                  code: "INVALID_INPUT",
+                  message: "Cannot view loans with yourself",
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+    401: { description: "Unauthorized" },
+    403: {
+      description: "Not friends with user",
+      content: { "application/json": { schema: StandardErrorSchema } },
+    },
+    404: {
+      description: "User not found",
+      content: { "application/json": { schema: StandardErrorSchema } },
+    },
+  },
+});
+
+// Group Loans API Contracts
+export const getGroupLoansRoute = createRoute({
+  method: "get",
+  path: "/groups/{groupId}/loans",
+  summary: "List group loans",
+  description:
+    "Lists loans within a specific group context. Requires group membership. " +
+    "Returns all loans associated with the specified group where the authenticated user " +
+    "is involved either as a creditor or debtor. Supports pagination and optional filtering " +
+    "by the user's role (given, taken, or all loans).",
+  tags: ["Loans", "Groups"],
+  request: {
+    params: z.object({
+      groupId: IdParamSchema.openapi({ description: "Group ID" }),
+    }),
+    query: GroupLoanListQuerySchema,
+  },
+  responses: {
+    200: {
+      content: {
+        "application/json": {
+          schema: z
+            .object({
+              loans: z.array(LoanResponseSchema),
+              total: z.number(),
+              page: z.number(),
+              limit: z.number(),
+            })
+            .openapi("GroupLoanListResponse"),
+          examples: {
+            "group-loans": {
+              value: {
+                loans: [
+                  {
+                    id: 101,
+                    amount: 50,
+                    currency: "USD",
+                    description: "Group dinner expense",
+                    creditorId: 100,
+                    debtorId: 200,
+                    groupId: 300,
+                    transactionId: 401,
+                    createdAt: "2025-09-16T12:00:00Z",
+                    loanDate: "2025-09-16T12:00:00Z",
+                  },
+                  {
+                    id: 102,
+                    amount: 75.5,
+                    currency: "USD",
+                    description: "Concert tickets",
+                    creditorId: 200,
+                    debtorId: 100,
+                    groupId: 300,
+                    transactionId: 402,
+                    createdAt: "2025-09-17T15:30:00Z",
+                    loanDate: "2025-09-17T15:30:00Z",
+                  },
+                ],
+                total: 2,
+                page: 1,
+                limit: 20,
+              },
+            },
+          },
+        },
+      },
+      description: "Group loans retrieved successfully",
+    },
+    400: {
+      description: "Validation Error",
+      content: {
+        "application/json": {
+          schema: StandardErrorSchema,
+          examples: {
+            "not-member": {
+              value: {
+                success: false,
+                error: {
+                  code: "INVALID_RELATIONSHIP",
+                  message: "You don't have access to this group",
+                },
+              },
+            },
+            "invalid-params": {
+              value: {
+                success: false,
+                error: {
+                  code: "VALIDATION_ERROR",
+                  message: "Invalid pagination parameters",
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+    401: { description: "Unauthorized" },
+    403: {
+      description: "Not a group member",
+      content: { "application/json": { schema: StandardErrorSchema } },
+    },
+    404: {
+      description: "Group not found",
+      content: {
+        "application/json": {
+          schema: StandardErrorSchema,
+          examples: {
+            "group-not-found": {
+              value: {
+                success: false,
+                error: {
+                  code: "NOT_FOUND",
+                  message: "Group not found",
+                },
+              },
+            },
+          },
+        },
+      },
     },
   },
 });

@@ -11,7 +11,6 @@ export * from "./tables/loan";
 export * from "./tables/recurring";
 export * from "./tables/session";
 export * from "./tables/settlement";
-export * from "./tables/student";
 export * from "./tables/transaction-account";
 export * from "./tables/transaction-entry";
 export * from "./tables/transaction";

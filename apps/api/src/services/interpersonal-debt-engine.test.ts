@@ -19,7 +19,9 @@ describe("InterpersonalDebtEngineImpl", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    engine = new InterpersonalDebtEngineImpl(mockBalanceAdjustmentService);
+    engine = new InterpersonalDebtEngineImpl({
+      balanceAdjustmentService: mockBalanceAdjustmentService,
+    });
   });
 
   describe("recordDirectLoan", () => {

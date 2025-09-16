@@ -27,6 +27,3 @@ export { userBalance } from "./user-balance";
 export { settlement } from "./settlement";
 export { expenseShare } from "./expense-share";
 export { settlementApplication } from "./settlement-application";
-
-// Student schema
-export { student } from "./student";

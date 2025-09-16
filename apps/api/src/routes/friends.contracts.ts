@@ -70,7 +70,7 @@ export const respondToFriendRequestRoute = createRoute({
   tags: ["Friends"],
   request: {
     params: z.object({
-      userId: z.number().openapi({
+      userId: z.coerce.number().int().positive().openapi({
         example: 456,
         description: "ID of the user who sent the request",
       }),

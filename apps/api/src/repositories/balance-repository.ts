@@ -249,12 +249,14 @@ export class BalanceRepository {
       eq(userBalance.counterPartyId, counterPartyId),
     ];
 
-    if (groupId !== undefined) {
-      if (groupId === null || groupId === undefined) {
-        conditions.push(isNull(userBalance.groupId));
-      } else {
-        conditions.push(eq(userBalance.groupId, groupId));
-      }
+    // Fixed logic for groupId handling:
+    // - If groupId is null, we want to find rows where groupId IS NULL
+    // - If groupId is a number, we want to find rows where groupId = that number
+    // - If groupId is undefined, we don't care about groupId (don't add condition)
+    if (groupId === null) {
+      conditions.push(isNull(userBalance.groupId));
+    } else if (groupId !== undefined) {
+      conditions.push(eq(userBalance.groupId, groupId));
     }
 
     const result = await db

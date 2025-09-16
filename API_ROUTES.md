@@ -48,6 +48,8 @@ GET /api/v1/loans Lists loans created by the user (future: participation filter)
 GET /api/v1/loans/{loanId} Retrieves details of a loan (creator only currently).
 PUT /api/v1/loans/{loanId} Updates a loan (description / date).
 DELETE /api/v1/loans/{loanId} Deletes a loan.
+GET /api/v1/groups/{groupId}/loans Lists loans within a specific group context. Returns loans where the authenticated user is either the creditor or debtor. Supports pagination via page/limit parameters and optional type filtering. Requires group membership.
+GET /api/v1/friends/{friendId}/loans Lists loans between the authenticated user and a specific friend. Shows the complete bilateral loan history (money lent and borrowed) with the specified friend. Supports pagination. Requires active friendship.
 
 Balances and settlements (Idempotent)
 GET /api/v1/balances Gets the user's total balance (total owed vs. total owed to you).

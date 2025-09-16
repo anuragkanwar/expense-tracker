@@ -8,6 +8,7 @@ import {
   GroupMemberRepository,
   UserRepository,
   TransactionRepository,
+  type LoanFilters,
 } from "@/repositories";
 import { FriendService } from "./friend-service";
 import type { TransactionService } from "./transaction-service";
@@ -218,26 +219,34 @@ export class LoanService {
     );
 
     // Update balances
-    if (this.interpersonalDebtEngine) {
-      await this.interpersonalDebtEngine.recordDirectLoan(
-        {
+    try {
+      if (this.interpersonalDebtEngine) {
+        await this.interpersonalDebtEngine.recordDirectLoan(
+          {
+            creditorId,
+            debtorId,
+            amount,
+            currency,
+            groupId,
+          },
+          tx
+        );
+      } else {
+        await this.balanceAdjustmentService.applyBilateralDelta(
           creditorId,
           debtorId,
           amount,
           currency,
           groupId,
-        },
-        tx
+          tx
+        );
+      }
+    } catch (error) {
+      console.error(
+        "Error updating balances in createLoanRelationship:",
+        error
       );
-    } else {
-      await this.balanceAdjustmentService.applyBilateralDelta(
-        creditorId,
-        debtorId,
-        amount,
-        currency,
-        groupId,
-        tx
-      );
+      throw error; // Re-throw to ensure transaction rolls back
     }
 
     return {
@@ -245,30 +254,50 @@ export class LoanService {
       debtorLoanTaken,
     };
   }
+  /**
+   * Enriches a loan with creditor and debtor information
+   * Note: This method is less needed now that our repository methods
+   * automatically include this data in most cases
+   * @deprecated Use direct repository methods instead which already include this data
+   */
   private async enrichLoanWithParties(
-    loan: LoanResponse,
+    loanInput: any,
     tx?: DBTransactionType
   ): Promise<LoanResponse> {
+    // Type-safe cast to work with the loan object
+    const loan = loanInput as Record<string, any>;
+
     // If already enriched (runtime check) return early
-    if ("creditorId" in loan && "debtorId" in loan) {
-      return loan;
+    if (loan && "creditorId" in loan && "debtorId" in loan) {
+      return loan as LoanResponse;
     }
-    const splits: LoanSplitResponse[] =
-      await this.loanSplitsRepository.findByLoanId(loan.id, tx);
-    if (splits.length !== 1) {
+
+    if (!loan || typeof loan !== "object" || !loan.id) {
+      throw new ValidationError("Invalid loan object provided");
+    }
+
+    const splits = await this.loanSplitsRepository.findByLoanId(
+      Number(loan.id),
+      tx
+    );
+
+    if (!splits || splits.length !== 1) {
       throw new ValidationError(
-        `Loan ${loan.id} expected exactly one split, found ${splits.length}`
+        `Loan ${loan.id} expected exactly one split, found ${splits?.length || 0}`
       );
     }
-    const debtorId = splits[0]?.userId;
-    if (!debtorId) {
+
+    const split = splits[0];
+
+    if (!split || !split.userId) {
       throw new ValidationError(`Loan ${loan.id} split missing userId`);
     }
 
+    // Create a new object with the loan data and additional properties
     return {
       ...loan,
       creditorId: loan.createdBy,
-      debtorId,
+      debtorId: split.userId,
     } as LoanResponse;
   }
 
@@ -401,21 +430,46 @@ export class LoanService {
     const { page = 1, limit = 20, type } = filters;
     const offset = (page - 1) * limit;
 
-    const loans = await this.loanRepository.findAll(limit, offset);
-    const userLoans = loans.filter((loan) => loan.createdBy === userId);
+    // Use repository filter options with proper typing
+    const loanFilters: import("@/repositories").LoanFilters = {
+      userId,
+      limit,
+      offset,
+      isPersonal: true, // Default to personal loans
+      asCreditor: true,
+      asDebtor: true,
+    };
 
-    let filteredLoans = userLoans;
-    if (type) {
-      filteredLoans = userLoans.filter(() => true); // placeholder filter
+    // Apply role filters based on type if specified
+    if (type === "given") {
+      loanFilters.asCreditor = true;
+      loanFilters.asDebtor = false;
+    } else if (type === "taken") {
+      loanFilters.asCreditor = false;
+      loanFilters.asDebtor = true;
     }
 
-    const enriched = await Promise.all(
-      filteredLoans.map((l) => this.enrichLoanWithParties(l))
-    );
+    // Use the new optimized query method
+    const loans = await this.loanRepository.findLoans(loanFilters);
+
+    // Count total for pagination
+    const total = await this.loanRepository.countLoans({
+      userId,
+      isPersonal: true,
+      asCreditor: loanFilters.asCreditor,
+      asDebtor: loanFilters.asDebtor,
+    });
 
     return {
-      loans: enriched,
-      total: enriched.length,
+      loans,
+      total,
+      page,
+      limit,
+    };
+
+    return {
+      loans,
+      total,
       page,
       limit,
     };
@@ -425,10 +479,16 @@ export class LoanService {
     const loan = await this.loanRepository.findById(loanId);
     if (!loan) throw new NotFoundError("Loan not found");
 
-    if (loan.createdBy !== userId) {
+    // Check access: user is either creditor or debtor
+    const isCreditor = loan.createdBy === userId;
+    const isDebtor = loan.debtorId === userId;
+
+    if (!isCreditor && !isDebtor) {
       throw new ValidationError("You don't have access to this loan");
     }
-    return await this.enrichLoanWithParties(loan);
+
+    // Our repository already includes creditor/debtor info
+    return loan;
   }
 
   async getGroupLoans(
@@ -449,13 +509,23 @@ export class LoanService {
     if (!isMember)
       throw new ValidationError("You don't have access to this group");
 
-    const loans = await this.loanRepository.findAll(limit, offset);
-    const groupLoans = loans.filter((loan) => loan.groupId === groupId);
-    const enriched = await Promise.all(
-      groupLoans.map((l) => this.enrichLoanWithParties(l))
-    );
+    // Use optimized repository method for group loans
+    const loanFilters: LoanFilters = {
+      groupId,
+      userId,
+      limit,
+      offset,
+    };
 
-    return { loans: enriched, total: enriched.length, page, limit };
+    const loans = await this.loanRepository.findLoans(loanFilters);
+
+    // Get count for pagination
+    const total = await this.loanRepository.countLoans({
+      groupId,
+      userId,
+    });
+
+    return { loans, total, page, limit };
   }
 
   async getFriendLoans(
@@ -471,15 +541,25 @@ export class LoanService {
       throw new ValidationError("You can only view expenses with friends");
     }
 
-    const loans = await this.loanRepository.findAll(limit, offset);
-    const friendLoans = loans.filter(
-      (loan) => loan.createdBy === userId || loan.createdBy === friendId
-    );
-    const enriched = await Promise.all(
-      friendLoans.map((l) => this.enrichLoanWithParties(l))
-    );
+    // Use the specialized friend-to-friend loans query
+    const loanFilters: LoanFilters = {
+      userId,
+      friendId,
+      limit,
+      offset,
+      isPersonal: true, // Only personal loans between friends
+    };
 
-    return { loans: enriched, total: enriched.length, page, limit };
+    const loans = await this.loanRepository.findLoans(loanFilters);
+
+    // Get count for pagination
+    const total = await this.loanRepository.countLoans({
+      userId,
+      friendId,
+      isPersonal: true,
+    });
+
+    return { loans, total, page, limit };
   }
 
   async updateLoan(loanId: number, userId: number, updateData: LoanUpdate) {

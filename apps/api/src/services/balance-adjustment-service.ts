@@ -31,58 +31,63 @@ export class BalanceAdjustmentService {
   ): Promise<void> {
     if (amount === 0) return; // no-op
 
-    // Creditor perspective row (positive)
-    const creditorRow = await this.balanceRepository.findBalance(
-      creditorId,
-      debtorId,
-      groupId ?? undefined,
-      tx
-    );
+    try {
+      // Creditor perspective row (positive)
+      const creditorRow = await this.balanceRepository.findBalance(
+        creditorId,
+        debtorId,
+        groupId,
+        tx
+      );
 
-    if (creditorRow) {
-      await this.balanceRepository.update(
-        creditorRow.id,
-        { amount: creditorRow.amount + amount },
-        tx
-      );
-    } else {
-      await this.balanceRepository.create(
-        {
-          ownerId: creditorId,
-          counterPartyId: debtorId,
-          amount: amount,
-          currency,
-          groupId: groupId === undefined ? undefined : (groupId ?? undefined),
-        },
-        tx
-      );
-    }
+      if (creditorRow) {
+        await this.balanceRepository.update(
+          creditorRow.id,
+          { amount: creditorRow.amount + amount },
+          tx
+        );
+      } else {
+        await this.balanceRepository.create(
+          {
+            ownerId: creditorId,
+            counterPartyId: debtorId,
+            amount: amount,
+            currency,
+            groupId: groupId ?? undefined,
+          },
+          tx
+        );
+      }
 
-    // Debtor perspective row (negative)
-    const debtorRow = await this.balanceRepository.findBalance(
-      debtorId,
-      creditorId,
-      groupId ?? undefined,
-      tx
-    );
+      // Debtor perspective row (negative)
+      const debtorRow = await this.balanceRepository.findBalance(
+        debtorId,
+        creditorId,
+        groupId,
+        tx
+      );
 
-    if (debtorRow) {
-      await this.balanceRepository.update(
-        debtorRow.id,
-        { amount: debtorRow.amount - amount },
-        tx
-      );
-    } else {
-      await this.balanceRepository.create(
-        {
-          ownerId: debtorId,
-          counterPartyId: creditorId,
-          amount: -amount,
-          currency,
-          groupId: groupId === undefined ? undefined : (groupId ?? undefined),
-        },
-        tx
-      );
+      if (debtorRow) {
+        await this.balanceRepository.update(
+          debtorRow.id,
+          { amount: debtorRow.amount - amount },
+          tx
+        );
+      } else {
+        await this.balanceRepository.create(
+          {
+            ownerId: debtorId,
+            counterPartyId: creditorId,
+            amount: -amount,
+            currency,
+            groupId: groupId ?? undefined,
+          },
+          tx
+        );
+      }
+    } catch (error) {
+      console.error("Error in applyBilateralDelta:", error);
+      throw error; // Re-throw to ensure transaction rolls back
     }
   }
 }

@@ -49,9 +49,15 @@ export interface InterpersonalDebtEngine {
 }
 
 export class InterpersonalDebtEngineImpl implements InterpersonalDebtEngine {
-  constructor(
-    private readonly balanceAdjustmentService: BalanceAdjustmentService
-  ) {}
+  private readonly balanceAdjustmentService: BalanceAdjustmentService;
+
+  constructor({
+    balanceAdjustmentService,
+  }: {
+    balanceAdjustmentService: BalanceAdjustmentService;
+  }) {
+    this.balanceAdjustmentService = balanceAdjustmentService;
+  }
 
   async recordDirectLoan(
     { creditorId, debtorId, amount, currency, groupId }: LoanOriginParams,
@@ -60,14 +66,20 @@ export class InterpersonalDebtEngineImpl implements InterpersonalDebtEngine {
     if (amount <= 0) throw new Error("Loan amount must be positive");
     if (creditorId === debtorId)
       throw new Error("Creditor and debtor must differ");
-    await this.balanceAdjustmentService.applyBilateralDelta(
-      creditorId,
-      debtorId,
-      amount,
-      currency,
-      groupId ?? null,
-      tx
-    );
+
+    try {
+      await this.balanceAdjustmentService.applyBilateralDelta(
+        creditorId,
+        debtorId,
+        amount,
+        currency,
+        groupId,
+        tx
+      );
+    } catch (error) {
+      console.error("Error in recordDirectLoan:", error);
+      throw error; // Re-throw to ensure proper error handling
+    }
   }
 
   async recordRepayment(

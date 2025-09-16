@@ -334,6 +334,7 @@ export class TransactionService {
                 currency: userCurrency,
                 amount: payerTotal,
                 paidAmount: payerTotal, // payer has already effectively paid their share
+                // change this as payer has already effectively paid their share
                 status:
                   payerTotal > 0
                     ? EXPENSE_SHARE_STATUS.PAID
@@ -350,7 +351,7 @@ export class TransactionService {
                   groupId: groupIdValue,
                   shareType: transactionCreateWithDetails.sharedWith,
                   splitType: transactionCreateWithDetails.splitType,
-                  expenseAccountId: dstAcc.id,
+                  expenseAccountId: dstAcc.id, // why this is here
                   currency: userCurrency,
                   amount: split.amountOwed,
                   paidAmount: 0,

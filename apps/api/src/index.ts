@@ -101,8 +101,9 @@ app.route("/api/v1/groups", groupRoutes);
 // Mount transaction management routes
 app.route("/api/v1/transactions", transactionRoutesExport);
 
-// Mount loan routes (direct loans)
+// Mount loan routes (direct loans, group loans, friend loans)
 app.route("/api/v1/loans", loanRoutes);
+app.route("/api/v1", loanRoutes); // Mount at base path for group and friend loan routes
 
 // Mount financial tracking routes
 app.route("/api/v1/passbook", passbookRoutes);
