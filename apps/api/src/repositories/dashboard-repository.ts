@@ -16,6 +16,11 @@ export class DashboardRepository {
     this.db = db;
   }
 
+  /**
+   * Gets the total for loans given by the user in the specified date range.
+   * Uses NET SUM of all entries in LOAN_GIVEN accounts, as loan accounts require
+   * net aggregation (sum of all signed amounts) because settlements introduce mixed signs.
+   */
   async getMonthlyLoanGiven(
     userId: number,
     startDate: Date,
@@ -37,16 +42,21 @@ export class DashboardRepository {
       .where(
         and(
           eq(transaction.userId, userId),
-          eq(transactionAccount.type, ACCOUNT_TYPE.EXPENSE),
+          eq(transactionAccount.type, ACCOUNT_TYPE.LOAN_GIVEN),
           gte(transaction.transactionDate, startDate),
-          lte(transaction.transactionDate, endDate),
-          sql`${transactionEntry.amount} < 0` // Only positive amounts (money received by expense accounts)
+          lte(transaction.transactionDate, endDate)
+          // No sign filter - we need NET SUM (all entries) for loan accounts
         )
       );
 
-    return result[0]?.total || 0;
+    return Math.abs(result[0]?.total || 0);
   }
 
+  /**
+   * Gets the total for loans taken by the user in the specified date range.
+   * Uses NET SUM of all entries in LOAN_TAKEN accounts, as loan accounts require
+   * net aggregation (sum of all signed amounts) because settlements introduce mixed signs.
+   */
   async getMonthlyLoanTaken(
     userId: number,
     startDate: Date,
@@ -68,16 +78,20 @@ export class DashboardRepository {
       .where(
         and(
           eq(transaction.userId, userId),
-          eq(transactionAccount.type, ACCOUNT_TYPE.EXPENSE),
+          eq(transactionAccount.type, ACCOUNT_TYPE.LOAN_TAKEN),
           gte(transaction.transactionDate, startDate),
-          lte(transaction.transactionDate, endDate),
-          sql`${transactionEntry.amount} > 0` // Only positive amounts (money received by expense accounts)
+          lte(transaction.transactionDate, endDate)
+          // No sign filter - we need NET SUM (all entries) for loan accounts
         )
       );
 
-    return result[0]?.total || 0;
+    return Math.abs(result[0]?.total || 0);
   }
 
+  /**
+   * Gets the total expenses for the user in the specified date range.
+   * Sums positive amounts in EXPENSE accounts as per aggregation guidance.
+   */
   async getMonthlyExpenses(
     userId: number,
     startDate: Date,
@@ -109,6 +123,10 @@ export class DashboardRepository {
     return result[0]?.total || 0;
   }
 
+  /**
+   * Gets the total income for the user in the specified date range.
+   * Sums positive amounts in INCOME accounts as per aggregation guidance.
+   */
   async getMonthlyIncome(
     userId: number,
     startDate: Date,
@@ -140,6 +158,10 @@ export class DashboardRepository {
     return result[0]?.total || 0;
   }
 
+  /**
+   * Calculates the budget utilization percentage for the user in the specified date range.
+   * Compares actual expenses against budget amounts for expense accounts.
+   */
   async getBudgetUtilization(
     userId: number,
     startDate: Date,
@@ -195,6 +217,10 @@ export class DashboardRepository {
     return totalBudget > 0 ? (totalExpenses / totalBudget) * 100 : 0;
   }
 
+  /**
+   * Gets the top expense category for the user in the specified date range.
+   * Returns the name, amount, and percentage of total expenses for the largest expense category.
+   */
   async getTopExpenseCategory(
     userId: number,
     startDate: Date,
@@ -246,10 +272,8 @@ export class DashboardRepository {
       return null;
     }
 
-    const topCategory = categorySpending[0];
-    if (!topCategory) {
-      return null;
-    }
+    // If we got here, categorySpending has at least one item (already checked length above)
+    const topCategory = categorySpending[0]!;
 
     const percentage = (topCategory.totalAmount / totalExpenses) * 100;
 
@@ -260,6 +284,10 @@ export class DashboardRepository {
     };
   }
 
+  /**
+   * Gets detailed spending analytics for the user in the specified date range.
+   * Includes category breakdown, trends compared to previous period, and statistical analysis.
+   */
   async getSpendingAnalytics(
     userId: number,
     startDate: Date,
@@ -411,8 +439,9 @@ export class DashboardRepository {
     const maxSpending = Math.max(...amounts);
 
     // Calculate standard deviation
-    const mean = averageSpendingPerCategory;
-    const squaredDiffs = amounts.map((amount) => Math.pow(amount - mean, 2));
+    const squaredDiffs = amounts.map((amount) =>
+      Math.pow(amount - averageSpendingPerCategory, 2)
+    );
     const variance =
       squaredDiffs.reduce((sum, diff) => sum + diff, 0) / amounts.length;
     const standardDeviation = Math.sqrt(variance);
@@ -433,6 +462,10 @@ export class DashboardRepository {
     };
   }
 
+  /**
+   * Gets spending breakdown by category for the user in the specified date range.
+   * Includes amount, percentage of total, transaction count, and trend for each category.
+   */
   async getSpendingByCategory(
     userId: number,
     startDate: Date,
@@ -561,6 +594,10 @@ export class DashboardRepository {
     return categories;
   }
 
+  /**
+   * Gets upcoming bills for the user within the specified number of days.
+   * Returns recurring items with due dates, amounts, and priority levels.
+   */
   async getUpcomingBills(
     userId: number,
     daysAhead: number = 30,
@@ -635,6 +672,12 @@ export class DashboardRepository {
     return upcomingBills;
   }
 
+  /**
+   * Gets the net worth trend for the user over a specified number of months.
+   * For loan accounts (LOAN_GIVEN and LOAN_TAKEN), uses NET SUM of all amounts.
+   * For income and saving accounts, sums only positive amounts (inflows).
+   * Follows the aggregation guidance in LLD section 12.
+   */
   async getNetWorthTrend(
     userId: number,
     months: number = 12,

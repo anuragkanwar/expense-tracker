@@ -10,7 +10,6 @@ import {
   removeGroupMemberRoute,
   getGroupBalancesRoute,
   getSettlementPlanRoute,
-  createGroupDirectSettlementRoute,
 } from "./groups.contracts";
 
 export const groupRoutes = new OpenAPIHono();
@@ -215,33 +214,4 @@ groupRoutes.openapi(getSettlementPlanRoute, async (c) => {
   }
 });
 
-groupRoutes.openapi(createGroupDirectSettlementRoute, async (c) => {
-  const user = c.get("user");
-  if (!user) {
-    return c.json({ message: "Unauthorized" }, 401);
-  }
-
-  const services = c.get("services");
-  const body = c.req.valid("json");
-
-  try {
-    const idempotencyKey = c.req.header("Idempotency-Key");
-    if (!idempotencyKey) {
-      return c.json({ message: "Idempotency-Key header required" }, 400);
-    }
-    const { settlement, replay } =
-      await services.settlementService.createDirectSettlement({
-        payerId: user.id,
-        payeeId: body.payeeId,
-        amount: body.amount,
-        currency: body.currency,
-        groupId: body.groupId ?? null,
-        idempotencyKey,
-      });
-    return c.json(settlement, replay ? 200 : 201);
-  } catch (error: unknown) {
-    const { handleRouteError } = await import("@/utils/error-response-handler");
-    const { json, status } = handleRouteError(error);
-    return c.json(json, status);
-  }
-});
+// [REMOVED] Group direct settlement handler: Legacy group direct settlement endpoint removed as part of migration to allocation-based settlement.

@@ -7,20 +7,30 @@ import {
   LoanSplitsRepository,
   GroupMemberRepository,
   UserRepository,
+  TransactionRepository,
 } from "@/repositories";
 import { FriendService } from "./friend-service";
-import { TransactionService } from "./transaction-service";
+import type { TransactionService } from "./transaction-service";
+import { TransactionHelperService } from "./transaction-helper-service";
 import { BalanceAdjustmentService } from "./balance-adjustment-service";
 import { InterpersonalDebtEngine } from "./interpersonal-debt-engine";
+import type { TransactionAccountResponse } from "@pocket-pixie/contracts";
 
-import { ACCOUNT_TYPE, type DBType, type DBTransactionType } from "@/db";
+import {
+  ACCOUNT_TYPE,
+  SPLIT_TYPE,
+  type DBType,
+  type DBTransactionType,
+} from "@/db";
 import { NotFoundError, ValidationError } from "@/errors/base-error";
 import { GroupNotFoundError } from "@/errors/group-errors";
 import {
   type LoanUpdate,
   type LoanResponse,
+  type LoanCreate,
   type LoanCreateSymmetric,
   type LoanCreateSymmetricInput,
+  type LoanSplitResponse,
 } from "@pocket-pixie/contracts";
 
 /**
@@ -44,6 +54,7 @@ export class LoanService {
   private readonly userRepository: UserRepository; // retained for future enrichment / currency logic
 
   private readonly transactionService: TransactionService;
+  private readonly transactionHelperService: TransactionHelperService;
   private readonly friendService: FriendService;
   private readonly balanceAdjustmentService: BalanceAdjustmentService; // fallback
   private readonly interpersonalDebtEngine?: InterpersonalDebtEngine; // new engine
@@ -58,6 +69,7 @@ export class LoanService {
     transactionAccountRepository,
     userRepository,
     transactionService,
+    transactionHelperService,
     friendService,
     balanceAdjustmentService,
     interpersonalDebtEngine, // optional during transition
@@ -71,6 +83,7 @@ export class LoanService {
     transactionAccountRepository: TransactionAccountRepository;
     userRepository: UserRepository;
     transactionService: TransactionService;
+    transactionHelperService: TransactionHelperService;
     friendService: FriendService;
     balanceAdjustmentService: BalanceAdjustmentService;
     interpersonalDebtEngine?: InterpersonalDebtEngine;
@@ -85,29 +98,173 @@ export class LoanService {
     this.userRepository = userRepository;
 
     this.transactionService = transactionService;
+    this.transactionHelperService = transactionHelperService;
     this.friendService = friendService;
     this.balanceAdjustmentService = balanceAdjustmentService;
     this.interpersonalDebtEngine = interpersonalDebtEngine;
   }
 
   // ---------------------------------------------
-  // Internal Helpers
+  // Internal Helpers & Reusable Methods
   // ---------------------------------------------
+
+  /**
+   * Creates a loan relationship between two users
+   *
+   * This method handles the common logic for both direct loans and
+   * shared expense loan creation, including:
+   * - Finding and validating loan accounts
+   * - Creating double-entry ledger entries
+   * - Updating bilateral balances
+   *
+   * @param creditorId The user providing the loan (creditor)
+   * @param debtorId The user receiving the loan (debtor)
+   * @param amount The loan amount (must be > 0)
+   * @param transactionId The transaction header ID to associate with
+   * @param currency The 3-letter currency code
+   * @param groupId Optional group ID for scoping the loan
+   * @param tx Optional DB transaction
+   * @returns The created loan accounts for both parties
+   */
+  /**
+   * Creates a loan relationship between two users
+   *
+   * This method handles the common logic for both direct loans and
+   * shared expense loan creation, including:
+   * - Finding and validating loan accounts
+   * - Creating double-entry ledger entries
+   * - Updating bilateral balances
+   *
+   * The method enforces these invariants:
+   * - Creditor and debtor must be different users
+   * - Amount must be positive
+   * - Both users must have appropriate loan accounts
+   *
+   * If groupId is provided, the method doesn't validate group membership
+   * as this should be done by the calling service.
+   *
+   * @param creditorId The user providing the loan (creditor)
+   * @param debtorId The user receiving the loan (debtor)
+   * @param amount The loan amount (must be > 0)
+   * @param transactionId The transaction header ID to associate with
+   * @param currency The 3-letter currency code
+   * @param groupId Optional group ID for scoping the loan
+   * @param tx Optional DB transaction
+   * @returns The created loan accounts for both parties
+   * @throws ValidationError if inputs are invalid
+   * @throws TransactionAccountNotFoundError if required accounts don't exist
+   */
+  async createLoanRelationship(
+    creditorId: number,
+    debtorId: number,
+    amount: number,
+    transactionId: number,
+    currency: string,
+    groupId: number | null = null,
+    tx?: DBTransactionType
+  ): Promise<{
+    creditorLoanGiven: TransactionAccountResponse;
+    debtorLoanTaken: TransactionAccountResponse;
+  }> {
+    // Validate inputs
+    if (creditorId === debtorId) {
+      throw new ValidationError("Creditor and debtor must be different users");
+    }
+    if (amount <= 0) {
+      throw new ValidationError("Amount must be positive");
+    }
+    if (currency.length !== 3) {
+      throw new ValidationError("Currency must be a 3-letter ISO code");
+    }
+
+    // Fetch loan accounts
+    const creditorLoanGiven =
+      await this.transactionAccountRepository.findByUserIdAndCategoryName(
+        creditorId,
+        ACCOUNT_TYPE.LOAN_GIVEN,
+        tx
+      );
+
+    if (!creditorLoanGiven) {
+      throw new TransactionAccountNotFoundError(
+        `LOAN_GIVEN account not found for user ${creditorId}`
+      );
+    }
+
+    const debtorLoanTaken =
+      await this.transactionAccountRepository.findByUserIdAndCategoryName(
+        debtorId,
+        ACCOUNT_TYPE.LOAN_TAKEN,
+        tx
+      );
+
+    if (!debtorLoanTaken) {
+      throw new TransactionAccountNotFoundError(
+        `LOAN_TAKEN account not found for user ${debtorId}`
+      );
+    }
+
+    // Create ledger entries
+    await this.transactionHelperService.updateAccountsAndCreateEntries(
+      [
+        {
+          srcAcc: creditorLoanGiven,
+          dstAcc: debtorLoanTaken,
+          amount: amount,
+          txnId: transactionId,
+        },
+      ],
+      tx
+    );
+
+    // Update balances
+    if (this.interpersonalDebtEngine) {
+      await this.interpersonalDebtEngine.recordDirectLoan(
+        {
+          creditorId,
+          debtorId,
+          amount,
+          currency,
+          groupId,
+        },
+        tx
+      );
+    } else {
+      await this.balanceAdjustmentService.applyBilateralDelta(
+        creditorId,
+        debtorId,
+        amount,
+        currency,
+        groupId,
+        tx
+      );
+    }
+
+    return {
+      creditorLoanGiven,
+      debtorLoanTaken,
+    };
+  }
   private async enrichLoanWithParties(
     loan: LoanResponse,
     tx?: DBTransactionType
   ): Promise<LoanResponse> {
     // If already enriched (runtime check) return early
-    if ((loan as any).creditorId && (loan as any).debtorId) {
+    if ("creditorId" in loan && "debtorId" in loan) {
       return loan;
     }
-    const splits = await this.loanSplitsRepository.findByLoanId(loan.id, tx);
+    const splits: LoanSplitResponse[] =
+      await this.loanSplitsRepository.findByLoanId(loan.id, tx);
     if (splits.length !== 1) {
       throw new ValidationError(
         `Loan ${loan.id} expected exactly one split, found ${splits.length}`
       );
     }
-    const debtorId = splits[0]!.userId;
+    const debtorId = splits[0]?.userId;
+    if (!debtorId) {
+      throw new ValidationError(`Loan ${loan.id} split missing userId`);
+    }
+
     return {
       ...loan,
       creditorId: loan.createdBy,
@@ -173,30 +330,6 @@ export class LoanService {
     let createdLoan: LoanResponse | null = null;
     await this.db.transaction(async (tx) => {
       try {
-        // Fetch accounts implicitly (no client-specified IDs)
-        const creditorLoanGiven =
-          await this.transactionAccountRepository.findByUserIdAndCategoryName(
-            creditorId,
-            ACCOUNT_TYPE.LOAN_GIVEN,
-            tx
-          );
-        if (!creditorLoanGiven) {
-          throw new TransactionAccountNotFoundError(
-            `LOAN_GIVEN account not found for user ${creditorId}`
-          );
-        }
-        const debtorLoanTaken =
-          await this.transactionAccountRepository.findByUserIdAndCategoryName(
-            debtorId,
-            ACCOUNT_TYPE.LOAN_TAKEN,
-            tx
-          );
-        if (!debtorLoanTaken) {
-          throw new TransactionAccountNotFoundError(
-            `LOAN_TAKEN account not found for user ${debtorId}`
-          );
-        }
-
         // Create minimal transaction header (ledger correlation) - blank description normalizes to ""
         const txnHeader = await this.transactionService.createTransactionHeader(
           creditorId,
@@ -204,17 +337,17 @@ export class LoanService {
           tx
         );
 
-        await this.transactionService.updateAccountsAndCreateEntries(
-          [
-            {
-              srcAcc: creditorLoanGiven,
-              dstAcc: debtorLoanTaken,
-              amount,
-              txnId: txnHeader.id,
-            },
-          ],
-          tx
-        );
+        // Use the shared helper method to create the loan relationship
+        const { creditorLoanGiven, debtorLoanTaken } =
+          await this.createLoanRelationship(
+            creditorId,
+            debtorId,
+            amount,
+            txnHeader.id,
+            currency,
+            groupId ?? null,
+            tx
+          );
 
         // Persist loan record
         const loanRecord = await this.loanRepository.create(
@@ -226,7 +359,7 @@ export class LoanService {
             groupId: groupId ?? undefined,
             transactionId: txnHeader.id,
             loanDate: loanDate,
-          } as any, // cast to LoanCreate (fields align)
+          } as LoanCreate,
           tx
         );
 
@@ -235,34 +368,11 @@ export class LoanService {
             amountOwed: amount,
             loanId: loanRecord.id,
             userId: debtorId,
-            splitType: "EQUAL" as any, // symmetric direct loan implicit equal split
+            splitType: SPLIT_TYPE.EQUAL,
             metadata: normalizedDescription,
           },
           tx
         );
-
-        // Engine / fallback balance mutation
-        if (this.interpersonalDebtEngine) {
-          await this.interpersonalDebtEngine.recordDirectLoan(
-            {
-              creditorId,
-              debtorId,
-              amount,
-              currency,
-              groupId: groupId ?? null,
-            },
-            tx
-          );
-        } else {
-          await this.balanceAdjustmentService.applyBilateralDelta(
-            creditorId,
-            debtorId,
-            amount,
-            currency,
-            groupId ?? null,
-            tx
-          );
-        }
 
         createdLoan = {
           ...loanRecord,

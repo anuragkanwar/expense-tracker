@@ -3,8 +3,6 @@ import {
   IdParamSchema,
   UserIdParamSchema,
   MessageResponseSchema,
-  StandardErrorSchema,
-  IdempotencyConflictErrorSchema,
 } from "./shared-schemas";
 import {
   GroupResponseSchema,
@@ -13,8 +11,6 @@ import {
   GroupMemberCreateSchema,
   GroupMemberBulkCreateSchema,
   GroupMemberBulkResponseSchema,
-  DirectSettlementRequestSchema,
-  DirectSettlementResponseSchema,
   GroupBalancesResponseSchema,
   SettlementPlanResponseSchema,
 } from "@pocket-pixie/contracts";
@@ -326,58 +322,4 @@ export const getGroupMembersRoute = createRoute({
   },
 });
 
-export const createGroupDirectSettlementRoute = createRoute({
-  method: "post",
-  path: "/settlements",
-  summary: "Record settlement",
-  description:
-    "Records that a payment has been made to settle a debt. This action triggers balance updates and settlement events.",
-  tags: ["Groups"],
-  request: {
-    headers: z
-      .object({
-        "Idempotency-Key": z.string().min(1).openapi({
-          description:
-            "Idempotency key to safely retry settlement creation requests without creating duplicates",
-          example: "group-settle-123e4567-e89b-12d3-a456-426614174000",
-        }),
-      })
-      .openapi({ description: "Required idempotency header" }),
-    body: {
-      content: {
-        "application/json": {
-          schema: DirectSettlementRequestSchema,
-        },
-      },
-    },
-  },
-  responses: {
-    201: {
-      content: {
-        "application/json": {
-          schema: DirectSettlementResponseSchema,
-        },
-      },
-      description: "Settlement recorded successfully (new)",
-    },
-    200: {
-      content: {
-        "application/json": {
-          schema: DirectSettlementResponseSchema,
-        },
-      },
-      description: "Idempotent replay - original settlement returned",
-    },
-    400: {
-      description: "Validation Error or Idempotency-Key required",
-      content: { "application/json": { schema: StandardErrorSchema } },
-    },
-    409: {
-      description: "Idempotency-Key conflict (payload mismatch on reuse)",
-      content: {
-        "application/json": { schema: IdempotencyConflictErrorSchema },
-      },
-    },
-    401: { description: "Unauthorized" },
-  },
-});
+// [REMOVED] createGroupDirectSettlementRoute: Legacy group direct settlement endpoint removed as part of migration to allocation-based settlement.

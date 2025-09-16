@@ -195,4 +195,82 @@ describe("InterpersonalDebtEngineImpl", () => {
       mockBalanceAdjustmentService.applyBilateralDelta.mock.calls.at(-1);
     expect(call[2]).toBe(-123.45); // amount argument
   });
+
+  describe("Shared expense and loan interaction", () => {
+    it("handles both loans and shared expenses using the same debt recording mechanism", async () => {
+      // Arrange
+      const payerId = creditorId; // payer = creditor
+      const participantId = debtorId; // participant = debtor
+      const loanAmount = 200;
+      const expenseShareAmount = 75;
+
+      // Act - record a direct loan
+      await engine.recordDirectLoan({
+        creditorId: payerId,
+        debtorId: participantId,
+        amount: loanAmount,
+        currency,
+      });
+
+      // Then record a shared expense (same direction as a loan)
+      await engine.recordDirectLoan({
+        creditorId: payerId,
+        debtorId: participantId,
+        amount: expenseShareAmount,
+        currency,
+      });
+
+      // Assert - verify balance adjustments were called consistently with positive amounts
+      expect(
+        mockBalanceAdjustmentService.applyBilateralDelta
+      ).toHaveBeenCalledTimes(2);
+
+      // First call for loan
+      expect(
+        mockBalanceAdjustmentService.applyBilateralDelta
+      ).toHaveBeenNthCalledWith(
+        1,
+        payerId,
+        participantId,
+        loanAmount,
+        currency,
+        null,
+        undefined
+      );
+
+      // Second call for shared expense
+      expect(
+        mockBalanceAdjustmentService.applyBilateralDelta
+      ).toHaveBeenNthCalledWith(
+        2,
+        payerId,
+        participantId,
+        expenseShareAmount,
+        currency,
+        null,
+        undefined
+      );
+
+      // Now simulate a repayment that settles both the loan and expense share
+      await engine.recordRepayment({
+        creditorId: payerId,
+        debtorId: participantId,
+        amount: loanAmount + expenseShareAmount,
+        currency,
+      });
+
+      // Verify the repayment uses negative amount
+      expect(
+        mockBalanceAdjustmentService.applyBilateralDelta
+      ).toHaveBeenNthCalledWith(
+        3,
+        payerId,
+        participantId,
+        -(loanAmount + expenseShareAmount),
+        currency,
+        null,
+        undefined
+      );
+    });
+  });
 });

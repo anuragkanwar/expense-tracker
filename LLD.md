@@ -50,8 +50,7 @@ Typical flows:
 2. Income: EXTERNAL (-) → INCOME (+)
 3. Saving: OUTGOING (-) → SAVING (+)
 4. Direct Loan: LOAN_GIVEN (-) → LOAN_TAKEN (+)
-5. Settlement (legacy direct): LOAN_TAKEN (-) → LOAN_GIVEN (+)
-6. Allocation (canonical repayment): obligation + user_balance updates (ledger entries pending)
+5. Allocation (canonical repayment): obligation + user_balance updates (ledger entries pending)
 
 Aggregation guidance:
 
@@ -66,30 +65,77 @@ Each flow lists: Purpose, Trigger/Service, Tables Written (W) / Read (R), Ledger
 
 ### 5.1 Personal Expense (Non-Shared)
 
-- Trigger: `TransactionService` (type EXPENSE, no splits)
-- W: transaction, transaction_entry
-- Ledger: OUTGOING (-) → EXPENSE (+)
-- user_balance: none
-- Invariants: Sum(entries)=0; single-user context
+- **Purpose**: Record a personal expense with no sharing
+- **Trigger**: `TransactionService.createTransaction` (type EXPENSE, no splits)
+- **Data Flow**:
+  1. User submits expense details (amount, description, category, date)
+  2. TransactionService validates input (positive amount, valid category)
+  3. TransactionService creates transaction record (header)
+  4. TransactionHelperService creates two transaction_entry records (double-entry)
+  5. No interpersonal balances affected
+- **Tables & Records**:
+  - `transaction`: Single row with {id, description, userId (creator), date, type: EXPENSE}
+  - `transaction_entry`: Two rows:
+    - Row 1: {transactionId, transactionAccountId (OUTGOING account), amount: -amount}
+    - Row 2: {transactionId, transactionAccountId (EXPENSE category account), amount: +amount}
+- **Ledger**: OUTGOING (-) → EXPENSE (+)
+- **user_balance**: none (no interpersonal debt)
+- **Invariants**: Sum(entries)=0; single-user context; amount > 0
 
 ### 5.2 Income / Saving
 
-- Trigger: `TransactionService`
-- W: transaction, transaction_entry
-- Ledger: EXTERNAL (-) → INCOME (+) or OUTGOING (-) → SAVING (+)
-- user_balance: none
-- Invariants: No cross-user state
+- **Purpose**: Record income receipt or savings transfer
+- **Trigger**: `TransactionService.createTransaction` (type INCOME or SAVING)
+- **Data Flow**:
+  1. User submits transaction details (amount, description, category, date)
+  2. TransactionService validates input (positive amount, valid type)
+  3. TransactionService creates transaction record (header)
+  4. TransactionHelperService creates two transaction_entry records (double-entry)
+  5. No interpersonal balances affected
+- **Tables & Records**:
+  - `transaction`: Single row with {id, description, userId (creator), date, type: INCOME or SAVING}
+  - `transaction_entry`: Two rows:
+    - For Income:
+      - Row 1: {transactionId, transactionAccountId (EXTERNAL), amount: -amount}
+      - Row 2: {transactionId, transactionAccountId (INCOME category), amount: +amount}
+    - For Saving:
+      - Row 1: {transactionId, transactionAccountId (OUTGOING), amount: -amount}
+      - Row 2: {transactionId, transactionAccountId (SAVING category), amount: +amount}
+- **Ledger**: EXTERNAL (-) → INCOME (+) or OUTGOING (-) → SAVING (+)
+- **user_balance**: none (no interpersonal debt)
+- **Invariants**: Sum(entries)=0; single-user context; amount > 0; valid account types
 
 ### 5.3 Symmetric Loan Creation (/api/v1/loans/symmetric)
 
-- Endpoint: POST /api/v1/loans/symmetric
-- Trigger: LoanService.create (symmetric path; type LOAN_GIVEN)
-- W: transaction, transaction_entry, loan, loan_split, user_balance (2 mirrored rows overall + optional group)
-- Ledger: LOAN_GIVEN (-) → LOAN_TAKEN (+)
-- user_balance: +amount (creditor perspective), -amount (debtor perspective)
-- Payload: debtorId, amount, currency (3-letter), optional groupId, description, loanDate
-- Implicit: Auth user = creditor
-- Invariants:
+- **Purpose**: Create a direct bilateral loan between two users (creditor lends to debtor)
+- **Endpoint**: POST /api/v1/loans/symmetric
+- **Trigger**: LoanService.createDirectLoanSymmetric
+- **Data Flow**:
+  1. User (creditor) submits loan details (debtorId, amount, currency, description, optional groupId)
+  2. LoanService validates relationship context (friendship or group membership)
+  3. LoanService creates transaction header via TransactionService
+  4. LoanService calls createLoanRelationship to:
+     - Find loan accounts for both users
+     - Create ledger entries via TransactionHelperService
+     - Update bilateral balances via InterpersonalDebtEngine/BalanceAdjustmentService
+  5. LoanService creates loan record
+  6. LoanService creates exactly one loan_split record (for the debtor)
+  7. Response includes enriched loan details with creditorId and debtorId
+- **Tables & Records**:
+  - `transaction`: Single row with {id, description, userId: creditorId, type: LOAN_GIVEN}
+  - `transaction_entry`: Two rows:
+    - Row 1: {transactionId, transactionAccountId (creditor's LOAN_GIVEN), amount: -amount}
+    - Row 2: {transactionId, transactionAccountId (debtor's LOAN_TAKEN), amount: +amount}
+  - `loan`: Single row with {id, createdBy: creditorId, amount, currency, description, groupId (optional), transactionId, loanDate}
+  - `loan_split`: Single row with {id, loanId, userId: debtorId, amountOwed: amount, splitType: EQUAL, metadata}
+  - `user_balance`: Two mirrored rows:
+    - Row 1: {ownerId: creditorId, counterPartyId: debtorId, amount: +amount, currency, groupId (optional)}
+    - Row 2: {ownerId: debtorId, counterPartyId: creditorId, amount: -amount, currency, groupId (optional)}
+- **Ledger**: LOAN_GIVEN (-) → LOAN_TAKEN (+)
+- **user_balance**: +amount (creditor perspective), -amount (debtor perspective)
+- **Payload**: debtorId, amount, currency (3-letter), optional groupId, description, loanDate
+- **Implicit**: Auth user = creditor
+- **Invariants**:
   1. creditorId != debtorId
   2. amount > 0
   3. currency length = 3 (no FX yet)
@@ -98,36 +144,167 @@ Each flow lists: Purpose, Trigger/Service, Tables Written (W) / Read (R), Ledger
   6. Description normalized: blank → ""
   7. Canonical direction only (creditor LOAN_GIVEN → debtor LOAN_TAKEN)
   8. Created only via /api/v1/loans/symmetric
-- Failure (400): self-loan, invalid context, non-positive amount, invalid currency
-- Notes: Potential future normalization to also emit expense_share rows (for consistency with shared expenses)
+- **Failure (400)**: self-loan, invalid context, non-positive amount, invalid currency
+- **Notes**: While loans and expense shares use the same underlying debt tracking mechanisms, they are intentionally maintained as separate domain concepts to reflect their different user-facing purposes and settlement patterns
 
 ### 5.4 Direct Settlement (Legacy Debt Reversal)
 
-- Trigger: BalanceService.createSettlement (legacy endpoint)
-- W: transaction, transaction_entry, settlement, user_balance
-- Ledger: LOAN_TAKEN (-) → LOAN_GIVEN (+) (reversal); optional expense cash flow pair in legacy group variant
-- Invariants: amount > 0; parties distinct
-- Notes: Does not inherently cap to net outstanding (legacy behavior) – present only for backward compatibility
+- **Purpose**: Record a direct settlement payment between users (not tied to specific expenses)
+- **Trigger**: BalanceService.createSettlement (legacy endpoint)
+- **Data Flow**:
+  1. User (payer/debtor) submits settlement details (payeeId/creditorId, amount, currency, optional groupId)
+  2. BalanceService validates basic inputs (distinct users, positive amount)
+  3. BalanceService begins a database transaction
+  4. BalanceService creates transaction header record
+  5. BalanceService finds both users' loan accounts
+  6. BalanceService creates double-entry for reversing debt via TransactionHelperService
+  7. BalanceService creates settlement record
+  8. BalanceService updates bilateral balances via BalanceAdjustmentService
+  9. Transaction is committed
+- **Tables & Records**:
+  - `transaction`: Single row with {id, description: "Settlement payment", userId: payerId, type: "SETTLEMENT"}
+  - `transaction_entry`: Two rows:
+    - Row 1: {transactionId, transactionAccountId (payer's LOAN_TAKEN), amount: -amount}
+    - Row 2: {transactionId, transactionAccountId (payee's LOAN_GIVEN), amount: +amount}
+  - `settlement`: Single row with {id, payerId, payeeId, amount, currency, groupId (optional), transactionId, settledAt}
+  - `user_balance`: Two mirrored rows updated:
+    - Row 1: {ownerId: payeeId, counterPartyId: payerId} amount decreased by settlement amount
+    - Row 2: {ownerId: payerId, counterPartyId: payeeId} amount increased by settlement amount
+- **Ledger**: LOAN_TAKEN (-) → LOAN_GIVEN (+) (reversal); optional expense cash flow pair in legacy group variant
+- **Balance Effect**: Reduces payee's claim on payer; reverses original loan entries
+- **Invariants**: amount > 0; parties distinct; idempotency key required
+- **Notes**: Does not inherently cap to net outstanding (legacy behavior) – present only for backward compatibility
+- **Key Difference**: Unlike allocation settlement, this does not update any expense_share records - it simply updates the user_balance directly
 
 ### 5.5 Shared Expense (Multi-Party Upfront Recognition)
 
-- Trigger: ExpenseService with participant splits
-- W: transaction, transaction_entry (expense + per-participant loan style entries), expense_share (one per participant + optional payer share), user_balance
-- Ledger: OUTGOING (-) → EXPENSE (+) payer share (if any) plus LOAN_GIVEN (-) → LOAN_TAKEN (+) per owing participant
-- user_balance: payer gains positive vs each participant; reciprocal negatives
-- Invariants: Sum(shares) == expense total; payer share flagged isPayerShare=1 and excluded from allocations
+- **Purpose**: Create a shared expense where participants owe portions to the payer
+- **Trigger**: TransactionService with participant splits (group or friend context)
+- **Data Flow**:
+  1. User (payer) submits expense details with splits (description, amount, participants, splitType, optional groupId)
+  2. TransactionService validates relationship context (friendship or group membership for all participants)
+  3. TransactionService begins database transaction
+  4. Primary expense transaction created (payer's own share, if any):
+     - Creates transaction record
+     - Creates double-entry: OUTGOING (-) → EXPENSE (+) for payer's portion
+  5. For each participant (excluding payer share):
+     - Calls LoanService.createLoanRelationship to:
+       - Find loan accounts for both users
+       - Create loan-style ledger entries (LOAN_GIVEN → LOAN_TAKEN)
+       - Update bilateral balances
+     - Creates expense_share record to track obligation
+  6. If payer is participating in split:
+     - Creates expense_share record with isPayerShare=1 (excluded from allocation)
+  7. Transaction is committed
+- **Tables & Records**:
+  - `transaction`: Single row with {id, description, userId: payerId, type: EXPENSE, amount: totalAmount}
+  - `transaction_entry`: Multiple rows:
+    - For payer's portion (if participating):
+      - Row 1: {transactionId, transactionAccountId (payer's OUTGOING), amount: -payerAmount}
+      - Row 2: {transactionId, transactionAccountId (payer's EXPENSE category), amount: +payerAmount}
+    - For each participant:
+      - Row N: {transactionId, transactionAccountId (payer's LOAN_GIVEN), amount: -participantAmount}
+      - Row N+1: {transactionId, transactionAccountId (participant's LOAN_TAKEN), amount: +participantAmount}
+  - `expense_share`: Multiple rows:
+    - For each participant: {id, transactionId, payerUserId, participantUserId, amount: participantAmount, paidAmount: 0, status: "UNPAID", isPayerShare: 0, currency, groupId (optional), splitType}
+    - For payer (if participating): {id, transactionId, payerUserId, participantUserId: payerId, amount: payerAmount, isPayerShare: 1, ...}
+  - `user_balance`: Two mirrored rows per participant:
+    - Row 1: {ownerId: payerId, counterPartyId: participantId, amount: +participantAmount, currency, groupId (optional)} - increased by participant's share
+    - Row 2: {ownerId: participantId, counterPartyId: payerId, amount: -participantAmount, currency, groupId (optional)} - decreased by participant's share
+- **Ledger**: OUTGOING (-) → EXPENSE (+) for payer share (if any) plus LOAN_GIVEN (-) → LOAN_TAKEN (+) per owing participant
+- **user_balance**: payer gains positive vs each participant (+participantAmount); reciprocal negatives
+- **Invariants**: Sum(shares) == expense total; payer share flagged isPayerShare=1 and excluded from allocations; all participants have valid relationship context
+- **Flow Details**:
+  1. First creates main expense transaction (OUTGOING → EXPENSE)
+  2. Then creates loan relationships for each participant using `LoanService.createLoanRelationship`
+  3. Creates expense_share records tracking each participant's obligation
+  4. Updates user_balance between payer and each participant
+  5. Group context scopes expenses to specific group members and balances
+- **Key Distinction**: Unlike direct loans, shared expenses generate expense_share records for obligation tracking and FIFO allocation
+
+#### 5.5.1 Shared Expenses and Loans: Unified Model
+
+Shared expenses and direct loans both utilize the same underlying loan relationship mechanism:
+
+- Both shared expenses and direct loans create the same ledger entries: LOAN_GIVEN (-) → LOAN_TAKEN (+)
+- Both use the same balance update mechanism through `InterpersonalDebtEngine` or `BalanceAdjustmentService`
+- Both follow the same sign convention: positive amount increases creditor's balance and decreases debtor's
+- Key differences:
+  1. Shared expenses generate `expense_share` records for tracking obligations and enabling FIFO allocation
+  2. Direct loans track obligations via `loan` and `loan_split` tables
+  3. Shared expenses have a parent expense transaction showing OUTGOING → EXPENSE for the payer's share
+  4. Shared expenses track partial payments with status transitions (UNPAID → PARTIALLY_PAID → PAID)
+  5. Direct loans are typically settled through direct transactions rather than granular allocations
+  6. Shared expenses relate to specific purchases while loans represent direct money transfers
+  7. The UI presentation needs differ: expenses show what was purchased, loans show simple money transfers
+
+This approach provides consistent underlying debt tracking while preserving the semantic differences that are important to users. Both mechanisms maintain bilateral balances through the same services and create appropriate ledger entries, ensuring consistency in the core financial model.
 
 ### 5.6 Settlement Allocation (Canonical FIFO Repayment)
 
-- Trigger: SettlementService.allocateExpenseShareSettlement
-- W/R: expense_share (update paidAmount/status), settlement (insert), settlement_application (insert), user_balance (update)
+- **Purpose**: Allocate a settlement payment across multiple expense obligations using FIFO order
+- **Trigger**: SettlementService.allocateExpenseShareSettlement
+- **Data Flow**:
+  1. User (payer/debtor) submits allocation details (payeeId, amount, currency, optional groupId)
+  2. SettlementService validates inputs and idempotency key
+  3. SettlementService begins database transaction
+  4. SettlementService fetches allocatable expense_share records (FIFO order):
+     - participantUserId = payerId (debtor)
+     - payerUserId = payeeId (creditor)
+     - status = UNPAID or PARTIALLY_PAID
+     - isPayerShare = 0
+     - matching currency and optional groupId
+  5. Validates total outstanding ≥ allocation amount
+  6. Creates transaction header and ledger entries
+  7. Creates settlement record
+  8. Iterates through shares in FIFO order:
+     - For each share, applies amount = min(shareRemaining, remainingToAllocate)
+     - Updates expense_share.paidAmount and status
+     - Creates settlement_application record linking settlement to expense_share
+     - Decrements remaining allocation amount
+     - Continues until fully allocated or no more shares
+  9. Updates bilateral user_balance through BalanceAdjustmentService
+  10. Returns settlement details with applications and outstanding amounts
+- **Tables & Records**:
+  - `transaction`: Single row with {id, description: "Settlement allocation", userId: payerId}
+  - `transaction_entry`: Two rows:
+    - Row 1: {transactionId, transactionAccountId (payer's LOAN_TAKEN), amount: -amount}
+    - Row 2: {transactionId, transactionAccountId (payee's LOAN_GIVEN), amount: +amount}
+  - `settlement`: Single row with {id, payerId, payeeId, amount, currency, groupId (optional), transactionId, idempotencyKey, settledAt}
+  - `expense_share`: Multiple rows updated:
+    - For each affected share: paidAmount increased by applied amount
+    - status updated to "PARTIALLY_PAID" or "PAID" based on whether full amount is paid
+  - `settlement_application`: Multiple rows created:
+    - One row per affected share: {id, settlementId, expenseShareId, appliedAmount}
+  - `user_balance`: Two mirrored rows updated:
+    - Row 1: {ownerId: payeeId, counterPartyId: payerId} amount decreased by settlement amount
+    - Row 2: {ownerId: payerId, counterPartyId: payeeId} amount increased by settlement amount
+- **W/R**: expense_share (update paidAmount/status), settlement (insert), settlement_application (insert), user_balance (update)
 - Ledger: (Design gap) no transaction entries yet
 - Algorithm: FIFO by realizedAt, id across debtor’s outstanding shares to a specific payer (+ optional group scope)
 - Invariants: amount > 0; amount ≤ totalOutstanding + ε (ε≈1e-8); homogeneous currency & group; payerId != payeeId
 - Result: Outstanding reduced; shares’ status transitions UNPAID → PARTIALLY_PAID → PAID
 - Design Gap: Missing ledger parity (pending summarized or per-allocation entries)
+- Settlement Approach: This allocation-based settlement is currently used only for expense shares, not for direct loans. Direct loans use the simpler reversal approach (5.4) with less granular tracking. This separation is intentional and aligns with the different user-facing concepts and typical settlement patterns.
 
 ### 5.7 Aggregation & Derived Views
+
+- **Purpose**: Generate summary data and analytics from transaction history
+- **Data Flow**:
+  1. Query services (DashboardService, etc.) access base transaction tables
+  2. Services apply aggregation logic based on account types and entry signs
+  3. User interface presents summary views (totals, charts, trends)
+- **Tables & Records** (Read-only):
+  - `transaction` and `transaction_entry`: For raw transaction data
+  - `expense_share`: For obligation tracking and settlement status
+  - `user_balance`: For current net positions between users
+- **Aggregation Rules**:
+  - Income: SUM(positive amounts in INCOME accounts)
+  - Expenses: SUM(positive amounts in EXPENSE accounts)
+  - Savings: SUM(positive amounts in SAVING accounts)
+  - Assets (Loans Given): NET SUM(all amounts in LOAN_GIVEN accounts)
+  - Liabilities (Loans Taken): NET SUM(all amounts in LOAN_TAKEN accounts)
+  - Net Worth: Assets - Liabilities
 
 Layer interaction and derivability assumptions; reconciliation process (future) will assert user_balance consistency with obligations.
 
@@ -135,14 +312,60 @@ Layer interaction and derivability assumptions; reconciliation process (future) 
 
 ## 6. Expense Share Model
 
-Table: expense_share
-Fields: id, transactionId, payerUserId, participantUserId, groupId (nullable), shareType, splitType, expenseAccountId (optional), currency, amount, paidAmount, status (UNPAID|PARTIALLY_PAID|PAID), realizedAt, isPayerShare, metadata
-Invariants:
+**Purpose**: Track individual obligations from shared expenses with settlement status
+
+**Table**: `expense_share`
+
+**Fields and Data Types**:
+
+- `id` (integer, PK): Unique identifier
+- `transactionId` (integer, FK): Reference to parent transaction
+- `payerUserId` (integer, FK): User who paid for the expense
+- `participantUserId` (integer, FK): User who owes a share (could be payer if isPayerShare=1)
+- `groupId` (integer, FK, nullable): Optional group context
+- `shareType` (text): FRIENDS | GROUP
+- `splitType` (text): EQUAL | PERCENTAGE | SHARE
+- `expenseAccountId` (integer, FK, nullable): Category account reference
+- `currency` (text): Three-letter currency code
+- `amount` (real): Original share amount
+- `paidAmount` (real): Amount paid via settlements
+- `status` (text): UNPAID | PARTIALLY_PAID | PAID
+- `realizedAt` (timestamp): When obligation was created
+- `isPayerShare` (integer): Flag for payer's own share (1=true, 0=false)
+- `metadata` (JSON): Additional info about the share
+
+**Record Creation**:
+
+- Created during shared expense transaction
+- One row per participant (plus optional payer share)
+- paidAmount initialized to 0
+- status initialized to UNPAID
+
+**Record Updates**:
+
+- paidAmount: Incremented during settlement allocation
+- status: Transitions from UNPAID → PARTIALLY_PAID → PAID
+
+**Key Relationships**:
+
+- transaction: Parent expense
+- transaction_account: Category (optional)
+- user (payerUserId): Creditor
+- user (participantUserId): Debtor
+- settlement_application: Settlement allocations applied to this share
+
+**Invariants**:
 
 - 0 ≤ paidAmount ≤ amount
 - Status monotonic: UNPAID → PARTIALLY_PAID → PAID
 - isPayerShare=1 rows excluded from allocations
 - Currency homogeneous per allocation request
+
+**Usage Patterns**:
+
+- Source for FIFO allocation algorithm
+- Status tracking for obligations
+- Settlement tracking and reporting
 
 ---
 
@@ -193,7 +416,9 @@ Comparison (Legacy vs Allocation):
 | Partial Allocation | By splitting settlement amount | Native per-share partials |
 | Share Status Tracking | Implicit via loans | Explicit (UNPAID/PARTIALLY_PAID/PAID) |
 | Flexibility | Limited | High |
-| Recommended Use | Backward compatibility | Primary path |
+| Recommended Use | Backward compatibility, Direct Loans | Primary path for Expense Shares |
+| Domain Fit | Better for simple loans | Better for expense obligations |
+| Implementation Consistency | Consistent with loan model | Consistent with expense_share model |
 
 ---
 
@@ -760,7 +985,7 @@ Why Exists: Traceable mapping from settlement to exact obligation reductions.
 Table: user_balance
 Layer: Materialized
 Role: Derived / MaterializedSummary
-Primary Writers: ExpenseService, LoanService, SettlementService, BalanceService (legacy)
+Primary Writers: ExpenseService, LoanService, SettlementService
 Mutability: Mutable (amount updates)
 Invariants: Mirror pair rows (A,B) == -(B,A); currency consistent per pair; recalculable from sources
 Why Exists: Fast UI & analytic access to net positions without recomputing obligations each request.
@@ -797,7 +1022,7 @@ settlement (allocation) -> (future) transaction (when ledger parity added)
 
 Source Layers: transaction_entry, expense_share, loan_split, settlement_application
 Materialized: user_balance = f(loans + shared expense obligations - allocations/repayments)
-Legacy Influence: legacy settlement transaction entries (still included in user_balance deltas)
+Legacy Influence: legacy settlement transaction entries (no longer present in the codebase)
 
 ---
 

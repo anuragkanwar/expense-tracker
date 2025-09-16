@@ -52,35 +52,6 @@ export const ExpenseShareSettlementAllocateRequestSchema = z
   .openapi("ExpenseShareSettlementAllocateRequest");
 
 // ==============================================
-// Direct Settlement (simple creation without allocation)
-// ==============================================
-export const DirectSettlementRequestSchema = z
-  .object({
-    payeeId: z.number().int().positive().openapi({
-      example: 42,
-      description: "User ID of the payee (original payer receiving funds)",
-    }),
-    amount: z
-      .number()
-      .positive()
-      .openapi({ example: 25.0, description: "Settlement amount" }),
-    currency: z
-      .string()
-      .length(3)
-      .openapi({ example: "USD", description: "Three letter currency code" }),
-    groupId: z.number().int().positive().optional().openapi({
-      example: 123,
-      description:
-        "Optional group context if this settlement pertains to a specific group",
-    }),
-  })
-  .openapi("DirectSettlementRequest");
-
-export const DirectSettlementResponseSchema = SettlementResponseSchema.openapi(
-  "DirectSettlementResponse"
-);
-
-// ==============================================
 // Allocate Expense Share Settlement Response
 // ==============================================
 export const ExpenseShareSettlementAllocateResponseSchema = z

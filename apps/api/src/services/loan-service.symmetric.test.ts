@@ -1,5 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { LoanService } from "./loan-service";
+import type { MockedFunction } from "vitest";
+
+// Define DBTransactionType for test environment
+type DBTransactionType = {
+  rollback: () => Promise<void>;
+} & Record<string, unknown>;
 
 // Local enum replicas (avoid path alias issues in test env)
 const ACCOUNT_TYPE = {
@@ -7,11 +13,196 @@ const ACCOUNT_TYPE = {
   LOAN_TAKEN: "LOAN_TAKEN",
 } as const;
 
+/**
+ * Mock account structure for tests
+ */
 interface AccountMock {
   id: number;
   userId: number;
   balance: number;
   type: string;
+  name?: string;
+}
+
+/**
+ * Loan data structure for repository create operations
+ */
+interface LoanData {
+  id?: number;
+  creditorId: number;
+  debtorId: number;
+  amount: number;
+  currency: string;
+  description?: string;
+  groupId?: number | null;
+  createdAt?: Date;
+  updatedAt?: Date;
+}
+
+/**
+ * Transaction entry structure for tests
+ */
+interface TransactionEntryData {
+  srcAcc: AccountMock;
+  dstAcc: AccountMock;
+  amount: number;
+  txnId: number;
+}
+
+// Repository interfaces for better typing
+interface LoanRepository {
+  create: MockedFunction<
+    (
+      data: LoanData,
+      tx?: DBTransactionType
+    ) => Promise<LoanData & { id: number }>
+  >;
+  findAll: MockedFunction<
+    (
+      userId: number,
+      tx?: DBTransactionType
+    ) => Promise<Array<LoanData & { id: number }>>
+  >;
+  findById: MockedFunction<
+    (
+      id: number,
+      tx?: DBTransactionType
+    ) => Promise<(LoanData & { id: number }) | null>
+  >;
+  update: MockedFunction<
+    (
+      id: number,
+      data: Partial<LoanData>,
+      tx?: DBTransactionType
+    ) => Promise<LoanData & { id: number }>
+  >;
+  delete: MockedFunction<(id: number, tx?: DBTransactionType) => Promise<void>>;
+}
+
+interface LoanSplitRepository {
+  create: MockedFunction<
+    (
+      data: { loanId: number; userId: number },
+      tx?: DBTransactionType
+    ) => Promise<{ id: number; loanId: number; userId: number }>
+  >;
+}
+
+interface GroupMemberRepository {
+  findByGroupIdAndUserId: MockedFunction<
+    (
+      groupId: number,
+      userId: number,
+      tx?: DBTransactionType
+    ) => Promise<{ id: number } | null>
+  >;
+  findByGroupId: MockedFunction<
+    (
+      groupId: number,
+      tx?: DBTransactionType
+    ) => Promise<Array<{ id: number; userId: number }>>
+  >;
+}
+
+interface GroupRepository {
+  findById: MockedFunction<
+    (
+      id: number,
+      tx?: DBTransactionType
+    ) => Promise<{ id: number; name: string } | null>
+  >;
+}
+
+interface TransactionAccountRepository {
+  findByUserIdAndCategoryName: MockedFunction<
+    (
+      userId: number,
+      type: string,
+      tx?: DBTransactionType
+    ) => Promise<AccountMock | null>
+  >;
+}
+
+interface UserRepository {
+  findById: MockedFunction<
+    (
+      id: number,
+      tx?: DBTransactionType
+    ) => Promise<{ id: number; username: string } | null>
+  >;
+}
+
+interface TransactionHeader {
+  id: number;
+  userId: number;
+  transactionDate: Date;
+  description: string;
+  type: string;
+}
+
+interface TransactionService {
+  createTransactionHeader: MockedFunction<
+    (
+      data: {
+        userId: number;
+        description: string;
+        type: string;
+        transactionDate?: Date;
+      },
+      tx?: DBTransactionType
+    ) => Promise<TransactionHeader>
+  >;
+}
+
+interface TransactionHelperService {
+  updateAccountsAndCreateEntries: MockedFunction<
+    (entries: TransactionEntryData[], tx?: DBTransactionType) => Promise<void>
+  >;
+  transactionRepository: Record<string, unknown>;
+  transactionEntryRepository: Record<string, unknown>;
+  transactionAccountRepository: Record<string, unknown>;
+}
+
+interface FriendService {
+  areFriends: MockedFunction<
+    (
+      userId1: number,
+      userId2: number,
+      tx?: DBTransactionType
+    ) => Promise<boolean>
+  >;
+}
+
+interface BalanceAdjustmentService {
+  applyBilateralDelta: MockedFunction<
+    (
+      creditorId: number,
+      debtorId: number,
+      amount: number,
+      currency: string,
+      groupId: number | null,
+      tx?: DBTransactionType
+    ) => Promise<void>
+  >;
+}
+
+interface InterpersonalDebtEngine {
+  recordDirectLoan: MockedFunction<
+    (
+      params: {
+        creditorId: number;
+        debtorId: number;
+        amount: number;
+        currency: string;
+        groupId?: number | null;
+      },
+      tx?: DBTransactionType
+    ) => Promise<void>
+  >;
+}
+
+interface MockDb {
+  transaction: <T>(fn: (tx: DBTransactionType) => Promise<T>) => Promise<T>;
 }
 
 /**
@@ -39,38 +230,66 @@ describe("LoanService.createDirectLoanSymmetric", () => {
   let engineAwareService: LoanService;
 
   // Common mocks
-  const mockLoanRepository = {
+  const mockLoanRepository: LoanRepository = {
     create: vi.fn(),
     findAll: vi.fn(),
     findById: vi.fn(),
     update: vi.fn(),
     delete: vi.fn(),
-  } as any;
+  };
 
-  const mockLoanSplitsRepository = { create: vi.fn() } as any;
-  const mockGroupMemberRepository = {
+  const mockLoanSplitsRepository: LoanSplitRepository = {
+    create: vi.fn(),
+  };
+
+  const mockGroupMemberRepository: GroupMemberRepository = {
     findByGroupIdAndUserId: vi.fn(),
     findByGroupId: vi.fn(),
-  } as any;
-  const mockGroupRepository = { findById: vi.fn() } as any;
-  const mockTransactionAccountRepository = {
-    findByUserIdAndCategoryName: vi.fn(),
-  } as any;
-  const mockUserRepository = { findById: vi.fn() } as any; // not used directly in symmetric path
-  const mockTransactionService = {
-    createTransactionHeader: vi.fn(),
-    updateAccountsAndCreateEntries: vi.fn(),
-  } as any;
-  const mockFriendService = { areFriends: vi.fn() } as any;
-  const mockBalanceAdjustmentService = { applyBilateralDelta: vi.fn() } as any;
-  const engineMock = { recordDirectLoan: vi.fn() } as any;
+  };
 
-  const mockDb = {
-    transaction: async (fn: any) => {
-      const tx = { rollback: vi.fn() };
+  const mockGroupRepository: GroupRepository = {
+    findById: vi.fn(),
+  };
+
+  const mockTransactionAccountRepository: TransactionAccountRepository = {
+    findByUserIdAndCategoryName: vi.fn(),
+  };
+
+  const mockUserRepository: UserRepository = {
+    findById: vi.fn(),
+  }; // not used directly in symmetric path
+
+  const mockTransactionService: TransactionService = {
+    createTransactionHeader: vi.fn(),
+  };
+
+  const mockTransactionHelperService: TransactionHelperService = {
+    updateAccountsAndCreateEntries: vi.fn(),
+    transactionRepository: {},
+    transactionEntryRepository: {},
+    transactionAccountRepository: {},
+  };
+
+  const mockFriendService: FriendService = {
+    areFriends: vi.fn(),
+  };
+
+  const mockBalanceAdjustmentService: BalanceAdjustmentService = {
+    applyBilateralDelta: vi.fn(),
+  };
+
+  const engineMock: InterpersonalDebtEngine = {
+    recordDirectLoan: vi.fn(),
+  };
+
+  const mockDb: MockDb = {
+    transaction: async <T>(
+      fn: (tx: DBTransactionType) => Promise<T>
+    ): Promise<T> => {
+      const tx = { rollback: vi.fn() } as DBTransactionType;
       return await fn(tx);
     },
-  } as any;
+  };
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -87,12 +306,20 @@ describe("LoanService.createDirectLoanSymmetric", () => {
 
     mockTransactionService.createTransactionHeader.mockResolvedValue({
       id: 999,
+      userId: creditorId,
+      transactionDate: new Date(),
+      description: "Test transaction",
+      type: "LOAN",
     });
     mockLoanRepository.create.mockImplementation((data: any) =>
       Promise.resolve({ id: 555, ...data })
     );
 
-    mockLoanSplitsRepository.create.mockResolvedValue({ id: 700 });
+    mockLoanSplitsRepository.create.mockResolvedValue({
+      id: 700,
+      loanId: 555,
+      userId: debtorId,
+    });
 
     // Friendship default success
     mockFriendService.areFriends.mockResolvedValue(true);
@@ -105,9 +332,10 @@ describe("LoanService.createDirectLoanSymmetric", () => {
       groupRepository: mockGroupRepository,
       transactionAccountRepository: mockTransactionAccountRepository,
       userRepository: mockUserRepository,
-      transactionService: mockTransactionService,
-      friendService: mockFriendService,
-      balanceAdjustmentService: mockBalanceAdjustmentService,
+      transactionService: mockTransactionService as any,
+      transactionHelperService: mockTransactionHelperService as any,
+      friendService: mockFriendService as any,
+      balanceAdjustmentService: mockBalanceAdjustmentService as any,
     });
 
     engineAwareService = new LoanService({
@@ -118,10 +346,11 @@ describe("LoanService.createDirectLoanSymmetric", () => {
       groupRepository: mockGroupRepository,
       transactionAccountRepository: mockTransactionAccountRepository,
       userRepository: mockUserRepository,
-      transactionService: mockTransactionService,
-      friendService: mockFriendService,
-      balanceAdjustmentService: mockBalanceAdjustmentService,
-      interpersonalDebtEngine: engineMock,
+      transactionService: mockTransactionService as any,
+      transactionHelperService: mockTransactionHelperService as any,
+      friendService: mockFriendService as any,
+      balanceAdjustmentService: mockBalanceAdjustmentService as any,
+      interpersonalDebtEngine: engineMock as any,
     });
   });
 
@@ -136,7 +365,7 @@ describe("LoanService.createDirectLoanSymmetric", () => {
     expect(loan.debtorId).toBe(debtorId);
 
     expect(
-      mockTransactionService.updateAccountsAndCreateEntries
+      mockTransactionHelperService.updateAccountsAndCreateEntries
     ).toHaveBeenCalledTimes(1);
     expect(
       mockBalanceAdjustmentService.applyBilateralDelta

@@ -1,18 +1,13 @@
 import { createRoute, z } from "@hono/zod-openapi";
-import {
-  IdParamSchema,
-  UserIdParamSchema,
-  StandardErrorSchema,
-  IdempotencyConflictErrorSchema,
-} from "./shared-schemas";
+import { IdParamSchema, UserIdParamSchema } from "./shared-schemas";
 import {
   BalanceSummaryResponseSchema,
   FriendBalanceResponseSchema,
   GroupBalanceResponseSchema,
   BalancesSettlementPlanResponseSchema,
-  DirectSettlementRequestSchema,
-  DirectSettlementResponseSchema,
 } from "@pocket-pixie/contracts";
+
+// [REMOVED] createDirectSettlementRoute: Legacy direct settlement endpoint removed as part of migration to allocation-based settlement.
 
 export const getBalanceSummaryRoute = createRoute({
   method: "get",
@@ -84,67 +79,8 @@ export const getGroupBalanceRoute = createRoute({
   },
 });
 
-export const createDirectSettlementRoute = createRoute({
-  // Idempotency-Key header required
-  // Direct settlement returns full SettlementResponse
-
-  method: "post",
-  path: "/",
-  summary: "Record settlement",
-  description: "Records a payment to settle a debt (e.g., 'I paid Jane $20').",
-  tags: ["Settlements"],
-  request: {
-    headers: z
-      .object({
-        "Idempotency-Key": z.string().min(1).openapi({
-          description:
-            "Idempotency key to safely retry settlement creation requests without creating duplicates",
-          example: "settle-123e4567-e89b-12d3-a456-426614174000",
-        }),
-      })
-      .openapi({ description: "Required idempotency header" }),
-    body: {
-      content: {
-        "application/json": {
-          schema: DirectSettlementRequestSchema, // Direct payer/payee settlement requires Idempotency-Key header
-        },
-      },
-    },
-  },
-  responses: {
-    201: {
-      // 201 indicates newly created direct settlement (not a replay)
-      content: {
-        "application/json": {
-          schema: DirectSettlementResponseSchema,
-        },
-      },
-      description: "Settlement recorded successfully (new)",
-    },
-    200: {
-      // 200 for idempotent replay of an existing direct settlement
-      content: {
-        "application/json": {
-          schema: DirectSettlementResponseSchema,
-        },
-      },
-      description: "Idempotent replay - original settlement returned",
-    },
-    400: {
-      description: "Validation Error or Idempotency-Key required",
-      content: {
-        "application/json": { schema: StandardErrorSchema },
-      },
-    },
-    401: { description: "Unauthorized" },
-    409: {
-      description: "Idempotency-Key conflict (payload mismatch on reuse)",
-      content: {
-        "application/json": { schema: IdempotencyConflictErrorSchema },
-      },
-    },
-  },
-});
+/* Direct settlement route removed as part of legacy flow cleanup */
+// // [REMOVED] createDirectSettlementRoute: Legacy direct settlement endpoint removed as part of migration to allocation-based settlement.
 
 export const getGlobalSettlementPlanRoute = createRoute({
   method: "get",

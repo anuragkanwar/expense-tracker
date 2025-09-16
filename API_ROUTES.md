@@ -6,7 +6,7 @@ Legend:
 - Legacy: Supported for backward compatibility; avoid for new clients
 - Stub 501: Route defined but not yet implemented (returns 501)
 - (Implicit) All endpoints require authentication unless noted
-- Idempotency-Key: Required for settlement creation (legacy & allocation)
+- Idempotency-Key: Required for settlement allocation creation
 
 Auth and user management :
 POST /api/v1/auth/register Creates a new user account.
@@ -53,11 +53,9 @@ Balances and settlements (Idempotent)
 GET /api/v1/balances Gets the user's total balance (total owed vs. total owed to you).
 GET /api/v1/balances/friends/{userId} Gets the total consolidated balance with a specific friend.
 GET /api/v1/balances/groups/{groupId} Gets the user's net balance within a specific group.
-POST /api/v1/balances (Legacy) Record a direct bilateral settlement (payer->payee). Idempotency-Key required. 201 new / 200 replay / 409 conflict.
 GET /api/v1/balances/simplify Simplified global settlement suggestion.
 GET /api/v1/balances/groups/{groupId}/simplify Simplified settlement suggestion within group.
 POST /api/v1/settlements/allocate (Canonical) Allocate repayment across outstanding expense shares FIFO. Idempotency-Key required. 200 new or replay / 409 conflict.
-POST /api/v1/groups/{groupId}/settlements (Legacy) Group-scoped direct settlement. Idempotency-Key required. 201 new / 200 replay / 409 conflict.
 
 Personal Finance: accounts, passbook
 GET /api/v1/passbook Retrieves a paginated list of all personal transactions (supports filtering).
@@ -93,8 +91,8 @@ POST /api/v1/connections/monthly-data (Stub 501) Retrieve monthly aggregated ext
 
 Idempotency & Concurrency Summary
 
-- Idempotency-Key REQUIRED for: POST /api/v1/settlements/allocate, POST /api/v1/balances, POST /api/v1/groups/{groupId}/settlements
-- Allocation: HTTP 200 on first and replay; legacy settlements: 201 then 200
+- Idempotency-Key REQUIRED for: POST /api/v1/settlements/allocate
+- Allocation: HTTP 200 on first and replay
 - Mismatched payload reuse of same key: 409 Conflict
 - Keys persisted with normalized payload hash (sorted JSON, trimmed strings, fixed precision amount)
 - Concurrency gap: parallel allocations between same payer/payee[/group] may race (future locking)

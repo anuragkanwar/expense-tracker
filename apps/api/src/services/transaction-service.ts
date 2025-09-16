@@ -42,6 +42,7 @@ export class TransactionService {
   private readonly friendService;
   private readonly expenseShareRepository;
   private readonly balanceAdjustmentService: BalanceAdjustmentService;
+  // Removed loanService dependency to avoid circular reference
   private db: DBType;
 
   constructor({
@@ -158,60 +159,12 @@ export class TransactionService {
     );
   }
 
-  async updateAccountsAndCreateEntries(
-    entries: Array<{
-      srcAcc: TransactionAccountResponse;
-      dstAcc: TransactionAccountResponse;
-      amount: number;
-      txnId: number;
-    }>,
-    tx?: DBTransactionType
-  ): Promise<void> {
-    for (const entry of entries) {
-      if (entry.amount <= 0) {
-        continue;
-      }
+  // Removed duplicate updateAccountsAndCreateEntries - use TransactionHelperService instead
 
-      // Update source account balance (money going out)
-      await this.transactionAccountRepository.update(
-        entry.srcAcc.id,
-        {
-          balance: entry.srcAcc.balance - entry.amount,
-        },
-        tx
-      );
-
-      // Update destination account balance (money coming in)
-      await this.transactionAccountRepository.update(
-        entry.dstAcc.id,
-        {
-          balance: entry.dstAcc.balance + entry.amount,
-        },
-        tx
-      );
-
-      // Create transaction entries (double-entry)
-      await this.transactionEntryRepository.create(
-        {
-          amount: entry.amount,
-          transactionAccountId: entry.dstAcc.id,
-          transactionId: entry.txnId,
-        },
-        tx
-      );
-
-      await this.transactionEntryRepository.create(
-        {
-          amount: -entry.amount,
-          transactionAccountId: entry.srcAcc.id,
-          transactionId: entry.txnId,
-        },
-        tx
-      );
-    }
-  }
-
-  /** Legacy updateBalances logic removed - use balanceAdjustmentService */
+  /**
+   * Main transaction creation endpoint for personal expenses, income, saving and shared expenses.
+   * Note: Direct loan creation has been moved to LoanService and accessed via /api/v1/loans
+   */
   async createTransaction(
     transactionCreateWithDetails: TransactionCreateWithDetails,
     userCurrency: string = "INR"
@@ -244,11 +197,7 @@ export class TransactionService {
           tx
         );
 
-        if (
-          transactionCreateWithDetails.type === TXN_TYPE.EXPENSE ||
-          transactionCreateWithDetails.type === TXN_TYPE.LOAN_GIVEN ||
-          transactionCreateWithDetails.type === TXN_TYPE.LOAN_TAKEN
-        ) {
+        if (transactionCreateWithDetails.type === TXN_TYPE.EXPENSE) {
           if (transactionCreateWithDetails.sharedWith === SHARE_TYPE.NONE) {
             await this.transactionHelperService.updateAccountsAndCreateEntries(
               [
@@ -277,24 +226,12 @@ export class TransactionService {
             );
             const payerTotal = transactionCreateWithDetails.amount - splitTotal;
 
-            // Validate payerTotal based on transaction type
-            if (
-              transactionCreateWithDetails.type === TXN_TYPE.LOAN_GIVEN ||
-              transactionCreateWithDetails.type === TXN_TYPE.LOAN_TAKEN
-            ) {
-              // For loans, payerTotal must be exactly 0
-              if (payerTotal !== 0) {
-                throw new ValidationError(
-                  `For loan transactions, payer total must be 0, got ${payerTotal}`
-                );
-              }
-            } else if (transactionCreateWithDetails.type === TXN_TYPE.EXPENSE) {
-              // For expenses, payerTotal must be >= 0
-              if (payerTotal < 0) {
-                throw new ValidationError(
-                  `Split amounts (${splitTotal}) cannot exceed total transaction amount (${transactionCreateWithDetails.amount})`
-                );
-              }
+            // Validate payerTotal for expense transactions
+            // For expenses, payerTotal must be >= 0
+            if (payerTotal < 0) {
+              throw new ValidationError(
+                `Split amounts (${splitTotal}) cannot exceed total transaction amount (${transactionCreateWithDetails.amount})`
+              );
             }
 
             await this.transactionHelperService.updateAccountsAndCreateEntries(
@@ -312,6 +249,8 @@ export class TransactionService {
             // Handle splits for shared transactions
             if (splits.length > 0) {
               for (const split of splits) {
+                // Handle loan creation for this split
+                // First find the appropriate accounts
                 const payeeLoanTakenAcc =
                   await this.transactionAccountRepository.findByUserIdAndCategoryName(
                     split.userId,
@@ -337,6 +276,7 @@ export class TransactionService {
                   );
                 }
 
+                // Create the ledger entries
                 await this.transactionHelperService.updateAccountsAndCreateEntries(
                   [
                     {
@@ -349,7 +289,7 @@ export class TransactionService {
                   tx
                 );
 
-                // Adjust balances using canonical service: payer (creditor) vs participant (debtor)
+                // Update the bilateral balances
                 await this.balanceAdjustmentService.applyBilateralDelta(
                   payerId, // creditor: original payer
                   split.userId, // debtor: participant

@@ -38,7 +38,7 @@ export class SettlementService {
   private readonly transactionHelperService;
   private readonly expenseShareRepository: ExpenseShareRepository;
   private readonly settlementApplicationRepository: SettlementApplicationRepository;
-  private readonly balanceRepository: BalanceRepository;
+
   private readonly balanceAdjustmentService: BalanceAdjustmentService;
   private readonly db: DBType;
 
@@ -50,7 +50,7 @@ export class SettlementService {
     transactionHelperService,
     expenseShareRepository,
     settlementApplicationRepository,
-    balanceRepository,
+
     db,
     balanceAdjustmentService,
   }: {
@@ -72,7 +72,7 @@ export class SettlementService {
     this.transactionHelperService = transactionHelperService;
     this.expenseShareRepository = expenseShareRepository;
     this.settlementApplicationRepository = settlementApplicationRepository;
-    this.balanceRepository = balanceRepository;
+
     this.db = db;
     this.balanceAdjustmentService = balanceAdjustmentService;
   }
@@ -151,175 +151,7 @@ export class SettlementService {
     return this.settlementRepository.delete(numericId);
   }
 
-  // =============================================================
-  // Direct Settlement (no expense share allocation)
-  // Prevents misuse when expense shares exist; pushes clients to /allocate
-  // =============================================================
-  async createDirectSettlement(params: {
-    payerId: number; // authenticated user (debtor)
-    payeeId: number; // receiving user (original payer)
-    amount: number;
-    currency: string;
-    groupId?: number | null;
-    idempotencyKey?: string | null;
-  }): Promise<{ settlement: SettlementResponse; replay: boolean }> {
-    const { payerId, payeeId, amount, currency, groupId, idempotencyKey } =
-      params;
-
-    if (payerId === payeeId) {
-      throw new BadRequestError("Cannot settle with self");
-    }
-    if (amount <= 0) {
-      throw new BadRequestError("Settlement amount must be positive");
-    }
-
-    const result = await this.db.transaction(async (tx) => {
-      // If there are outstanding expense shares between these two users in this context,
-      // force usage of allocation endpoint for correct FIFO semantics.
-      const outstandingShares =
-        await this.expenseShareRepository.findAllocatableShares(
-          payerId,
-          payeeId,
-          currency,
-          groupId ?? null,
-          tx
-        );
-      if (outstandingShares.length) {
-        throw new BadRequestError(
-          "Outstanding expense shares detected. Use /api/v1/settlements/allocate instead."
-        );
-      }
-
-      // Overpayment validation (Flag F2 resolved): fetch current outstanding debt
-      // Creditor perspective row: owner=payeeId, counterParty=payerId
-      const creditorRow = await this.balanceRepository.findBalance(
-        payeeId,
-        payerId,
-        groupId ?? null,
-        tx
-      );
-      const outstanding = creditorRow?.amount ?? 0;
-      if (outstanding <= 0 || amount > outstanding + 1e-8) {
-        throw new BadRequestError(
-          `Settlement amount ${amount} exceeds outstanding ${outstanding}`
-        );
-      }
-
-      if (idempotencyKey) {
-        const existing = await this.settlementRepository.findByIdempotencyKey(
-          idempotencyKey,
-          tx
-        );
-        if (existing) {
-          // Validate payload parity for idempotent replay; mismatch => conflict 409
-          const diffs: Record<
-            string,
-            { original: unknown; attempted: unknown }
-          > = {};
-          if (existing.payerId !== payerId)
-            diffs.payerId = { original: existing.payerId, attempted: payerId };
-          if (existing.payeeId !== payeeId)
-            diffs.payeeId = { original: existing.payeeId, attempted: payeeId };
-          if (Math.abs(existing.amount - amount) > 1e-8)
-            diffs.amount = { original: existing.amount, attempted: amount };
-          if (existing.currency !== currency)
-            diffs.currency = {
-              original: existing.currency,
-              attempted: currency,
-            };
-          const existingGroup = existing.groupId ?? null;
-          const attemptedGroup = groupId ?? null;
-          if (existingGroup !== attemptedGroup)
-            diffs.groupId = {
-              original: existingGroup,
-              attempted: attemptedGroup,
-            };
-          if (Object.keys(diffs).length) {
-            throw new IdempotencyKeyConflictError(
-              "Idempotency-Key reuse with differing payload",
-              diffs
-            );
-          }
-          return { settlement: existing, replay: true }; // idempotent replay
-        }
-      }
-
-      // Loan reversal ledger transaction
-      const payerLoanTakenAcc =
-        await this.transactionAccountRepository.findByUserIdAndCategoryName(
-          payerId,
-          ACCOUNT_TYPE.LOAN_TAKEN,
-          tx
-        );
-      const payeeLoanGivenAcc =
-        await this.transactionAccountRepository.findByUserIdAndCategoryName(
-          payeeId,
-          ACCOUNT_TYPE.LOAN_GIVEN,
-          tx
-        );
-      if (!payerLoanTakenAcc) {
-        throw new TransactionAccountNotFoundError(
-          `${payerId} LOAN_TAKEN account`
-        );
-      }
-      if (!payeeLoanGivenAcc) {
-        throw new TransactionAccountNotFoundError(
-          `${payeeId} LOAN_GIVEN account`
-        );
-      }
-
-      const txn = await this.transactionRepository.create(
-        {
-          description: `Direct settlement: ${payerId} -> ${payeeId}`,
-          userId: payerId,
-        },
-        tx
-      );
-
-      if (amount > 0) {
-        await this.transactionHelperService.updateAccountsAndCreateEntries(
-          [
-            {
-              srcAcc: payerLoanTakenAcc,
-              dstAcc: payeeLoanGivenAcc,
-              amount,
-              txnId: txn.id,
-            },
-          ],
-          tx
-        );
-      }
-
-      const created = await this.settlementRepository.create(
-        {
-          payerId,
-          payeeId,
-          amount,
-          currency,
-          groupId: groupId ?? undefined,
-          settledAt: new Date().toISOString(),
-          transactionId: txn.id,
-          idempotencyKey: idempotencyKey ?? undefined,
-        } satisfies SettlementCreate,
-        tx
-      );
-
-      // Update balances (mirrors allocation balance adjustments semantics)
-      // Canonical settlement: reduce debtor (payerId) -> creditor (payeeId) debt
-      await this.balanceAdjustmentService.applyBilateralDelta(
-        payeeId, // creditor
-        payerId, // debtor
-        -amount, // negative because debt decreases
-        currency,
-        groupId ?? null,
-        tx
-      );
-
-      return { settlement: created, replay: false };
-    });
-
-    return result;
-  }
+  // (Legacy direct settlement endpoint removed)
 
   /**
    * Allocate a settlement amount against outstanding expense shares between two users (FIFO)

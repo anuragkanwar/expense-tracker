@@ -3,14 +3,9 @@ import {
   getBalanceSummaryRoute,
   getFriendBalanceRoute,
   getGroupBalanceRoute,
-  createDirectSettlementRoute,
   getGlobalSettlementPlanRoute,
   getGroupSettlementPlanRoute,
 } from "./balances.contracts";
-import {
-  IdempotencyKeyConflictError,
-  IdempotencyKeyRequiredError,
-} from "../errors/idempotency-errors";
 
 export const balanceRoutes = new OpenAPIHono();
 
@@ -69,48 +64,7 @@ balanceRoutes.openapi(getGroupBalanceRoute, async (c) => {
   }
 });
 
-balanceRoutes.openapi(createDirectSettlementRoute, async (c) => {
-  const user = c.get("user");
-  if (!user) {
-    return c.json({ message: "Unauthorized" }, 401);
-  }
-
-  const settlementData = c.req.valid("json");
-
-  try {
-    const idempotencyKey = c.req.header("Idempotency-Key");
-    if (!idempotencyKey) {
-      const err = new IdempotencyKeyRequiredError();
-      return c.json(err.toJSON(), 400);
-    }
-    const services = c.get("services");
-    try {
-      const { settlement, replay } =
-        await services.settlementService.createDirectSettlement({
-          payerId: user.id,
-          payeeId: settlementData.payeeId,
-          amount: settlementData.amount,
-          currency: settlementData.currency,
-          groupId: settlementData.groupId ?? null,
-          idempotencyKey,
-        });
-      return c.json(settlement, replay ? 200 : 201);
-    } catch (error: unknown) {
-      const { handleRouteError } = await import(
-        "@/utils/error-response-handler"
-      );
-      if (error instanceof IdempotencyKeyConflictError) {
-        return c.json(error.toJSON(), 409);
-      }
-      const { json, status } = handleRouteError(error);
-      return c.json(json, status);
-    }
-  } catch (error: unknown) {
-    const { handleRouteError } = await import("@/utils/error-response-handler");
-    const { json, status } = handleRouteError(error);
-    return c.json(json, status);
-  }
-});
+// [REMOVED] Direct settlement handler: Legacy direct settlement endpoint removed as part of migration to allocation-based settlement.
 
 balanceRoutes.openapi(getGlobalSettlementPlanRoute, async (c) => {
   const user = c.get("user");

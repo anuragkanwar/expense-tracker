@@ -106,6 +106,7 @@ container.register({
   loanService: asClass(LoanService, { lifetime: Lifetime.SCOPED }).inject(
     () => ({
       transactionService: container.resolve("transactionService"),
+      transactionHelperService: container.resolve("transactionHelperService"),
       interpersonalDebtEngine: container.resolve("interpersonalDebtEngine"),
     })
   ),
