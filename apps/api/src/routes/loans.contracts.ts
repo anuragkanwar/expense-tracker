@@ -18,8 +18,12 @@ export const createLoanSymmetricRoute = createRoute({
   path: "/symmetric",
   summary: "Create direct loan (symmetric – canonical)",
   description:
-    "Creates a bilateral loan where the authenticated user is implicitly the creditor. No account ids, splits, or direction field are required.",
+    "Creates a bilateral loan where the authenticated user is implicitly the creditor lending to the debtor. " +
+    "Follows LOAN_GIVEN (-) → LOAN_TAKEN (+) accounting pattern. " +
+    "Requires either an existing friendship between creditor and debtor or both must be members of the specified group. " +
+    "Creates a transaction record, two transaction_entry ledger rows, a loan record, one loan_split record, and updates bilateral balances.",
   tags: ["Loans"],
+  operationId: "createLoanSymmetric", // Added operationId for unique identification
   request: {
     body: {
       content: {
@@ -38,7 +42,49 @@ export const createLoanSymmetricRoute = createRoute({
     },
     400: {
       description: "Validation Error",
-      content: { "application/json": { schema: StandardErrorSchema } },
+      content: {
+        "application/json": {
+          schema: StandardErrorSchema,
+          examples: {
+            "self-loan": {
+              value: {
+                success: false,
+                error: {
+                  code: "INVALID_INPUT",
+                  message: "Cannot create loan to yourself",
+                },
+              },
+            },
+            "invalid-context": {
+              value: {
+                success: false,
+                error: {
+                  code: "INVALID_RELATIONSHIP",
+                  message: "No friendship or group context for loan",
+                },
+              },
+            },
+            "non-positive": {
+              value: {
+                success: false,
+                error: {
+                  code: "INVALID_AMOUNT",
+                  message: "Amount must be greater than zero",
+                },
+              },
+            },
+            "invalid-currency": {
+              value: {
+                success: false,
+                error: {
+                  code: "INVALID_CURRENCY",
+                  message: "Currency must be a valid 3-letter ISO code",
+                },
+              },
+            },
+          },
+        },
+      },
     },
     401: { description: "Unauthorized" },
     404: {

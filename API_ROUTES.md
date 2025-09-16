@@ -43,7 +43,7 @@ GET /api/v1/friends/{userId}/transactions List bilateral (non-group) shared tran
 POST /api/v1/transactions/ai (Stub 501) Create transaction via AI prompt parsing (NOT IMPLEMENTED)
 
 Loans
-POST /api/v1/loans/symmetric Creates a direct bilateral loan; authenticated user is creditor; implicit debtor split recorded. (Canonical path.)
+POST /api/v1/loans/symmetric Creates a direct bilateral loan; authenticated user is creditor lending to debtor; follows LOAN_GIVEN (-) → LOAN_TAKEN (+) accounting pattern. (Canonical path.)
 GET /api/v1/loans Lists loans created by the user (future: participation filter).
 GET /api/v1/loans/{loanId} Retrieves details of a loan (creator only currently).
 PUT /api/v1/loans/{loanId} Updates a loan (description / date).
@@ -55,7 +55,7 @@ GET /api/v1/balances/friends/{userId} Gets the total consolidated balance with a
 GET /api/v1/balances/groups/{groupId} Gets the user's net balance within a specific group.
 GET /api/v1/balances/simplify Simplified global settlement suggestion.
 GET /api/v1/balances/groups/{groupId}/simplify Simplified settlement suggestion within group.
-POST /api/v1/settlements/allocate (Canonical) Allocate repayment across outstanding expense shares FIFO. Idempotency-Key required. 200 new or replay / 409 conflict.
+POST /api/v1/settlements/allocate (Canonical) Allocate repayment across outstanding expense shares FIFO. **Idempotency-Key header REQUIRED**. Returns 200 for both new allocations and identical replays, 409 for payload conflicts.
 
 Personal Finance: accounts, passbook
 GET /api/v1/passbook Retrieves a paginated list of all personal transactions (supports filtering).
@@ -95,5 +95,9 @@ Idempotency & Concurrency Summary
 - Allocation: HTTP 200 on first and replay
 - Mismatched payload reuse of same key: 409 Conflict
 - Keys persisted with normalized payload hash (sorted JSON, trimmed strings, fixed precision amount)
+- Uniqueness scope: (userId, idempotencyKey, endpoint)
+- First request with a key creates settlement (HTTP 200) and persists key + hashed payload
+- Exact replay with same payload returns existing settlement (HTTP 200)
+- Differing payload reuse of the key causes conflict (HTTP 409)
 - Concurrency gap: parallel allocations between same payer/payee[/group] may race (future locking)
 - Future: extend idempotency to additional mutation endpoints as retry patterns emerge

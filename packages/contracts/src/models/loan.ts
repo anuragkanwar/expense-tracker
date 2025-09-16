@@ -56,23 +56,27 @@ export const LoanCreateSchema = createInsertSchema(loan, {
 export const LoanCreateSymmetricSchema = z
   .object({
     // Creditor is implicitly the authenticated user; client only supplies debtor + context
-    debtorId: z
-      .number()
-      .int()
-      .openapi({ example: 34, description: "User ID of debtor (owes money)" }),
-    amount: z
-      .number()
-      .positive("Amount must be > 0")
-      .openapi({ example: 250.5, description: "Principal amount of the loan" }),
+    debtorId: z.number().int().openapi({
+      example: 34,
+      description:
+        "User ID of debtor (owes money). Must be different from the authenticated user (creditor).",
+    }),
+    amount: z.number().positive("Amount must be > 0").openapi({
+      example: 250.5,
+      description: "Principal amount of the loan. Must be positive.",
+    }),
     currency: z
       .string()
       .length(3, "Currency must be 3-letter ISO code")
-      .openapi({ example: "USD", description: "Currency (ISO 4217)" }),
-    groupId: z
-      .number()
-      .int()
-      .optional()
-      .openapi({ example: 55, description: "Group context (optional)" }),
+      .openapi({
+        example: "USD",
+        description: "Currency (ISO 4217). Must be a valid 3-letter code.",
+      }),
+    groupId: z.number().int().optional().openapi({
+      example: 55,
+      description:
+        "Optional group context. If provided, both users must be members of this group.",
+    }),
     // Description is optional; default normalized to empty string to satisfy response contract (non-nullable)
     description: z
       .string()
@@ -83,11 +87,11 @@ export const LoanCreateSymmetricSchema = z
       .openapi({
         example: "Trip advance",
         description:
-          "Optional description (empty string implied if omitted or blank)",
+          "Optional description (empty string implied if omitted or blank). Will be normalized.",
       }),
     loanDate: z.string().optional().openapi({
       example: "2025-09-01T12:00:00.000Z",
-      description: "ISO date (defaults to now if omitted)",
+      description: "ISO date (defaults to now if omitted).",
     }),
   })
   .openapi("LoanCreateSymmetricRequest");

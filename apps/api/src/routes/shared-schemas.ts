@@ -83,5 +83,9 @@ export const IdempotencyConflictErrorSchema = StandardErrorSchema.extend({
       }),
   }),
 }).openapi({
-  description: "Idempotency conflict error with field differences",
+  description:
+    "Idempotency conflict error with field differences. " +
+    "Occurs when an Idempotency-Key is reused with a different payload. " +
+    "Per LLD section 16.1, idempotency keys are REQUIRED for all settlement operations " +
+    "and have uniqueness scope of (userId, idempotencyKey, endpoint).",
 });

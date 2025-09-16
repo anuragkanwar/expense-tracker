@@ -34,19 +34,23 @@ export const ExpenseShareSettlementAllocateRequestSchema = z
   .object({
     payeeId: z.number().int().positive().openapi({
       example: 42,
-      description: "Original payer user id (receives the payment)",
+      description:
+        "Original payer/creditor user id (receives the payment). Must be different from authenticated user.",
     }),
     amount: z.number().positive().openapi({
       example: 50.0,
-      description: "Amount to allocate across outstanding expense shares",
+      description:
+        "Amount to allocate across outstanding expense shares. Must be positive and not exceed total outstanding.",
     }),
-    currency: z
-      .string()
-      .length(3)
-      .openapi({ example: "USD", description: "Three letter currency code" }),
+    currency: z.string().length(3).openapi({
+      example: "USD",
+      description:
+        "Three letter currency code. Must match the currency of the outstanding expense shares.",
+    }),
     groupId: z.number().int().positive().optional().openapi({
       example: 123,
-      description: "Optional group context for the allocation",
+      description:
+        "Optional group context for the allocation. Filters expense shares to only this group if provided.",
     }),
   })
   .openapi("ExpenseShareSettlementAllocateRequest");
@@ -58,19 +62,23 @@ export const ExpenseShareSettlementAllocateResponseSchema = z
   .object({
     settlement: SettlementResponseSchema,
     applications: z.array(SettlementApplicationResponseSchema).openapi({
-      description: "Fragments showing how the settlement was distributed",
+      description:
+        "Fragments showing how the settlement was distributed across expense shares (FIFO order)",
     }),
     totalApplied: z.number().openapi({
       example: 50.0,
-      description: "Total amount successfully applied",
+      description:
+        "Total amount successfully applied (should match request amount)",
     }),
     outstandingBefore: z.number().openapi({
       example: 120.0,
-      description: "Total outstanding amount before allocation",
+      description:
+        "Total outstanding amount before allocation between these users",
     }),
     outstandingAfter: z.number().openapi({
       example: 70.0,
-      description: "Total outstanding amount after allocation",
+      description:
+        "Remaining outstanding amount after allocation between these users",
     }),
   })
   .openapi("ExpenseShareSettlementAllocateResponse");

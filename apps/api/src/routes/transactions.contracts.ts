@@ -8,13 +8,18 @@ import {
   TransactionListResponseSchema,
 } from "@pocket-pixie/contracts";
 import { createRoute, z } from "@hono/zod-openapi";
+import { StandardErrorSchema } from "./shared-schemas";
 
 export const createTransactionRoute = createRoute({
   method: "post",
   path: "/",
   summary: "Create a new transaction",
   description:
-    "Creates a new transaction with payers and split details. The request includes total amount, payer(s), and split object specifying the type and data for each participant.",
+    "Creates a new transaction with payers and split details. For shared expenses, " +
+    "creates a primary transaction for the payer's share, then creates loan relationships " +
+    "for each participant (LOAN_GIVEN → LOAN_TAKEN), generates expense_share records to track " +
+    "obligations, and updates bilateral user_balance records. Follows the accounting patterns " +
+    "described in LLD section 5.5 (Shared Expense flow).",
   tags: ["Transactions"],
   request: {
     body: {
@@ -34,7 +39,43 @@ export const createTransactionRoute = createRoute({
       },
       description: "Transaction created successfully",
     },
-    400: { description: "Validation Error" },
+    400: {
+      description: "Validation Error",
+      content: {
+        "application/json": {
+          schema: StandardErrorSchema, // Added the required schema reference
+          examples: {
+            "invalid-amount": {
+              value: {
+                success: false,
+                error: {
+                  code: "INVALID_AMOUNT",
+                  message: "Transaction amount must be positive",
+                },
+              },
+            },
+            "invalid-relationships": {
+              value: {
+                success: false,
+                error: {
+                  code: "INVALID_RELATIONSHIP",
+                  message: "All participants must be friends or group members",
+                },
+              },
+            },
+            "invalid-split": {
+              value: {
+                success: false,
+                error: {
+                  code: "INVALID_SPLIT",
+                  message: "Sum of splits must equal transaction amount",
+                },
+              },
+            },
+          },
+        },
+      },
+    },
     401: { description: "Unauthorized" },
   },
 });

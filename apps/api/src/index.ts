@@ -39,7 +39,7 @@ app.use(
       "http://localhost:8081",
       "http://YOUR_COMPUTER_IP:3000", // Replace with your computer's IP
     ], // replace with your origin
-    allowHeaders: ["Content-Type", "Authorization"],
+    allowHeaders: ["Content-Type", "Authorization", "Idempotency-Key"],
     allowMethods: ["POST", "GET", "PUT", "DELETE", "OPTIONS"],
     exposeHeaders: ["Content-Length"],
     maxAge: 600,
@@ -127,15 +127,31 @@ app.route("/api/v1/dashboard", dashboardRoutes);
 app.route("/api/v1/connections", connectionRoutes);
 
 // OpenAPI documentation - generated from Zod schemas
-app.doc("/openapi.json", {
-  openapi: "3.1.0",
-  info: {
-    version: "1.0.0",
-    title: "Pocket Pixie API",
-    description:
-      "A comprehensive financial management API for loan tracking, budgeting, group loans, and financial insights.",
-  },
-});
+// Add debug wrapper to catch OpenAPI generation errors
+try {
+  app.doc("/openapi.json", {
+    openapi: "3.1.0",
+    info: {
+      version: "1.0.0",
+      title: "Pocket Pixie API",
+      description:
+        "A comprehensive financial management API for loan tracking, budgeting, group loans, and financial insights.\n\n" +
+        "## Idempotency\n\n" +
+        "Settlement operations require an Idempotency-Key header to safely retry requests without side effects.\n" +
+        "The key must be unique per request and consistent on retries. If the same key is reused with a different payload, " +
+        "the API will return a 409 Conflict error with details about the payload differences.",
+    },
+  });
+} catch (error) {
+  console.error("OpenAPI generation error:", error);
+  // Add a fallback route to see the error details
+  app.get("/openapi-debug", (c) => {
+    return c.json({
+      error: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined,
+    });
+  });
+}
 
 // Scalar API Reference UI
 app.get(
