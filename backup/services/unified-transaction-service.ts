@@ -11,7 +11,7 @@ import {
   GroupRepository,
   BalanceRepository,
   GroupMemberRepository,
-  ExpenseShareRepository,
+  UnifiedExpenseShareRepository,
 } from "@/repositories";
 import { FriendService } from "./friend-service";
 import {
@@ -32,55 +32,46 @@ import {
 import { TransactionHelperService } from "./transaction-helper-service"; // helper for double-entry updates
 import { InterpersonalDebtEngine } from "./interpersonal-debt-engine";
 
-export class TransactionService {
-  private readonly balanceRepository;
+export class UnifiedTransactionService {
   private readonly groupMemberRepository;
   private readonly groupRepository;
   private readonly transactionAccountRepository;
-  private readonly transactionEntryRepository;
   private readonly transactionRepository;
   private readonly transactionHelperService;
   private readonly friendService;
-  private readonly expenseShareRepository;
+  private readonly unifiedExpenseShareRepository;
   private readonly interpersonalDebtEngine: InterpersonalDebtEngine;
-  // Removed loanService dependency to avoid circular reference
   private db: DBType;
 
   constructor({
-    balanceRepository,
     db,
     groupMemberRepository,
     groupRepository,
     transactionAccountRepository,
-    transactionEntryRepository,
     transactionRepository,
     transactionHelperService,
     friendService,
-    expenseShareRepository,
+    unifiedExpenseShareRepository,
     interpersonalDebtEngine,
   }: {
-    balanceRepository: BalanceRepository;
     db: DBType;
     groupMemberRepository: GroupMemberRepository;
     groupRepository: GroupRepository;
     transactionAccountRepository: TransactionAccountRepository;
-    transactionEntryRepository: TransactionEntryRepository;
     transactionRepository: TransactionRepository;
     transactionHelperService: TransactionHelperService;
     friendService: FriendService;
-    expenseShareRepository: ExpenseShareRepository;
+    unifiedExpenseShareRepository: UnifiedExpenseShareRepository;
     interpersonalDebtEngine: InterpersonalDebtEngine;
   }) {
-    this.balanceRepository = balanceRepository;
     this.db = db;
     this.groupMemberRepository = groupMemberRepository;
     this.groupRepository = groupRepository;
     this.transactionAccountRepository = transactionAccountRepository;
-    this.transactionEntryRepository = transactionEntryRepository;
     this.transactionRepository = transactionRepository;
     this.transactionHelperService = transactionHelperService;
     this.friendService = friendService;
-    this.expenseShareRepository = expenseShareRepository;
+    this.unifiedExpenseShareRepository = unifiedExpenseShareRepository;
     this.interpersonalDebtEngine = interpersonalDebtEngine;
   }
 
@@ -160,18 +151,16 @@ export class TransactionService {
     );
   }
 
-  // Removed duplicate updateAccountsAndCreateEntries - use TransactionHelperService instead
-
   /**
    * Main transaction creation endpoint for personal expenses, income, saving and shared expenses.
-   * Note: Direct loan creation has been moved to LoanService and accessed via /api/v1/loans
+   * Note: Direct loan creation has been moved to UnifiedLoanService and accessed via /api/v1/loans
    */
   async createTransaction(
     transactionCreateWithDetails: TransactionCreateWithDetails,
     userCurrency: string = "INR"
   ) {
     // Flag F5 (Dual Loan Pathways Divergence): Block direct loan creation here.
-    // Canonical path for LOAN_GIVEN / LOAN_TAKEN is now LoanService via /api/v1/loans.
+    // Canonical path for LOAN_GIVEN / LOAN_TAKEN is now UnifiedLoanService via /api/v1/loans.
     if (
       transactionCreateWithDetails.type === TXN_TYPE.LOAN_GIVEN ||
       transactionCreateWithDetails.type === TXN_TYPE.LOAN_TAKEN
@@ -305,21 +294,7 @@ export class TransactionService {
 
             // Upfront expense recognition (expense_share rows) ONLY for EXPENSE transactions
             if (transactionCreateWithDetails.type === TXN_TYPE.EXPENSE) {
-              const shareRows: Array<{
-                transactionId: number;
-                payerUserId: number;
-                participantUserId: number;
-                groupId: number | null;
-                type: EXPENSE_SHARE_TYPE;
-                shareType: SHARE_TYPE;
-                splitType: typeof transactionCreateWithDetails.splitType;
-                expenseAccountId: number;
-                currency: string;
-                amount: number;
-                paidAmount: number;
-                status: EXPENSE_SHARE_STATUS;
-                isPayerShare: 0 | 1;
-              }> = [];
+              const shareRows = [];
               const groupIdValue =
                 transactionCreateWithDetails.sharedWith === SHARE_TYPE.GROUP
                   ? (transactionCreateWithDetails.groupId ?? null)
@@ -331,14 +306,13 @@ export class TransactionService {
                 payerUserId: payerId,
                 participantUserId: payerId,
                 groupId: groupIdValue,
-                type: EXPENSE_SHARE_TYPE.EXPENSE,
+                type: EXPENSE_SHARE_TYPE.EXPENSE, // New field for unified schema
                 shareType: transactionCreateWithDetails.sharedWith,
                 splitType: transactionCreateWithDetails.splitType,
                 expenseAccountId: dstAcc.id,
                 currency: userCurrency,
                 amount: payerTotal,
                 paidAmount: payerTotal, // payer has already effectively paid their share
-                // change this as payer has already effectively paid their share
                 status:
                   payerTotal > 0
                     ? EXPENSE_SHARE_STATUS.PAID
@@ -353,10 +327,10 @@ export class TransactionService {
                   payerUserId: payerId,
                   participantUserId: split.userId,
                   groupId: groupIdValue,
-                  type: EXPENSE_SHARE_TYPE.EXPENSE,
+                  type: EXPENSE_SHARE_TYPE.EXPENSE, // New field for unified schema
                   shareType: transactionCreateWithDetails.sharedWith,
                   splitType: transactionCreateWithDetails.splitType,
-                  expenseAccountId: dstAcc.id, // why this is here
+                  expenseAccountId: dstAcc.id,
                   currency: userCurrency,
                   amount: split.amountOwed,
                   paidAmount: 0,
@@ -365,7 +339,10 @@ export class TransactionService {
                 });
               }
 
-              await this.expenseShareRepository.createMany(shareRows, tx);
+              await this.unifiedExpenseShareRepository.createMany(
+                shareRows,
+                tx
+              );
             }
           } else {
             throw new NotFoundError("Provided share type not found");

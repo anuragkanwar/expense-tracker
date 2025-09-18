@@ -13,6 +13,15 @@ export * from "./transactions";
 // Loan routes (direct loans canonical path)
 export * from "./loans";
 
+// Loan routes (using expense_share schema)
+export * from "./loans";
+
+// Transaction routes (using expense_share schema)
+export * from "./transactions";
+
+// Settlement routes (using expense_share schema)
+export * from "./settlements";
+
 // Financial tracking routes
 export * from "./passbook";
 

@@ -7,6 +7,7 @@ import { BadRequestError } from "@/errors/base-error";
 import { SettlementRepository } from "@/repositories/settlement-repository";
 import {
   TransactionRepository,
+  TransactionEntryRepository,
   TransactionAccountRepository,
 } from "@/repositories";
 import {
@@ -14,11 +15,10 @@ import {
   EXPENSE_SHARE_STATUS,
   EXPENSE_SHARE_TYPE,
   type DBType,
-  type DBTransactionType,
 } from "@/db";
 import { TransactionAccountNotFoundError } from "@/errors/transaction-account-errors";
 import { TransactionHelperService } from "./transaction-helper-service";
-import { ExpenseShareRepository } from "@/repositories/expense-share-repository";
+import { UnifiedExpenseShareRepository } from "@/repositories/unified-expense-share-repository";
 import { InterpersonalDebtEngine } from "./interpersonal-debt-engine";
 import {
   SettlementApplicationRepository,
@@ -26,7 +26,7 @@ import {
 } from "@/repositories/settlement-application-repository";
 import { IdempotencyKeyConflictError } from "@/errors/idempotency-errors";
 
-interface SettlementResult {
+interface UnifiedSettlementResult {
   settlement: SettlementResponse;
   applications: SettlementApplicationResponse[];
   totalApplied: number;
@@ -34,44 +34,23 @@ interface SettlementResult {
   outstandingAfter: number;
 }
 
-export class SettlementService {
+export class UnifiedSettlementService {
   private readonly settlementRepository;
   private readonly transactionRepository;
   private readonly transactionAccountRepository;
   private readonly transactionHelperService;
-  private readonly expenseShareRepository: ExpenseShareRepository;
+  private readonly unifiedExpenseShareRepository: UnifiedExpenseShareRepository;
   private readonly settlementApplicationRepository: SettlementApplicationRepository;
 
   private readonly interpersonalDebtEngine: InterpersonalDebtEngine;
   private readonly db: DBType;
-
-  /**
-   * Private helper method to wrap the repository call and ensure consistent parameter order
-   */
-  private async findAllocatableShares(
-    debtorId: number,
-    creditorId: number,
-    currency: string,
-    groupId: number | null,
-    type: EXPENSE_SHARE_TYPE | null,
-    tx: DBTransactionType
-  ) {
-    return this.expenseShareRepository.findAllocatableShares(
-      debtorId,
-      creditorId,
-      currency,
-      groupId,
-      type,
-      tx
-    );
-  }
 
   constructor({
     settlementRepository,
     transactionRepository,
     transactionAccountRepository,
     transactionHelperService,
-    expenseShareRepository,
+    unifiedExpenseShareRepository,
     settlementApplicationRepository,
 
     db,
@@ -81,7 +60,7 @@ export class SettlementService {
     transactionRepository: TransactionRepository;
     transactionAccountRepository: TransactionAccountRepository;
     transactionHelperService: TransactionHelperService;
-    expenseShareRepository: ExpenseShareRepository;
+    unifiedExpenseShareRepository: UnifiedExpenseShareRepository;
     settlementApplicationRepository: SettlementApplicationRepository;
     interpersonalDebtEngine: InterpersonalDebtEngine;
     db: DBType;
@@ -90,7 +69,7 @@ export class SettlementService {
     this.transactionRepository = transactionRepository;
     this.transactionAccountRepository = transactionAccountRepository;
     this.transactionHelperService = transactionHelperService;
-    this.expenseShareRepository = expenseShareRepository;
+    this.unifiedExpenseShareRepository = unifiedExpenseShareRepository;
     this.settlementApplicationRepository = settlementApplicationRepository;
 
     this.db = db;
@@ -196,7 +175,7 @@ export class SettlementService {
     groupId?: number | null;
     idempotencyKey?: string | null;
     type?: EXPENSE_SHARE_TYPE | null;
-  }): Promise<SettlementResult> {
+  }): Promise<UnifiedSettlementResult> {
     const {
       payerId,
       payeeId,
@@ -215,16 +194,16 @@ export class SettlementService {
     }
 
     const result = await this.db.transaction(async (tx) => {
-      // 1. Fetch allocatable shares using our helper method
-      const shares = await this.findAllocatableShares(
-        payerId,
-        payeeId,
-        currency,
-        groupId ?? null,
-        type,
-        tx
-      );
-
+      // 1. Fetch allocatable shares
+      const shares =
+        await this.unifiedExpenseShareRepository.findAllocatableShares(
+          payerId,
+          payeeId,
+          currency,
+          groupId ?? null,
+          type,
+          tx
+        );
       if (!shares.length) {
         throw new BadRequestError("No outstanding obligations to settle");
       }
@@ -298,7 +277,7 @@ export class SettlementService {
             totalApplied: appliedSum,
             outstandingBefore: outstandingBefore + appliedSum, // approximate prior before
             outstandingAfter: outstandingBefore,
-          } satisfies SettlementResult;
+          } satisfies UnifiedSettlementResult;
         }
       }
 
@@ -384,7 +363,7 @@ export class SettlementService {
             : EXPENSE_SHARE_STATUS.PARTIALLY_PAID;
 
         // Update the share payment using the unified repository
-        await this.expenseShareRepository.update(
+        await this.unifiedExpenseShareRepository.update(
           share.id,
           {
             paidAmount: newPaid,
@@ -427,7 +406,7 @@ export class SettlementService {
         totalApplied,
         outstandingBefore,
         outstandingAfter,
-      } satisfies SettlementResult;
+      } satisfies UnifiedSettlementResult;
     });
 
     return result;
@@ -444,7 +423,7 @@ export class SettlementService {
     currency: string;
     groupId?: number | null;
     idempotencyKey?: string | null;
-  }): Promise<SettlementResult> {
+  }): Promise<UnifiedSettlementResult> {
     return this.allocateSettlement({
       ...params,
       type: EXPENSE_SHARE_TYPE.EXPENSE,
@@ -462,7 +441,7 @@ export class SettlementService {
     currency: string;
     groupId?: number | null;
     idempotencyKey?: string | null;
-  }): Promise<SettlementResult> {
+  }): Promise<UnifiedSettlementResult> {
     return this.allocateSettlement({
       ...params,
       type: EXPENSE_SHARE_TYPE.LOAN,

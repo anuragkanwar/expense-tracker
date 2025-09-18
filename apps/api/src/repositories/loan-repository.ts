@@ -21,6 +21,10 @@ export type LoanFilters = {
   friendId?: number;
 };
 
+// Define types for database query results
+type LoanRecord = typeof loan.$inferSelect;
+type LoanSplitRecord = typeof loanSplit.$inferSelect;
+
 /**
  * Repository for loan operations with optimized queries for
  * personal vs group contexts and creditor/debtor relationships
@@ -37,9 +41,19 @@ export class LoanRepository {
   private formatLoanResponse(item: Record<string, any>): LoanResponse {
     return {
       ...item,
-      loanDate: item.loanDate?.toISOString?.(),
-      createdAt: item.createdAt?.toISOString?.(),
-      updatedAt: item.updatedAt?.toISOString?.(),
+      // Handle potentially undefined dates with optional chaining
+      loanDate:
+        item.loanDate instanceof Date
+          ? item.loanDate.toISOString()
+          : item.loanDate,
+      createdAt:
+        item.createdAt instanceof Date
+          ? item.createdAt.toISOString()
+          : item.createdAt,
+      updatedAt:
+        item.updatedAt instanceof Date
+          ? item.updatedAt.toISOString()
+          : item.updatedAt,
     } as LoanResponse;
   }
 
@@ -105,7 +119,7 @@ export class LoanRepository {
       );
     }
 
-    if (userId && !asCreditor && asDebtor) {
+    if (userId && asDebtor && !asCreditor) {
       return this.findLoansByDebtor(
         userId,
         { isPersonal, groupId, limit, offset },
@@ -113,47 +127,36 @@ export class LoanRepository {
       );
     }
 
-    // Handle group-specific view
-    if (groupId !== undefined) {
-      return this.findLoansByGroup(
-        groupId !== null ? groupId : 0,
-        { userId, limit, offset },
-        tx
-      );
-    }
-
-    // Default case - use combined view for user
-    if (userId) {
-      return this.findAllLoansForUser(
+    // For full/combined view, need a more complex approach to efficiently fetch all data
+    const loanItems = await this.findLoansWithRoles(
+      {
         userId,
-        { isPersonal, limit, offset },
-        tx
-      );
-    }
+        groupId,
+        isPersonal,
+        asCreditor,
+        asDebtor,
+        limit,
+        offset,
+        sortOrder,
+        sortField,
+      },
+      tx
+    );
 
-    // Fallback for admin-level queries with no filters
-    const result = await db
-      .select()
-      .from(loan)
-      .orderBy(
-        sortOrder === "asc" ? asc(loan[sortField]) : desc(loan[sortField])
-      )
-      .limit(limit)
-      .offset(offset);
-
-    // Enrich with debtor information
     const enrichedLoans = await Promise.all(
-      result.map(async (item) => {
+      loanItems.map(async (item) => {
+        // Get splits associated with this loan
         const splits = await db
           .select()
           .from(loanSplit)
           .where(eq(loanSplit.loanId, item.id));
 
+        // Decorate with creditor/debtor info when available
         if (splits.length === 1) {
           return this.formatLoanResponse({
             ...item,
             creditorId: item.createdBy,
-            debtorId: splits[0].userId,
+            debtorId: splits[0]?.userId,
           });
         }
 
@@ -187,25 +190,25 @@ export class LoanRepository {
 
     const db = tx ?? this.db;
 
-    // Build query conditionally based on context filters
-    let query = db.select().from(loan);
-
-    // Filter by creditor
-    query = query.where(eq(loan.createdBy, userId));
+    // Build query with filter conditions
+    let conditions = [eq(loan.createdBy, userId)];
 
     // Apply context filters
     if (groupId !== null && groupId !== undefined) {
       // Specific group
-      query = query.where(eq(loan.groupId, groupId));
+      conditions.push(eq(loan.groupId, groupId as number));
     } else if (isPersonal) {
       // Personal loans only (no group)
-      query = query.where(isNull(loan.groupId));
+      conditions.push(isNull(loan.groupId));
     } else {
       // All group loans (any group)
-      query = query.where(not(isNull(loan.groupId)));
+      conditions.push(not(isNull(loan.groupId)));
     }
 
-    const result = await query
+    const result = await db
+      .select()
+      .from(loan)
+      .where(and(...conditions))
       .orderBy(desc(loan.createdAt))
       .limit(limit)
       .offset(offset);
@@ -223,7 +226,7 @@ export class LoanRepository {
         return this.formatLoanResponse({
           ...item,
           creditorId: userId,
-          debtorId: splits.length === 1 ? splits[0].userId : undefined,
+          debtorId: splits.length > 0 ? splits[0]?.userId : undefined,
         });
       })
     );
@@ -252,281 +255,351 @@ export class LoanRepository {
 
     const db = tx ?? this.db;
 
-    // Use a more efficient join query
-    let query = db
-      .select({
-        loan: loan,
-        split: loanSplit,
-      })
-      .from(loan)
-      .innerJoin(loanSplit, eq(loan.id, loanSplit.loanId))
+    // First get the loans where user is a participant (split)
+    const loanIds = await db
+      .select({ id: loanSplit.loanId })
+      .from(loanSplit)
       .where(eq(loanSplit.userId, userId));
+
+    if (loanIds.length === 0) {
+      return [];
+    }
+
+    // Create IN condition for loan IDs
+    const loanIdConditions = loanIds.map(({ id }) => eq(loan.id, id));
+
+    // Build conditions
+    let conditions = [or(...loanIdConditions)];
 
     // Apply context filters
     if (groupId !== null && groupId !== undefined) {
-      // Specific group
-      query = query.where(eq(loan.groupId, groupId));
+      conditions.push(eq(loan.groupId, groupId as number));
     } else if (isPersonal) {
-      // Personal loans only (no group)
-      query = query.where(isNull(loan.groupId));
+      conditions.push(isNull(loan.groupId));
     } else {
-      // All group loans (any group)
-      query = query.where(not(isNull(loan.groupId)));
+      conditions.push(not(isNull(loan.groupId)));
     }
 
-    const result = await query
+    const result = await db
+      .select()
+      .from(loan)
+      .where(and(...conditions))
       .orderBy(desc(loan.createdAt))
       .limit(limit)
       .offset(offset);
 
-    // Transform results to standard format with debtor info
-    return result.map((row) => {
+    // Format the result with creditor/debtor info
+    return result.map((item) => {
       return this.formatLoanResponse({
-        ...row.loan,
-        creditorId: row.loan.createdBy,
+        ...item,
+        creditorId: item.createdBy,
         debtorId: userId,
       });
     });
   }
 
   /**
-   * Find all loans for a user, either as creditor or debtor
-   * Efficient for personal dashboard views
-   */
-  async findAllLoansForUser(
-    userId: number,
-    options: {
-      isPersonal?: boolean;
-      groupId?: number | null;
-      limit?: number;
-      offset?: number;
-    } = {},
-    tx?: DBTransactionType
-  ): Promise<LoanResponse[]> {
-    const {
-      isPersonal = true,
-      groupId = null,
-      limit = 10,
-      offset = 0,
-    } = options;
-
-    const db = tx ?? this.db;
-
-    // First, get loans where user is creditor
-    const loansAsCreditor = await this.findLoansByCreditor(
-      userId,
-      { isPersonal, groupId, limit: limit * 2, offset: 0 },
-      tx
-    );
-
-    // Then, get loans where user is debtor
-    const loansAsDebtor = await this.findLoansByDebtor(
-      userId,
-      { isPersonal, groupId, limit: limit * 2, offset: 0 },
-      tx
-    );
-
-    // Combine and sort by creation date
-    const allLoans = [...loansAsCreditor, ...loansAsDebtor]
-      .sort(
-        (a, b) =>
-          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-      )
-      .slice(offset, offset + limit);
-
-    return allLoans;
-  }
-
-  /**
-   * Find loans by group with optimized query
-   */
-  async findLoansByGroup(
-    groupId: number,
-    options: {
-      userId?: number | null;
-      limit?: number;
-      offset?: number;
-    } = {},
-    tx?: DBTransactionType
-  ): Promise<LoanResponse[]> {
-    const { userId = null, limit = 10, offset = 0 } = options;
-
-    const db = tx ?? this.db;
-
-    // Start with base query for group loans
-    let query = db.select().from(loan).where(eq(loan.groupId, groupId));
-
-    // If userId provided, filter to show only loans where user is involved
-    if (userId) {
-      // User is either creditor or involved in a loan split
-      query = query.where(
-        or(
-          eq(loan.createdBy, userId),
-          sql`EXISTS (SELECT 1 FROM ${loanSplit} WHERE ${loanSplit.loanId} = ${loan.id} AND ${loanSplit.userId} = ${userId})`
-        )
-      );
-    }
-
-    const result = await query
-      .orderBy(desc(loan.createdAt))
-      .limit(limit)
-      .offset(offset);
-
-    // Enrich with creditor and debtor information
-    const enrichedLoans = await Promise.all(
-      result.map(async (loanItem) => {
-        const splits = await db
-          .select()
-          .from(loanSplit)
-          .where(eq(loanSplit.loanId, loanItem.id));
-
-        // For direct loans (only one debtor)
-        if (splits.length === 1) {
-          return this.formatLoanResponse({
-            ...loanItem,
-            creditorId: loanItem.createdBy,
-            debtorId: splits[0].userId,
-          });
-        }
-
-        // For loans with multiple debtors or no debtors (edge case)
-        return this.formatLoanResponse({
-          ...loanItem,
-          creditorId: loanItem.createdBy,
-        });
-      })
-    );
-
-    return enrichedLoans;
-  }
-
-  /**
-   * Find loans between specific users (friend-to-friend view)
+   * Find loans between two users in either direction
+   * Optimized for friend-to-friend loan retrieval
    */
   async findLoansBetweenUsers(
     user1Id: number,
     user2Id: number,
-    options: {
-      limit?: number;
-      offset?: number;
-    } = {},
+    options: { limit?: number; offset?: number } = {},
     tx?: DBTransactionType
   ): Promise<LoanResponse[]> {
     const { limit = 10, offset = 0 } = options;
-
     const db = tx ?? this.db;
 
-    // Get loans where user1 is creditor to user2
-    const loans1to2 = await db
+    // Find loans where user1 is creditor and user2 is debtor
+    const user1AsCreditorResults = await db
       .select({
         loan: loan,
-        split: loanSplit,
+        loan_split: loanSplit,
       })
       .from(loan)
       .innerJoin(loanSplit, eq(loan.id, loanSplit.loanId))
-      .where(eq(loan.createdBy, user1Id))
-      .where(eq(loanSplit.userId, user2Id))
-      .where(isNull(loan.groupId));
+      .where(and(eq(loan.createdBy, user1Id), eq(loanSplit.userId, user2Id)))
+      .orderBy(desc(loan.createdAt))
+      .limit(limit)
+      .offset(offset);
 
-    // Get loans where user2 is creditor to user1
-    const loans2to1 = await db
+    // Find loans where user2 is creditor and user1 is debtor
+    const user2AsCreditorResults = await db
       .select({
         loan: loan,
-        split: loanSplit,
+        loan_split: loanSplit,
       })
       .from(loan)
       .innerJoin(loanSplit, eq(loan.id, loanSplit.loanId))
-      .where(eq(loan.createdBy, user2Id))
-      .where(eq(loanSplit.userId, user1Id))
-      .where(isNull(loan.groupId));
+      .where(and(eq(loan.createdBy, user2Id), eq(loanSplit.userId, user1Id)))
+      .orderBy(desc(loan.createdAt))
+      .limit(limit)
+      .offset(offset);
 
-    // Combine and transform results
-    const allLoans = [
-      ...loans1to2.map((row) => ({
-        ...row.loan,
-        creditorId: user1Id,
-        debtorId: user2Id,
-      })),
-      ...loans2to1.map((row) => ({
-        ...row.loan,
-        creditorId: user2Id,
-        debtorId: user1Id,
-      })),
+    // Combine and format results
+    const combinedResults = [
+      ...user1AsCreditorResults,
+      ...user2AsCreditorResults,
     ]
       .sort((a, b) => {
-        const dateA =
-          a.createdAt instanceof Date ? a.createdAt : new Date(a.createdAt);
-        const dateB =
-          b.createdAt instanceof Date ? b.createdAt : new Date(b.createdAt);
+        // Sort by createdAt DESC
+        const dateA = new Date(a.loan.createdAt);
+        const dateB = new Date(b.loan.createdAt);
         return dateB.getTime() - dateA.getTime();
       })
-      .slice(offset, offset + limit);
+      .slice(0, limit);
 
-    return allLoans.map((loan) => this.formatLoanResponse(loan));
+    return combinedResults.map((row) => {
+      const creditorId = row.loan.createdBy;
+      const debtorId = row.loan_split?.userId;
+      return this.formatLoanResponse({
+        ...row.loan,
+        creditorId,
+        debtorId,
+      });
+    });
   }
 
   /**
-   * Find a loan by its ID with enriched information
+   * Find loans with role-specific filters
+   * Helper for combining creditor and debtor views
+   */
+  private async findLoansWithRoles(
+    filters: LoanFilters,
+    tx?: DBTransactionType
+  ): Promise<LoanRecord[]> {
+    const {
+      userId,
+      groupId,
+      isPersonal = true,
+      asCreditor = true,
+      asDebtor = true,
+      limit = 10,
+      offset = 0,
+      sortOrder = "desc",
+    } = filters;
+
+    const db = tx ?? this.db;
+
+    // Specific to group view
+    if (groupId !== undefined && groupId !== null) {
+      let conditions = [eq(loan.groupId, groupId as number)];
+
+      // If userId provided, filter to show only loans where user is involved
+      if (userId) {
+        const userCondition = or(
+          eq(loan.createdBy, userId),
+          sql`EXISTS (SELECT 1 FROM ${loanSplit} WHERE ${loanSplit.loanId} = ${loan.id} AND ${loanSplit.userId} = ${userId})`
+        );
+        if (userCondition) {
+          conditions.push(userCondition);
+        }
+      }
+
+      const result = await db
+        .select()
+        .from(loan)
+        .where(and(...conditions))
+        .orderBy(
+          sortOrder === "asc" ? asc(loan.createdAt) : desc(loan.createdAt)
+        )
+        .limit(limit)
+        .offset(offset);
+
+      return result;
+    }
+
+    // Standard personal loans view
+    if (userId) {
+      // Prepare context condition
+      const contextCondition = isPersonal
+        ? isNull(loan.groupId)
+        : not(isNull(loan.groupId));
+
+      if (asCreditor && asDebtor) {
+        // Combine queries for both roles
+        const asCreditorResults = await db
+          .select()
+          .from(loan)
+          .where(and(eq(loan.createdBy, userId), contextCondition));
+
+        const asDebtorResults = await db
+          .select({
+            loan: loan,
+          })
+          .from(loan)
+          .innerJoin(loanSplit, eq(loan.id, loanSplit.loanId))
+          .where(and(eq(loanSplit.userId, userId), contextCondition))
+          .orderBy(
+            sortOrder === "asc" ? asc(loan.createdAt) : desc(loan.createdAt)
+          )
+          .limit(limit)
+          .offset(offset);
+
+        // Combine results manually
+        const debtorLoans = asDebtorResults.map((row) => row.loan);
+
+        // Merge, sort, limit
+        return [...asCreditorResults, ...debtorLoans]
+          .sort((a, b) => {
+            const dateA = new Date(a.createdAt);
+            const dateB = new Date(b.createdAt);
+            return sortOrder === "asc"
+              ? dateA.getTime() - dateB.getTime()
+              : dateB.getTime() - dateA.getTime();
+          })
+          .slice(0, limit);
+      } else if (asCreditor) {
+        // Just creditor role
+        return await db
+          .select()
+          .from(loan)
+          .where(and(eq(loan.createdBy, userId), contextCondition))
+          .orderBy(
+            sortOrder === "asc" ? asc(loan.createdAt) : desc(loan.createdAt)
+          )
+          .limit(limit)
+          .offset(offset);
+      } else if (asDebtor) {
+        // Just debtor role
+        const loanIds = await db
+          .select({ id: loanSplit.loanId })
+          .from(loanSplit)
+          .where(eq(loanSplit.userId, userId));
+
+        if (loanIds.length === 0) {
+          return [];
+        }
+
+        const loanIdConditions = loanIds.map(({ id }) => eq(loan.id, id));
+
+        return await db
+          .select()
+          .from(loan)
+          .where(and(or(...loanIdConditions), contextCondition))
+          .orderBy(
+            sortOrder === "asc" ? asc(loan.createdAt) : desc(loan.createdAt)
+          )
+          .limit(limit)
+          .offset(offset);
+      } else {
+        return []; // No roles specified
+      }
+    }
+
+    // Default fallback for all loans
+    return await db
+      .select()
+      .from(loan)
+      .orderBy(sortOrder === "asc" ? asc(loan.createdAt) : desc(loan.createdAt))
+      .limit(limit)
+      .offset(offset);
+  }
+
+  /**
+   * Find loan by id
    */
   async findById(
     id: number,
     tx?: DBTransactionType
   ): Promise<LoanResponse | null> {
     const db = tx ?? this.db;
-
-    // Get the loan with a single query
     const result = await db.select().from(loan).where(eq(loan.id, id)).limit(1);
 
     if (result.length === 0) {
       return null;
     }
 
-    const loanItem = result[0]!;
+    const item = result[0];
+    if (!item) return null;
 
-    // Get the loan split to determine the debtor
+    // Get splits to determine debtor
     const splits = await db
       .select()
       .from(loanSplit)
-      .where(eq(loanSplit.loanId, id));
+      .where(eq(loanSplit.loanId, item.id));
 
-    // Return enriched response with debtor info when available
-    if (splits.length === 1) {
-      return this.formatLoanResponse({
-        ...loanItem,
-        creditorId: loanItem.createdBy,
-        debtorId: splits[0].userId,
-      });
-    }
-
-    // Just return basic loan info
-    return this.formatLoanResponse(loanItem);
+    return this.formatLoanResponse({
+      ...item,
+      creditorId: item.createdBy,
+      debtorId: splits.length === 1 ? splits[0]?.userId : undefined,
+    });
   }
 
   /**
-   * Create a new loan
+   * Find loan with splits
+   */
+  async findByIdWithSplits(
+    id: number,
+    tx?: DBTransactionType
+  ): Promise<{ loan: LoanResponse; splits: any[] } | null> {
+    const loanItem = await this.findById(id, tx);
+    if (!loanItem) return null;
+
+    const db = tx ?? this.db;
+    const splits = await db
+      .select()
+      .from(loanSplit)
+      .where(eq(loanSplit.loanId, loanItem.id));
+
+    return {
+      loan: loanItem,
+      splits,
+    };
+  }
+
+  /**
+   * Create a loan and return the created loan with ID
    */
   async create(
     data: LoanCreate,
     tx?: DBTransactionType
   ): Promise<LoanResponse> {
     const db = tx ?? this.db;
+
+    // Process data to handle date conversion
     const insertData = {
       ...data,
-      loanDate: data.loanDate ? new Date(data.loanDate) : undefined,
+      // Convert string dates to Date objects for db insertion if needed
+      loanDate: data.loanDate ? new Date(data.loanDate) : new Date(),
     };
 
+    // Insert loan
     const result = await db.insert(loan).values(insertData).returning();
 
-    if (result.length === 0) {
+    if (!result || result.length === 0) {
       throw new Error("Failed to create loan");
     }
 
-    const item = result[0]!;
-    return this.formatLoanResponse(item);
+    const createdLoan = result[0];
+    if (!createdLoan) {
+      throw new Error("Failed to retrieve created loan");
+    }
+
+    return this.formatLoanResponse(createdLoan);
   }
 
   /**
-   * Update an existing loan
+   * Create splits for a loan
+   */
+  async createSplits(
+    loanId: number,
+    splits: { userId: number; amountOwed: number }[],
+    tx?: DBTransactionType
+  ) {
+    const db = tx ?? this.db;
+    const values = splits.map(({ userId, amountOwed }) => ({
+      loanId,
+      userId,
+      amountOwed,
+    }));
+
+    return db.insert(loanSplit).values(values).returning();
+  }
+
+  /**
+   * Update a loan
    */
   async update(
     id: number,
@@ -534,15 +607,29 @@ export class LoanRepository {
     tx?: DBTransactionType
   ): Promise<LoanResponse | null> {
     const db = tx ?? this.db;
-    const updateData = {
-      ...data,
-      loanDate: data.loanDate ? new Date(data.loanDate) : undefined,
-      updatedAt: new Date(),
-    };
 
-    await db.update(loan).set(updateData).where(eq(loan.id, id));
+    // Process data to handle date conversion
+    const updateData: Record<string, any> = { ...data };
 
-    return await this.findById(id, tx);
+    // Convert string dates to Date objects for db update
+    if (typeof data.loanDate === "string") {
+      updateData.loanDate = new Date(data.loanDate);
+    }
+
+    const result = await db
+      .update(loan)
+      .set(updateData)
+      .where(eq(loan.id, id))
+      .returning();
+
+    if (result.length === 0) {
+      return null;
+    }
+
+    const updatedLoan = result[0];
+    if (!updatedLoan) return null;
+
+    return this.formatLoanResponse(updatedLoan);
   }
 
   /**
@@ -550,81 +637,98 @@ export class LoanRepository {
    */
   async delete(id: number, tx?: DBTransactionType): Promise<boolean> {
     const db = tx ?? this.db;
-    const result = await db.delete(loan).where(eq(loan.id, id));
 
-    return result.rowsAffected > 0;
+    // Delete associated splits first
+    await db.delete(loanSplit).where(eq(loanSplit.loanId, id));
+
+    // Then delete the loan
+    const result = await db.delete(loan).where(eq(loan.id, id)).returning();
+
+    return result.length > 0;
   }
 
   /**
-   * Count loans matching the specified criteria
-   * Useful for pagination without fetching all records
+   * Count loans based on filters
    */
-  async countLoans(
+  async count(
     filters: LoanFilters = {},
     tx?: DBTransactionType
   ): Promise<number> {
     const {
       userId,
       groupId,
-      isPersonal = groupId === undefined,
+      isPersonal = true,
       asCreditor = true,
       asDebtor = true,
-      friendId,
     } = filters;
 
     const db = tx ?? this.db;
 
-    // Special case: counting loans between friends
-    if (userId && friendId) {
-      // Count loans where either user is the creditor and the other is the debtor
-      const result = await db
+    // Special case: count between two users
+    if (userId && filters.friendId) {
+      const user1Id = userId;
+      const user2Id = filters.friendId;
+
+      // Count loans where user1 is creditor and user2 is debtor
+      const asCreditorResult = await db
         .select({ value: count() })
         .from(loan)
         .innerJoin(loanSplit, eq(loan.id, loanSplit.loanId))
-        .where(
-          or(
-            and(eq(loan.createdBy, userId), eq(loanSplit.userId, friendId)),
-            and(eq(loan.createdBy, friendId), eq(loanSplit.userId, userId))
-          )
-        )
-        .where(isNull(loan.groupId));
+        .where(and(eq(loan.createdBy, user1Id), eq(loanSplit.userId, user2Id)));
 
-      return result[0]?.value || 0;
+      // Count loans where user2 is creditor and user1 is debtor
+      const asDebtorResult = await db
+        .select({ value: count() })
+        .from(loan)
+        .innerJoin(loanSplit, eq(loan.id, loanSplit.loanId))
+        .where(and(eq(loan.createdBy, user2Id), eq(loanSplit.userId, user1Id)));
+
+      return (
+        Number(asCreditorResult[0]?.value || 0) +
+        Number(asDebtorResult[0]?.value || 0)
+      );
     }
 
     // Special case: loans for a specific group
-    if (groupId !== undefined) {
-      let query = db
-        .select({ value: count() })
-        .from(loan)
-        .where(eq(loan.groupId, groupId));
+    if (groupId !== undefined && groupId !== null) {
+      const groupCondition = eq(loan.groupId, groupId as number);
 
       // If a user is specified, filter to their involvement
       if (userId) {
-        query = query.where(
-          or(
-            eq(loan.createdBy, userId),
-            sql`EXISTS (SELECT 1 FROM ${loanSplit} WHERE ${loanSplit.loanId} = ${loan.id} AND ${loanSplit.userId} = ${userId})`
-          )
+        const userCondition = or(
+          eq(loan.createdBy, userId),
+          sql`EXISTS (SELECT 1 FROM ${loanSplit} WHERE ${loanSplit.loanId} = ${loan.id} AND ${loanSplit.userId} = ${userId})`
         );
-      }
 
-      const result = await query;
-      return result[0]?.value || 0;
+        const result = await db
+          .select({ value: count() })
+          .from(loan)
+          .where(and(groupCondition, userCondition));
+
+        return Number(result[0]?.value || 0);
+      } else {
+        const result = await db
+          .select({ value: count() })
+          .from(loan)
+          .where(groupCondition);
+
+        return Number(result[0]?.value || 0);
+      }
     }
 
     // Count based on role (creditor, debtor, or both)
     if (userId) {
+      const contextCondition = isPersonal
+        ? isNull(loan.groupId)
+        : not(isNull(loan.groupId));
+
       // Count as creditor
       const creditorCountPromise = asCreditor
         ? db
             .select({ value: count() })
             .from(loan)
-            .where(eq(loan.createdBy, userId))
-            .where(
-              isPersonal ? isNull(loan.groupId) : not(isNull(loan.groupId))
-            )
-            .then((result) => result[0]?.value || 0)
+            .where(and(eq(loan.createdBy, userId), contextCondition))
+            .then((result) => Number(result[0]?.value || 0))
         : Promise.resolve(0);
 
       // Count as debtor
@@ -633,45 +737,20 @@ export class LoanRepository {
             .select({ value: count() })
             .from(loan)
             .innerJoin(loanSplit, eq(loan.id, loanSplit.loanId))
-            .where(eq(loanSplit.userId, userId))
-            .where(
-              isPersonal ? isNull(loan.groupId) : not(isNull(loan.groupId))
-            )
-            .then((result) => result[0]?.value || 0)
+            .where(and(eq(loanSplit.userId, userId), contextCondition))
+            .then((result) => Number(result[0]?.value || 0))
         : Promise.resolve(0);
 
-      // Combine counts, but need to account for potential overlap
-      if (asCreditor && asDebtor) {
-        // Need to get total unique loans where user is involved
-        const totalCountPromise = db
-          .select({ value: count() })
-          .from(loan)
-          .where(
-            or(
-              eq(loan.createdBy, userId),
-              sql`EXISTS (SELECT 1 FROM ${loanSplit} WHERE ${loanSplit.loanId} = ${loan.id} AND ${loanSplit.userId} = ${userId})`
-            )
-          )
-          .where(isPersonal ? isNull(loan.groupId) : not(isNull(loan.groupId)))
-          .then((result) => result[0]?.value || 0);
+      const [creditorCount, debtorCount] = await Promise.all([
+        creditorCountPromise,
+        debtorCountPromise,
+      ]);
 
-        return totalCountPromise;
-      } else {
-        // Just add the counts since we're only looking at one role
-        const [creditorCount, debtorCount] = await Promise.all([
-          creditorCountPromise,
-          debtorCountPromise,
-        ]);
-        return creditorCount + debtorCount;
-      }
+      return creditorCount + debtorCount;
     }
 
-    // Default case - count all loans matching context filter
-    const result = await db
-      .select({ value: count() })
-      .from(loan)
-      .where(isPersonal ? isNull(loan.groupId) : not(isNull(loan.groupId)));
-
-    return result[0]?.value || 0;
+    // Count all loans
+    const result = await db.select({ value: count() }).from(loan);
+    return Number(result[0]?.value || 0);
   }
 }

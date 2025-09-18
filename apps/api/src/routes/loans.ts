@@ -5,12 +5,15 @@ import {
   getLoanRoute,
   updateLoanRoute,
   deleteLoanRoute,
-  getGroupLoansRoute,
-  getFriendLoansRoute,
 } from "./loans.contracts";
 import { requireAuthMiddleware } from "@/middleware/require-auth-middleware";
 import { handleRouteError } from "@/utils/error-response-handler";
 
+/**
+ * This is the standard implementation of loan routes that uses the LoanService.
+ * The API contracts remain the same, and the underlying implementation uses
+ * the unified expense_share schema.
+ */
 export const loanRoutes = new OpenAPIHono();
 
 loanRoutes.use(requireAuthMiddleware());
@@ -37,7 +40,11 @@ loanRoutes.openapi(getLoansRoute, async (c) => {
     const query = c.req.valid("query");
     const { loanService } = c.get("services");
     const { page, limit, type } = query;
-    const result = await loanService.getLoans(user.id, { page, limit, type });
+    const result = await loanService.getLoans(user.id, {
+      page,
+      limit,
+      type,
+    });
     return c.json(result, 200);
   } catch (error: unknown) {
     const { json, status } = handleRouteError(error);
@@ -88,46 +95,6 @@ loanRoutes.openapi(deleteLoanRoute, async (c) => {
   }
 });
 
-// Group loan routes
-loanRoutes.openapi(getGroupLoansRoute, async (c) => {
-  try {
-    const user = c.get("user");
-    if (!user) return c.json({ message: "Unauthorized" }, 401);
-    const { groupId } = c.req.valid("param");
-    const query = c.req.valid("query");
-    const { loanService } = c.get("services");
-    const { page, limit } = query;
+// Group loan routes moved to groups.ts to maintain proper API organization
 
-    const result = await loanService.getGroupLoans(groupId, user.id, {
-      page,
-      limit,
-    });
-
-    return c.json(result, 200);
-  } catch (error: unknown) {
-    const { json, status } = handleRouteError(error);
-    return c.json(json, status);
-  }
-});
-
-// Friend loan routes
-loanRoutes.openapi(getFriendLoansRoute, async (c) => {
-  try {
-    const user = c.get("user");
-    if (!user) return c.json({ message: "Unauthorized" }, 401);
-    const { friendId } = c.req.valid("param");
-    const query = c.req.valid("query");
-    const { loanService } = c.get("services");
-    const { page, limit } = query;
-
-    const result = await loanService.getFriendLoans(friendId, user.id, {
-      page,
-      limit,
-    });
-
-    return c.json(result, 200);
-  } catch (error: unknown) {
-    const { json, status } = handleRouteError(error);
-    return c.json(json, status);
-  }
-});
+// Friend loan routes moved to friends.ts to maintain proper API organization

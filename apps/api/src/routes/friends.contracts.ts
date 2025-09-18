@@ -1,9 +1,11 @@
 import {
   FriendshipResponseSchema,
   UserResponseSchema,
+  LoanResponseSchema,
 } from "@pocket-pixie/contracts";
 
 import { createRoute, z } from "@hono/zod-openapi";
+import { IdParamSchema } from "./shared-schemas";
 
 export const getFriendsRoute = createRoute({
   method: "get",
@@ -203,5 +205,153 @@ export const unblockUserRoute = createRoute({
     400: { description: "Validation Error" },
     401: { description: "Unauthorized" },
     404: { description: "User not found" },
+  },
+});
+
+// Friend Loans Query Schema
+export const FriendLoanListQuerySchema = z.object({
+  page: z.coerce.number().int().positive().optional().openapi({ example: 1 }),
+  limit: z.coerce.number().int().positive().optional().openapi({ example: 20 }),
+});
+
+export type FriendLoanListQuery = z.infer<typeof FriendLoanListQuerySchema>;
+
+// Friend Loans API Contract
+export const getFriendLoansRoute = createRoute({
+  method: "get",
+  path: "/{friendId}/loans",
+  summary: "List loans between friends",
+  description:
+    "Lists loans between the authenticated user and a specific friend. Requires active friendship. " +
+    "Returns loans where either the authenticated user is the creditor and the friend is the debtor, " +
+    "or where the friend is the creditor and the authenticated user is the debtor. " +
+    "This endpoint provides a consolidated view of the bilateral loan relationship between two friends, " +
+    "showing both money lent and borrowed. Results are paginated and sorted by creation date (most recent first).",
+  tags: ["Friends", "Loans"],
+  request: {
+    params: z.object({
+      friendId: IdParamSchema.openapi({ description: "Friend ID" }),
+    }),
+    query: FriendLoanListQuerySchema,
+  },
+  responses: {
+    200: {
+      content: {
+        "application/json": {
+          schema: z
+            .object({
+              loans: z.array(LoanResponseSchema),
+              total: z.number(),
+              page: z.number(),
+              limit: z.number(),
+            })
+            .openapi("FriendLoanListResponse"),
+          examples: {
+            "friend-loans": {
+              value: {
+                loans: [
+                  {
+                    id: 101,
+                    amount: 50,
+                    currency: "USD",
+                    description: "Dinner",
+                    creditorId: 100,
+                    debtorId: 200,
+                    transactionId: 401,
+                    createdAt: "2025-09-16T12:00:00Z",
+                  },
+                  {
+                    id: 102,
+                    amount: 75.5,
+                    currency: "USD",
+                    description: "Movie tickets",
+                    creditorId: 200,
+                    debtorId: 100,
+                    transactionId: 402,
+                    createdAt: "2025-09-17T15:30:00Z",
+                  },
+                ],
+                total: 2,
+                page: 1,
+                limit: 20,
+              },
+            },
+          },
+        },
+      },
+      description: "Friend loans retrieved successfully",
+    },
+    400: {
+      description: "Validation Error",
+      content: {
+        "application/json": {
+          schema: z.object({
+            success: z.boolean(),
+            error: z.object({
+              code: z.string(),
+              message: z.string(),
+            }),
+          }),
+          examples: {
+            "not-friends": {
+              value: {
+                success: false,
+                error: {
+                  code: "INVALID_RELATIONSHIP",
+                  message: "You can only view expenses with friends",
+                },
+              },
+            },
+            "invalid-params": {
+              value: {
+                success: false,
+                error: {
+                  code: "VALIDATION_ERROR",
+                  message: "Invalid pagination parameters",
+                },
+              },
+            },
+            "self-reference": {
+              value: {
+                success: false,
+                error: {
+                  code: "INVALID_INPUT",
+                  message: "Cannot view loans with yourself",
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+    401: { description: "Unauthorized" },
+    403: {
+      description: "Not friends with user",
+      content: {
+        "application/json": {
+          schema: z.object({
+            success: z.boolean(),
+            error: z.object({
+              code: z.string(),
+              message: z.string(),
+            }),
+          }),
+        },
+      },
+    },
+    404: {
+      description: "User not found",
+      content: {
+        "application/json": {
+          schema: z.object({
+            success: z.boolean(),
+            error: z.object({
+              code: z.string(),
+              message: z.string(),
+            }),
+          }),
+        },
+      },
+    },
   },
 });

@@ -8,17 +8,17 @@ import {
   authRoutes,
   friendRoutes,
   groupRoutes,
-  transactionRoutesExport,
-  loanRoutes,
   passbookRoutes,
   budgetRoutes,
   accountRoutes,
   recurringItemRoutes,
   balanceRoutes,
-  dashboardRoutes,
   connectionRoutes,
-  settlementRoutes,
 } from "./routes";
+import { dashboardRoutes } from "./routes/dashboard";
+import { transactionRoutesExport } from "./routes/transactions";
+import { loanRoutes } from "./routes/loans";
+import { settlementRoutes } from "./routes/settlements";
 
 import { cors } from "hono/cors";
 import { auth } from "@/db";
@@ -68,6 +68,7 @@ app.get("/", (c) => {
       categories: "/api/v1/categories",
       "recurring-items": "/api/v1/recurring-items",
       balances: "/api/v1/balances",
+      settlements: "/api/v1/settlements",
       dashboard: "/api/v1/dashboard",
       connections: "/api/v1/connections",
     },
@@ -98,12 +99,14 @@ app.route("/api/v1/friends", friendRoutes);
 // Mount group management routes
 app.route("/api/v1/groups", groupRoutes);
 
-// Mount transaction management routes
+// Mount transaction routes
 app.route("/api/v1/transactions", transactionRoutesExport);
 
-// Mount loan routes (direct loans, group loans, friend loans)
+// No longer need to import routes here
+
+// Mount loan routes
+// Using the standard implementation that works with the unified schema
 app.route("/api/v1/loans", loanRoutes);
-app.route("/api/v1", loanRoutes); // Mount at base path for group and friend loan routes
 
 // Mount financial tracking routes
 app.route("/api/v1/passbook", passbookRoutes);
@@ -117,8 +120,10 @@ app.route("/api/v1/accounts", accountRoutes);
 // Mount recurring-items routes
 app.route("/api/v1/recurring-items", recurringItemRoutes);
 
-// Mount balances and settlements routes
+// Mount balances routes
 app.route("/api/v1/balances", balanceRoutes);
+
+// Mount settlements routes
 app.route("/api/v1/settlements", settlementRoutes);
 
 // Mount dashboard routes

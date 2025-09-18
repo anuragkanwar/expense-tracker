@@ -26,18 +26,20 @@ import {
   BalanceService,
   BudgetService,
   ConnectionService,
-  DashboardService,
-  LoanService,
   FriendService,
   GroupService,
   GroupMemberService,
   PassbookService,
   RecurringService,
-  SettlementService,
   TransactionHelperService,
-  TransactionService,
   UserService,
 } from "./services";
+// Direct imports to avoid namespace collisions
+import { LoanService } from "./services/loan-service";
+import { SettlementService } from "./services/settlement-service";
+import { DashboardService } from "./services/dashboard-service";
+import { TransactionService } from "./services/transaction-service";
+// All unified service imports have been removed
 import { db } from "@/db";
 
 const container = createContainer();
@@ -57,11 +59,13 @@ container.register({
   dashboardRepository: asClass(DashboardRepository, {
     lifetime: Lifetime.SCOPED,
   }),
+  // UnifiedDashboardRepository has been merged into DashboardRepository
 
   loanSplitsRepository: asClass(LoanSplitsRepository, {
     lifetime: Lifetime.SCOPED,
   }),
   loanRepository: asClass(LoanRepository, { lifetime: Lifetime.SCOPED }),
+  // The ExpenseShareRepository is now the primary repository for expense shares
   friendRepository: asClass(FriendRepository, { lifetime: Lifetime.SCOPED }),
   groupRepository: asClass(GroupRepository, { lifetime: Lifetime.SCOPED }),
   groupMemberRepository: asClass(GroupMemberRepository, {
@@ -103,6 +107,7 @@ container.register({
   budgetService: asClass(BudgetService, { lifetime: Lifetime.SCOPED }),
   connectionService: asClass(ConnectionService, { lifetime: Lifetime.SCOPED }),
   dashboardService: asClass(DashboardService, { lifetime: Lifetime.SCOPED }),
+  // Main LoanService using the unified expense_share schema
   loanService: asClass(LoanService, { lifetime: Lifetime.SCOPED }).inject(
     () => ({
       transactionService: container.resolve("transactionService"),
@@ -110,6 +115,7 @@ container.register({
       interpersonalDebtEngine: container.resolve("interpersonalDebtEngine"),
     })
   ),
+  // Legacy unified service registrations have been removed
   friendService: asClass(FriendService, { lifetime: Lifetime.SCOPED }),
   groupService: asClass(GroupService, { lifetime: Lifetime.SCOPED }),
   groupMemberService: asClass(GroupMemberService, {
@@ -120,7 +126,12 @@ container.register({
   }),
   transactionService: asClass(TransactionService, {
     lifetime: Lifetime.SCOPED,
-  }),
+  }).inject(() => ({
+    interpersonalDebtEngine: container.resolve("interpersonalDebtEngine"),
+    // Use the standard repository name
+    expenseShareRepository: container.resolve("expenseShareRepository"),
+  })),
+  // UnifiedTransactionService registration has been removed
   balanceAdjustmentService: asClass(
     // direct import to maintain tree-shaking and TS type safety
     (await import("./services/balance-adjustment-service"))
@@ -133,10 +144,16 @@ container.register({
     (await import("./services/interpersonal-debt-engine"))
       .InterpersonalDebtEngineImpl,
     { lifetime: Lifetime.SCOPED }
-  ),
+  ).inject(() => ({
+    balanceAdjustmentService: container.resolve("balanceAdjustmentService"),
+  })),
+  // Main SettlementService using the unified expense_share schema
   settlementService: asClass(SettlementService, {
     lifetime: Lifetime.SCOPED,
-  }),
+  }).inject(() => ({
+    interpersonalDebtEngine: container.resolve("interpersonalDebtEngine"),
+  })),
+  // UnifiedSettlementService registration has been removed
   passbookService: asClass(PassbookService, { lifetime: Lifetime.SCOPED }),
   recurringService: asClass(RecurringService, { lifetime: Lifetime.SCOPED }),
   userService: asClass(UserService, { lifetime: Lifetime.SCOPED }),

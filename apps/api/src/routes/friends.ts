@@ -5,6 +5,7 @@ import {
   getFriendRequestsRoute,
   respondToFriendRequestRoute,
   removeFriendRoute,
+  getFriendLoansRoute,
 } from "./friends.contracts";
 
 export const friendRoutes = new OpenAPIHono();
@@ -89,6 +90,29 @@ friendRoutes.openapi(removeFriendRoute, async (c) => {
       return c.json({ message: "Not authenticated" }, 401);
     }
     const result = await friendService.removeFriend(user, userId);
+    return c.json(result, 200);
+  } catch (error: unknown) {
+    const { handleRouteError } = await import("@/utils/error-response-handler");
+    const { json, status } = handleRouteError(error);
+    return c.json(json, status);
+  }
+});
+
+// Friend loan routes
+friendRoutes.openapi(getFriendLoansRoute, async (c) => {
+  try {
+    const user = c.get("user");
+    if (!user) return c.json({ message: "Unauthorized" }, 401);
+    const { friendId } = c.req.valid("param");
+    const query = c.req.valid("query");
+    const { loanService } = c.get("services");
+    const { page, limit } = query;
+
+    const result = await loanService.getFriendLoans(friendId, user.id, {
+      page,
+      limit,
+    });
+
     return c.json(result, 200);
   } catch (error: unknown) {
     const { handleRouteError } = await import("@/utils/error-response-handler");

@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { TransactionService } from "./transaction-service";
 // Local enum replicas to avoid path alias resolution in test environment
-const SHARE_TYPE = { FRIENDS: "FRIENDS", NONE: "NONE" } as const;
+const SHARE_TYPE = { GROUP: "GROUP", NONE: "NONE" } as const;
 const TXN_TYPE = {
   EXPENSE: "EXPENSE",
   LOAN_GIVEN: "LOAN_GIVEN",
@@ -52,8 +52,9 @@ describe("TransactionService - shared expense", () => {
   const mockExpenseShareRepository = {
     createMany: vi.fn(),
   } as any;
-  const mockBalanceAdjustmentService = {
-    applyBilateralDelta: vi.fn(),
+  const mockInterpersonalDebtEngine = {
+    recordDirectLoan: vi.fn(),
+    recordRepayment: vi.fn(),
   } as any;
   const mockTransactionHelperService = {
     updateAccountsAndCreateEntries: vi.fn(),
@@ -132,11 +133,11 @@ describe("TransactionService - shared expense", () => {
       transactionHelperService: mockTransactionHelperService,
       friendService: mockFriendService,
       expenseShareRepository: mockExpenseShareRepository,
-      balanceAdjustmentService: mockBalanceAdjustmentService,
+      interpersonalDebtEngine: mockInterpersonalDebtEngine,
     });
   });
 
-  it("creates expense shares and adjusts balances for shared expense (FRIENDS)", async () => {
+  it("creates expense shares and adjusts balances for shared expense (GROUP)", async () => {
     await service.createTransaction(
       {
         payer: payerId,
@@ -145,7 +146,7 @@ describe("TransactionService - shared expense", () => {
         description: "Dinner",
         amount: 100,
         type: TXN_TYPE.EXPENSE,
-        sharedWith: SHARE_TYPE.FRIENDS,
+        sharedWith: SHARE_TYPE.GROUP,
         splitType: "EQUAL" as any,
         splits: [
           { userId: 2, amountOwed: 30 },
@@ -155,30 +156,34 @@ describe("TransactionService - shared expense", () => {
       "USD"
     );
 
-    // Expect bilateral balance adjustments for each participant
+    // Expect interpersonal debt engine calls for each participant
+    expect(mockInterpersonalDebtEngine.recordDirectLoan).toHaveBeenCalledTimes(
+      2
+    );
     expect(
-      mockBalanceAdjustmentService.applyBilateralDelta
-    ).toHaveBeenCalledTimes(2);
-    expect(
-      mockBalanceAdjustmentService.applyBilateralDelta
+      mockInterpersonalDebtEngine.recordDirectLoan
     ).toHaveBeenNthCalledWith(
       1,
-      payerId,
-      2,
-      30,
-      "USD",
-      null,
+      {
+        creditorId: payerId,
+        debtorId: 2,
+        amount: 30,
+        currency: "USD",
+        groupId: null,
+      },
       expect.anything()
     );
     expect(
-      mockBalanceAdjustmentService.applyBilateralDelta
+      mockInterpersonalDebtEngine.recordDirectLoan
     ).toHaveBeenNthCalledWith(
       2,
-      payerId,
-      3,
-      20,
-      "USD",
-      null,
+      {
+        creditorId: payerId,
+        debtorId: 3,
+        amount: 20,
+        currency: "USD",
+        groupId: null,
+      },
       expect.anything()
     );
 
@@ -238,7 +243,10 @@ describe("TransactionService - loan blocking guard", () => {
       transactionHelperService: mockTransactionHelperService,
       friendService: { areFriends: vi.fn() } as any,
       expenseShareRepository: { createMany: vi.fn() } as any,
-      balanceAdjustmentService: { applyBilateralDelta: vi.fn() } as any,
+      interpersonalDebtEngine: {
+        recordDirectLoan: vi.fn(),
+        recordRepayment: vi.fn(),
+      } as any,
     });
   });
 

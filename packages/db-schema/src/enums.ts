@@ -7,7 +7,11 @@ export enum SPLIT_TYPE {
 export enum SHARE_TYPE {
   NONE = "NONE",
   GROUP = "GROUP",
-  FRIENDS = "FRIENDS",
+}
+
+export enum EXPENSE_SHARE_TYPE {
+  EXPENSE = "EXPENSE",
+  LOAN = "LOAN",
 }
 
 export enum TIME_PERIOD {

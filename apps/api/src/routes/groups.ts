@@ -10,6 +10,7 @@ import {
   removeGroupMemberRoute,
   getGroupBalancesRoute,
   getSettlementPlanRoute,
+  getGroupLoansRoute,
 } from "./groups.contracts";
 
 export const groupRoutes = new OpenAPIHono();
@@ -215,3 +216,26 @@ groupRoutes.openapi(getSettlementPlanRoute, async (c) => {
 });
 
 // [REMOVED] Group direct settlement handler: Legacy group direct settlement endpoint removed as part of migration to allocation-based settlement.
+
+// Group loan routes
+groupRoutes.openapi(getGroupLoansRoute, async (c) => {
+  try {
+    const user = c.get("user");
+    if (!user) return c.json({ message: "Unauthorized" }, 401);
+    const { groupId } = c.req.valid("param");
+    const query = c.req.valid("query");
+    const { loanService } = c.get("services");
+    const { page, limit } = query;
+
+    const result = await loanService.getGroupLoans(groupId, user.id, {
+      page,
+      limit,
+    });
+
+    return c.json(result, 200);
+  } catch (error: unknown) {
+    const { handleRouteError } = await import("@/utils/error-response-handler");
+    const { json, status } = handleRouteError(error);
+    return c.json(json, status);
+  }
+});

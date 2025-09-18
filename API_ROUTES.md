@@ -7,6 +7,7 @@ Legend:
 - Stub 501: Route defined but not yet implemented (returns 501)
 - (Implicit) All endpoints require authentication unless noted
 - Idempotency-Key: Required for settlement allocation creation
+- All routes now use the unified schema implementation (debt tracking via expense_share table)
 
 Auth and user management :
 POST /api/v1/auth/register Creates a new user account.

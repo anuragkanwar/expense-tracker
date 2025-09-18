@@ -7,6 +7,7 @@ import {
   eq,
   gt,
   isNull,
+  lt,
   or,
   type SQL,
 } from "drizzle-orm";
@@ -25,7 +26,7 @@ import type { LoanResponse as OriginalLoanResponse } from "@pocket-pixie/contrac
 type ExpenseShareSelect = typeof expenseShare.$inferSelect;
 
 // Internal types for this repository
-interface ExpenseShareCreate {
+interface UnifiedExpenseShareCreate {
   transactionId: number;
   payerUserId: number;
   participantUserId: number;
@@ -45,7 +46,7 @@ interface ExpenseShareCreate {
   metadata?: unknown; // JSON metadata blob (opaque to domain layer)
 }
 
-interface ExpenseShareUpdate {
+interface UnifiedExpenseShareUpdate {
   paidAmount?: number;
   status?: EXPENSE_SHARE_STATUS;
   metadata?: unknown;
@@ -54,7 +55,7 @@ interface ExpenseShareUpdate {
   currency?: string;
 }
 
-interface ExpenseShareResponse {
+interface UnifiedExpenseShareResponse {
   id: number;
   transactionId: number;
   payerUserId: number;
@@ -78,7 +79,7 @@ interface ExpenseShareResponse {
 }
 
 // Define loan query filters for consistent query building
-export interface LoanFilters {
+export interface UnifiedLoanFilters {
   userId?: number;
   groupId?: number | null;
   isPersonal?: boolean;
@@ -90,14 +91,14 @@ export interface LoanFilters {
   friendId?: number;
 }
 
-export class ExpenseShareRepository {
+export class UnifiedExpenseShareRepository {
   private db: DBType;
 
   constructor({ db }: { db: DBType }) {
     this.db = db;
   }
 
-  private map(row: ExpenseShareSelect): ExpenseShareResponse {
+  private map(row: ExpenseShareSelect): UnifiedExpenseShareResponse {
     if (!row) {
       throw new Error("Cannot map undefined row");
     }
@@ -107,10 +108,12 @@ export class ExpenseShareRepository {
       loanDate: row.loanDate ? row.loanDate.toISOString() : null,
       createdAt: row.createdAt.toISOString(),
       updatedAt: row.updatedAt.toISOString(),
-    } as ExpenseShareResponse;
+    } as UnifiedExpenseShareResponse;
   }
 
-  private mapToLoanResponse(item: ExpenseShareResponse): OriginalLoanResponse {
+  private mapToLoanResponse(
+    item: UnifiedExpenseShareResponse
+  ): OriginalLoanResponse {
     return {
       id: item.id,
       description: item.description || "",
@@ -128,9 +131,9 @@ export class ExpenseShareRepository {
   }
 
   async createMany(
-    data: ExpenseShareCreate[],
+    data: UnifiedExpenseShareCreate[],
     tx?: DBTransactionType
-  ): Promise<ExpenseShareResponse[]> {
+  ): Promise<UnifiedExpenseShareResponse[]> {
     if (!data.length) return [];
     const db = tx ?? this.db;
 
@@ -188,7 +191,7 @@ export class ExpenseShareRepository {
       loanDate,
     } = data;
 
-    const shareData: ExpenseShareCreate = {
+    const shareData: UnifiedExpenseShareCreate = {
       transactionId,
       payerUserId: creditorId, // Creditor is always the payer in a loan
       participantUserId: debtorId, // Debtor is the participant
@@ -203,7 +206,7 @@ export class ExpenseShareRepository {
     };
 
     const result = await this.createMany([shareData], tx);
-    if (!result || result.length === 0 || !result[0]) {
+    if (!result || result.length === 0) {
       throw new Error("Failed to create loan");
     }
 
@@ -213,7 +216,7 @@ export class ExpenseShareRepository {
   async findById(
     id: number,
     tx?: DBTransactionType
-  ): Promise<ExpenseShareResponse | null> {
+  ): Promise<UnifiedExpenseShareResponse | null> {
     const db = tx ?? this.db;
     const rows = await db
       .select()
@@ -221,7 +224,7 @@ export class ExpenseShareRepository {
       .where(eq(expenseShare.id, id))
       .limit(1);
 
-    if (!rows.length || rows.length === 0 || !rows[0]) return null;
+    if (!rows.length) return null;
     return this.map(rows[0]);
   }
 
@@ -252,7 +255,7 @@ export class ExpenseShareRepository {
     groupId: number | null = null,
     type: EXPENSE_SHARE_TYPE | null = null,
     tx?: DBTransactionType
-  ): Promise<ExpenseShareResponse[]> {
+  ): Promise<UnifiedExpenseShareResponse[]> {
     const db = tx ?? this.db;
 
     // Build query conditions
@@ -305,7 +308,7 @@ export class ExpenseShareRepository {
   }
 
   async findLoans(
-    filters: LoanFilters = {},
+    filters: UnifiedLoanFilters = {},
     tx?: DBTransactionType
   ): Promise<OriginalLoanResponse[]> {
     const {
@@ -428,7 +431,7 @@ export class ExpenseShareRepository {
   }
 
   async countLoans(
-    filters: LoanFilters = {},
+    filters: UnifiedLoanFilters = {},
     tx?: DBTransactionType
   ): Promise<number> {
     const {
@@ -519,9 +522,9 @@ export class ExpenseShareRepository {
 
   async update(
     id: number,
-    data: ExpenseShareUpdate,
+    data: UnifiedExpenseShareUpdate,
     tx?: DBTransactionType
-  ): Promise<ExpenseShareResponse | null> {
+  ): Promise<UnifiedExpenseShareResponse | null> {
     const db = tx ?? this.db;
     await db
       .update(expenseShare)
@@ -574,7 +577,7 @@ export class ExpenseShareRepository {
     paidAmount: number,
     status: EXPENSE_SHARE_STATUS,
     tx?: DBTransactionType
-  ): Promise<ExpenseShareResponse | null> {
+  ): Promise<UnifiedExpenseShareResponse | null> {
     return this.update(
       id,
       {

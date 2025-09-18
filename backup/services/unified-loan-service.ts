@@ -1,7 +1,7 @@
 import { TransactionAccountNotFoundError } from "@/errors/transaction-account-errors";
 
 import {
-  ExpenseShareRepository,
+  UnifiedExpenseShareRepository,
   TransactionAccountRepository,
   GroupRepository,
   GroupMemberRepository,
@@ -24,12 +24,13 @@ import {
 } from "@pocket-pixie/contracts";
 
 /**
- * LoanService
- * This service manages loan operations using the ExpenseShareRepository
- * for the unified schema implementation.
+ * UnifiedLoanService
+ * This is an updated implementation of the LoanService that uses the UnifiedExpenseShareRepository
+ * instead of separate loan and loan_split repositories. It maintains API compatibility with
+ * the original LoanService but uses the unified schema under the hood.
  */
-export class LoanService {
-  private readonly expenseShareRepository: ExpenseShareRepository;
+export class UnifiedLoanService {
+  private readonly unifiedExpenseShareRepository: UnifiedExpenseShareRepository;
   private readonly groupMemberRepository: GroupMemberRepository;
   private readonly groupRepository: GroupRepository;
   private readonly transactionAccountRepository: TransactionAccountRepository;
@@ -43,7 +44,7 @@ export class LoanService {
 
   constructor({
     db,
-    expenseShareRepository,
+    unifiedExpenseShareRepository,
     groupMemberRepository,
     groupRepository,
     transactionAccountRepository,
@@ -54,7 +55,7 @@ export class LoanService {
     interpersonalDebtEngine,
   }: {
     db: DBType;
-    expenseShareRepository: ExpenseShareRepository;
+    unifiedExpenseShareRepository: UnifiedExpenseShareRepository;
     groupMemberRepository: GroupMemberRepository;
     groupRepository: GroupRepository;
     transactionAccountRepository: TransactionAccountRepository;
@@ -66,7 +67,7 @@ export class LoanService {
   }) {
     this.db = db;
 
-    this.expenseShareRepository = expenseShareRepository;
+    this.unifiedExpenseShareRepository = unifiedExpenseShareRepository;
     this.groupMemberRepository = groupMemberRepository;
     this.groupRepository = groupRepository;
     this.transactionAccountRepository = transactionAccountRepository;
@@ -277,7 +278,7 @@ export class LoanService {
         );
 
         // Persist loan record in unified expense share table
-        createdLoan = await this.expenseShareRepository.createLoan(
+        createdLoan = await this.unifiedExpenseShareRepository.createLoan(
           {
             transactionId: txnHeader.id,
             creditorId,
@@ -333,10 +334,10 @@ export class LoanService {
 
     // Use the unified repository
     const loans =
-      await this.expenseShareRepository.findLoans(loanFilters);
+      await this.unifiedExpenseShareRepository.findLoans(loanFilters);
 
     // Count total for pagination
-    const total = await this.expenseShareRepository.countLoans({
+    const total = await this.unifiedExpenseShareRepository.countLoans({
       userId,
       isPersonal: true,
       asCreditor: loanFilters.asCreditor,
@@ -352,7 +353,7 @@ export class LoanService {
   }
 
   async getLoanById(loanId: number, userId: number) {
-    const loan = await this.expenseShareRepository.findLoanById(loanId);
+    const loan = await this.unifiedExpenseShareRepository.findLoanById(loanId);
     if (!loan) throw new NotFoundError("Loan not found");
 
     // Check access: user is either creditor or debtor
@@ -393,10 +394,10 @@ export class LoanService {
     };
 
     const loans =
-      await this.expenseShareRepository.findLoans(loanFilters);
+      await this.unifiedExpenseShareRepository.findLoans(loanFilters);
 
     // Get count for pagination
-    const total = await this.expenseShareRepository.countLoans({
+    const total = await this.unifiedExpenseShareRepository.countLoans({
       groupId,
       userId,
     });
@@ -427,10 +428,10 @@ export class LoanService {
     };
 
     const loans =
-      await this.expenseShareRepository.findLoans(loanFilters);
+      await this.unifiedExpenseShareRepository.findLoans(loanFilters);
 
     // Get count for pagination
-    const total = await this.expenseShareRepository.countLoans({
+    const total = await this.unifiedExpenseShareRepository.countLoans({
       userId,
       friendId,
       isPersonal: true,
@@ -442,7 +443,7 @@ export class LoanService {
   async updateLoan(loanId: number, userId: number, updateData: LoanUpdate) {
     await this.getLoanById(loanId, userId); // access check
 
-    const updatedLoan = await this.expenseShareRepository.updateLoan(
+    const updatedLoan = await this.unifiedExpenseShareRepository.updateLoan(
       loanId,
       {
         description: updateData.description,
@@ -457,7 +458,7 @@ export class LoanService {
 
   async deleteLoan(loanId: number, userId: number) {
     await this.getLoanById(loanId, userId); // access check
-    const deleted = await this.expenseShareRepository.delete(loanId);
+    const deleted = await this.unifiedExpenseShareRepository.delete(loanId);
     if (!deleted) throw new NotFoundError("Failed to delete loan");
     return { message: "Loan deleted successfully" };
   }

@@ -5,6 +5,8 @@ import {
   getUpcomingBillsRoute,
   getNetWorthTrendRoute,
   getSpendingAnalyticsRoute,
+  getLoanObligationsSummaryRoute,
+  getExpenseSharesSummaryRoute,
 } from "./dashboard.contracts";
 
 export const dashboardRoutes = new OpenAPIHono();
@@ -101,6 +103,36 @@ dashboardRoutes.openapi(getSpendingAnalyticsRoute, async (c) => {
       );
     }
     return c.json(analytics, 200);
+  } catch (error) {
+    return c.json({ message: (error as Error).message }, 500);
+  }
+});
+
+dashboardRoutes.openapi(getLoanObligationsSummaryRoute, async (c) => {
+  const { dashboardService } = c.get("services");
+  const user = c.get("user");
+  if (!user) {
+    return c.json({ message: "Not Authenticated" }, 401);
+  }
+
+  try {
+    const summary = await dashboardService.getLoanObligationsSummary(user.id);
+    return c.json(summary, 200);
+  } catch (error) {
+    return c.json({ message: (error as Error).message }, 500);
+  }
+});
+
+dashboardRoutes.openapi(getExpenseSharesSummaryRoute, async (c) => {
+  const { dashboardService } = c.get("services");
+  const user = c.get("user");
+  if (!user) {
+    return c.json({ message: "Not Authenticated" }, 401);
+  }
+
+  try {
+    const summary = await dashboardService.getExpenseSharesSummary(user.id);
+    return c.json(summary, 200);
   } catch (error) {
     return c.json({ message: (error as Error).message }, 500);
   }

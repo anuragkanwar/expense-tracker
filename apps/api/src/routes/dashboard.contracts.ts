@@ -7,6 +7,34 @@ import {
   SpendingAnalyticsResponseSchema,
 } from "@pocket-pixie/contracts";
 
+// Schema for loans obligations summary
+const LoanObligationsSummarySchema = z.object({
+  givenLoans: z
+    .number()
+    .describe("Total amount of outstanding loans given to others"),
+  takenLoans: z
+    .number()
+    .describe("Total amount of outstanding loans taken from others"),
+  netPosition: z.number().describe("Net position (given - taken)"),
+  givenCount: z.number().describe("Number of loans given"),
+  takenCount: z.number().describe("Number of loans taken"),
+});
+
+// Schema for expense shares summary
+const ExpenseSharesSummarySchema = z.object({
+  asPayer: z
+    .number()
+    .describe("Total amount of outstanding expense shares as payer"),
+  asParticipant: z
+    .number()
+    .describe("Total amount of outstanding expense shares as participant"),
+  netPosition: z.number().describe("Net position (asPayer - asParticipant)"),
+  payerCount: z.number().describe("Number of expense shares as payer"),
+  participantCount: z
+    .number()
+    .describe("Number of expense shares as participant"),
+});
+
 export const getMonthlySummaryRoute = createRoute({
   method: "get",
   path: "/monthly-summary",
@@ -129,6 +157,48 @@ export const getSpendingAnalyticsRoute = createRoute({
         },
       },
       description: "Spending analytics retrieved successfully",
+    },
+    401: { description: "Unauthorized" },
+  },
+});
+
+export const getLoanObligationsSummaryRoute = createRoute({
+  method: "get",
+  path: "/loan-obligations",
+  summary: "Get loan obligations summary",
+  description:
+    "Gets a summary of loan obligations (both given and taken) using the unified schema.",
+  tags: ["Dashboard"],
+  operationId: "getLoanObligationsSummary",
+  responses: {
+    200: {
+      content: {
+        "application/json": {
+          schema: LoanObligationsSummarySchema,
+        },
+      },
+      description: "Loan obligations summary retrieved successfully",
+    },
+    401: { description: "Unauthorized" },
+  },
+});
+
+export const getExpenseSharesSummaryRoute = createRoute({
+  method: "get",
+  path: "/expense-shares",
+  summary: "Get expense shares summary",
+  description:
+    "Gets a summary of expense shares (both as payer and participant) using the unified schema.",
+  tags: ["Dashboard"],
+  operationId: "getExpenseSharesSummary",
+  responses: {
+    200: {
+      content: {
+        "application/json": {
+          schema: ExpenseSharesSummarySchema,
+        },
+      },
+      description: "Expense shares summary retrieved successfully",
     },
     401: { description: "Unauthorized" },
   },

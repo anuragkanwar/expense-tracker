@@ -9,8 +9,9 @@ import { transaction } from "./transaction";
 import { user } from "./user";
 import { group } from "./group";
 import { transactionAccount } from "./transaction-account";
+import { EXPENSE_SHARE_TYPE } from "../enums";
 
-// Upfront expense recognition share row per participant (and optionally payer)
+// Unified obligation tracking mechanism for both expenses and loans
 export const expenseShare = sqliteTable("expense_share", {
   id: integer("id").primaryKey({ autoIncrement: true }),
   transactionId: integer("transaction_id")
@@ -25,7 +26,15 @@ export const expenseShare = sqliteTable("expense_share", {
   groupId: integer("group_id").references(() => group.id, {
     onDelete: "cascade",
   }),
-  shareType: text("share_type"), // FRIENDS | GROUP
+  // New field to distinguish between expense shares and loans
+  type: text("type", {
+    enum: [EXPENSE_SHARE_TYPE.EXPENSE, EXPENSE_SHARE_TYPE.LOAN],
+  })
+    .notNull()
+    .default(EXPENSE_SHARE_TYPE.EXPENSE),
+  // For loans, description stores the loan description
+  description: text("description"),
+  shareType: text("share_type"), // GROUP | NONE
   splitType: text("split_type"), // EQUAL | PERCENTAGE | SHARE
   expenseAccountId: integer("expense_account_id").references(
     () => transactionAccount.id,
@@ -36,6 +45,8 @@ export const expenseShare = sqliteTable("expense_share", {
   paidAmount: real("paid_amount").notNull().default(0),
   status: text("status").notNull().default("UNPAID"), // UNPAID | PARTIALLY_PAID | PAID
   realizedAt: integer("realized_at", { mode: "timestamp" }),
+  // For loans, represents when the loan was issued
+  loanDate: integer("loan_date", { mode: "timestamp" }),
   isPayerShare: integer("is_payer_share", { mode: "number" })
     .notNull()
     .default(0), // 1 true 0 false

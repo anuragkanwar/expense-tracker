@@ -1045,4 +1045,121 @@ AuditMapping: Must align sums with parent header (settlement_application vs sett
 
 (End of Section 21.10)
 
+## 22. Debt Engine Unification & Schema Simplification
+
+This section outlines the implementation of the schema unification and debt tracking system standardization, with progress updates on completed phases.
+
+### 22.1 Goals
+
+1. Remove `SHARE_TYPE.FRIENDS` enum and consolidate shared expense types ✅
+2. Standardize on `InterpersonalDebtEngine` as the sole balance mutation mechanism ✅
+3. Migrate from `loan` and `loan_split` tables to `expense_share` as the unified obligation tracking mechanism ✅
+4. Ensure backward compatibility for existing records during transition ✅
+5. Consolidate API routes to use unified implementations ✅
+
+### 22.2 Implementation Status
+
+#### Phase 1: Enum Refactoring & Balance Mutation Unification ✅
+
+1. Removed `SHARE_TYPE.FRIENDS` enum value ✅
+   - Updated all references in code to use appropriate alternative values
+   - Updated existing database records to use replacement value
+
+2. Standardized on `InterpersonalDebtEngine` ✅
+   - Removed conditional branches that checked for `interpersonalDebtEngine`
+   - Ensured all balance mutations route through `interpersonalDebtEngine.recordDirectLoan` or `recordRepayment`
+   - Maintained `balanceAdjustmentService` as an internal implementation detail of the debt engine
+
+#### Phase 2: Schema Migration & Data Consolidation ✅
+
+1. Designed `expense_share` schema extensions ✅
+   - Added `type` field to distinguish between shared expenses and loans
+   - Added `loanDate` field to maintain loan date semantics
+
+2. Data Migration Implementation ✅
+   - Created migration script (`loan-to-expense-share-migration.ts`) to:
+     - Find all `loan` and `loan_split` records
+     - Create equivalent `expense_share` records with appropriate mapping
+     - Maintain original relationships (transactionId, etc.)
+     - Set appropriate metadata to indicate source
+   - Added CLI script (`migrate-loans.js`) to execute migration safely
+
+3. Code Refactoring for Unified Storage ✅
+   - Implemented services that use `expense_share` table instead of `loan` and `loan_split`
+   - Created `UnifiedExpenseShareRepository` with methods to query `expense_share` with appropriate filters
+
+#### Phase 3: Testing & Verification ✅
+
+1. Created comprehensive test cases covering: ✅
+   - Integration tests for migration script
+   - Unit tests for the updated services
+   - Tests for creating, retrieving, updating and deleting loans
+
+2. API Route Testing ✅
+   - Implemented routes with the same contract as original routes
+   - Verified API endpoints maintain backward compatibility
+
+#### Phase 4: Related Services Updates ✅
+
+1. Transition Strategy: ✅
+   - Successfully migrated all services to use the unified schema
+   - Updated API routes to use the new implementations
+   - Maintained backward compatibility for clients
+
+#### Phase 5: Route Consolidation ✅
+
+1. API Route Consolidation: ✅
+   - Removed duplicate "unified-" prefixed routes
+   - Updated standard API routes to use the new implementations
+   - Updated documentation to reflect the changes
+
+#### Phase 6: Schema Cleanup (Future) ⏳
+
+1. After sufficient production verification period:
+   - Deprecate `loan` and `loan_split` tables
+   - Plan for eventual removal in future release
+
+### 22.3 Technical Implementation Details
+
+1. **Expense Share Type Extension**: Added `EXPENSE_SHARE_TYPE.LOAN` to distinguish loans from shared expenses
+
+2. **Migration Pattern**: Used a transaction-safe migration approach with:
+   - Detailed logging of migration progress
+   - Error handling for individual records
+   - Comprehensive statistics on completion
+
+3. **Repository Implementation**: `UnifiedExpenseShareRepository` provides:
+   - Methods to create, find, update and delete loan records
+   - Mapping functions between expense_share schema and loan response contracts
+   - FIFO support for settlement allocations
+
+4. **Integration Testing**: Implemented tests to verify:
+   - Data integrity during and after migration
+   - Correct mapping between old and new schema
+   - Maintenance of all business rules and constraints
+
+### 22.4 Backward Compatibility Strategy
+
+1. **API Contract Preservation**: All endpoints maintain the same request/response contracts
+
+2. **Seamless Transition**: Service implementations were updated internally while maintaining the same API surface
+
+3. **Migration CLI**: Created script for safe migration with dry-run option
+
+4. **Graceful Consolidation**: Updated standard API routes to use the new implementations without changing client code
+
+### 22.5 Current Status & Future Work
+
+1. **Completed**:
+   - Schema migration and data consolidation
+   - All service implementations updated to use the unified schema
+   - API routes consolidated and standardized
+   - Documentation updated to reflect the new architecture
+
+2. **Future Work**:
+   - Mark `loan` and `loan_split` tables as deprecated after sufficient verification period
+   - Schedule removal of deprecated tables in a future release
+   - Consider renaming service and repository files to remove "unified" prefix
+   - Perform additional performance tuning and optimization of the unified schema
+
 End of Document.

@@ -1,4 +1,4 @@
-import { DashboardRepository } from "@/repositories/dashboard-repository";
+import { UnifiedDashboardRepository } from "@/repositories/unified-dashboard-repository";
 import { EXPENSE_SHARE_TYPE } from "@/db";
 import type {
   MonthlySummaryResponse,
@@ -12,15 +12,15 @@ import type {
  * UnifiedDashboardService provides dashboard data using the unified schema
  * that combines both expense shares and loans in the same table.
  */
-export class DashboardService {
-  private readonly dashboardRepository;
+export class UnifiedDashboardService {
+  private readonly unifiedDashboardRepository;
 
   constructor({
-    dashboardRepository,
+    unifiedDashboardRepository,
   }: {
-    dashboardRepository: DashboardRepository;
+    unifiedDashboardRepository: UnifiedDashboardRepository;
   }) {
-    this.dashboardRepository = dashboardRepository;
+    this.unifiedDashboardRepository = unifiedDashboardRepository;
   }
 
   /**
@@ -36,29 +36,31 @@ export class DashboardService {
     const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
 
     // Get expenses and income (unchanged from original implementation)
-    const totalExpenses = await this.dashboardRepository.getMonthlyExpenses(
-      userId,
-      startOfMonth,
-      endOfMonth
-    );
-    const totalIncome = await this.dashboardRepository.getMonthlyIncome(
+    const totalExpenses =
+      await this.unifiedDashboardRepository.getMonthlyExpenses(
+        userId,
+        startOfMonth,
+        endOfMonth
+      );
+    const totalIncome = await this.unifiedDashboardRepository.getMonthlyIncome(
       userId,
       startOfMonth,
       endOfMonth
     );
 
     // Get loans using the unified schema
-    const loans = await this.dashboardRepository.getTotalObligationsByType(
-      userId,
-      EXPENSE_SHARE_TYPE.LOAN,
-      true, // as creditor
-      true, // as debtor
-      startOfMonth,
-      endOfMonth
-    );
+    const loans =
+      await this.unifiedDashboardRepository.getTotalObligationsByType(
+        userId,
+        EXPENSE_SHARE_TYPE.LOAN,
+        true, // as creditor
+        true, // as debtor
+        startOfMonth,
+        endOfMonth
+      );
 
     const budgetUtilization =
-      await this.dashboardRepository.getBudgetUtilization(
+      await this.unifiedDashboardRepository.getBudgetUtilization(
         userId,
         startOfMonth,
         endOfMonth
@@ -69,7 +71,7 @@ export class DashboardService {
 
     // Get top expense category
     const topExpenseCategoryData =
-      await this.dashboardRepository.getTopExpenseCategory(
+      await this.unifiedDashboardRepository.getTopExpenseCategory(
         userId,
         startOfMonth,
         endOfMonth
@@ -112,11 +114,12 @@ export class DashboardService {
 
     // We'll delegate to the original repository implementation
     // since expense categories are not affected by the schema unification
-    const analytics = await this.dashboardRepository.getSpendingByCategory(
-      userId,
-      startOfMonth,
-      endOfMonth
-    );
+    const analytics =
+      await this.unifiedDashboardRepository.getSpendingByCategory(
+        userId,
+        startOfMonth,
+        endOfMonth
+      );
 
     if (!analytics || analytics.length === 0) {
       return null;
@@ -124,10 +127,7 @@ export class DashboardService {
 
     // Format the response to match the expected SpendingAnalyticsResponse structure
     return {
-      totalSpending: analytics.reduce(
-        (total: number, cat) => total + cat.amount,
-        0
-      ),
+      totalSpending: analytics.reduce((total, cat) => total + cat.amount, 0),
       categories: analytics,
       analytics: {
         numberOfCategories: analytics.length,
@@ -195,10 +195,11 @@ export class DashboardService {
     takenCount: number;
   }> {
     // Get current outstanding loans from the unified schema
-    const loans = await this.dashboardRepository.getTotalObligationsByType(
-      userId,
-      EXPENSE_SHARE_TYPE.LOAN
-    );
+    const loans =
+      await this.unifiedDashboardRepository.getTotalObligationsByType(
+        userId,
+        EXPENSE_SHARE_TYPE.LOAN
+      );
 
     // We would need to add a method to count the number of loans
     // For now, we'll return a simplified version
@@ -227,7 +228,7 @@ export class DashboardService {
   }> {
     // Get current outstanding expense shares from the unified schema
     const expenseShares =
-      await this.dashboardRepository.getTotalObligationsByType(
+      await this.unifiedDashboardRepository.getTotalObligationsByType(
         userId,
         EXPENSE_SHARE_TYPE.EXPENSE
       );
@@ -239,25 +240,5 @@ export class DashboardService {
       payerCount: 0, // Would need to be implemented
       participantCount: 0, // Would need to be implemented
     };
-  }
-  async getUpcomingBills(
-    userId: number,
-    daysAhead?: number
-  ): Promise<UpcomingBillsResponse> {
-    const days = daysAhead ? parseInt(daysAhead.toString()) : 30;
-    const bills = await this.dashboardRepository.getUpcomingBills(userId, days);
-    return bills;
-  }
-
-  async getNetWorthTrend(
-    userId: number,
-    months?: number
-  ): Promise<NetWorthTrendResponse> {
-    const monthsCount = months ? parseInt(months.toString()) : 12;
-    const trend = await this.dashboardRepository.getNetWorthTrend(
-      userId,
-      monthsCount
-    );
-    return trend;
   }
 }
