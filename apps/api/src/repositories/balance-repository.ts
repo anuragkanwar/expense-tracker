@@ -6,14 +6,13 @@ import {
   expenseShare,
   EXPENSE_SHARE_TYPE,
 } from "@/db";
-import { eq, and, sql, isNull, or, gt } from "drizzle-orm";
+import { eq, and, sql, isNull, or } from "drizzle-orm";
 import type {
   UserBalanceResponse,
   UserBalanceCreate,
   UserBalanceUpdate,
 } from "@pocket-pixie/contracts";
 import { type DBType, type DBTransactionType } from "@/db";
-import type { SQL } from "drizzle-orm";
 
 export class BalanceRepository {
   private db: DBType;

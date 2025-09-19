@@ -221,7 +221,7 @@ export class TransactionService {
             const splits = transactionCreateWithDetails.splits || [];
 
             const splitTotal = splits.reduce(
-              (acc, split) => acc + split.amountOwed,
+              (acc, split) => acc + split.amount,
               0
             );
             const payerTotal = transactionCreateWithDetails.amount - splitTotal;
@@ -282,7 +282,7 @@ export class TransactionService {
                     {
                       srcAcc: payerLoanGiveAcc,
                       dstAcc: payeeLoanTakenAcc,
-                      amount: split.amountOwed,
+                      amount: split.amount,
                       txnId: txnHeader.id,
                     },
                   ],
@@ -294,7 +294,7 @@ export class TransactionService {
                   {
                     creditorId: payerId, // original payer
                     debtorId: split.userId, // participant
-                    amount: split.amountOwed,
+                    amount: split.amount,
                     currency: userCurrency,
                     groupId: transactionCreateWithDetails.groupId ?? null,
                   },
@@ -358,7 +358,7 @@ export class TransactionService {
                   splitType: transactionCreateWithDetails.splitType,
                   expenseAccountId: dstAcc.id, // why this is here
                   currency: userCurrency,
-                  amount: split.amountOwed,
+                  amount: split.amount,
                   paidAmount: 0,
                   status: EXPENSE_SHARE_STATUS.UNPAID,
                   isPayerShare: 0,
