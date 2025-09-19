@@ -12,6 +12,7 @@
     "check-types": "tsc --noEmit"
   },
   "dependencies": {
+    "@libsql/client": "^0.15.14",
     "drizzle-orm": "^0.44.5"
   },
   "devDependencies": {

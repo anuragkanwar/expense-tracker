@@ -1,10 +1,8 @@
 import { MiddlewareHandler } from "hono";
 import { BaseError, ValidationError } from "@/errors/base-error";
-import { ZodError, type ZodIssue } from "zod";
-import {
-  getErrorMessage,
-  type HttpStatus,
-} from "@/utils/error-response-handler";
+import { ZodError, type z } from "zod";
+import { getErrorMessage } from "@/utils/error-response-handler";
+import { type HttpStatus } from "@pocket-pixie/contracts";
 
 // Narrowed internal representation of a Zod issue we expose
 interface MinimalZodIssue {
@@ -34,10 +32,10 @@ export const errorHandler = (): MiddlewareHandler => {
       // 2. Zod validation errors → wrap in our ValidationError for uniform contract
       if (error instanceof ZodError) {
         const details: MinimalZodIssue[] = (error.issues || []).map(
-          (issue: ZodIssue): MinimalZodIssue => ({
+          (issue: z.ZodIssue): MinimalZodIssue => ({
             message: issue.message,
             path: issue.path as (string | number)[],
-            code: (issue as unknown as Partial<ZodIssue>).code, // zod's internal code (string)
+            code: issue.code, // zod's internal code (string)
           })
         );
         const validationError = new ValidationError(

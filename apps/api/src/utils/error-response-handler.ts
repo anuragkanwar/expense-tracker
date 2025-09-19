@@ -1,24 +1,11 @@
-import { BaseError, ForbiddenError, NotFoundError } from "@/errors/base-error";
-
-// Generic application error union (kept for backwards compatibility with existing imports)
-export type AppError = BaseError | Error | unknown;
-
-// Narrow HTTP status codes we intentionally emit for error responses
-export type HttpStatus = 400 | 401 | 403 | 404 | 409 | 422 | 500;
-
-export interface ErrorBody {
-  success: false;
-  error: {
-    code: string;
-    message: string;
-    details?: unknown;
-  };
-}
-
-export interface ErrorResponse {
-  json: ErrorBody; // Standardised error body
-  status: HttpStatus; // HTTP status code
-}
+import { BaseError, ForbiddenError } from "@/errors/base-error";
+import {
+  ErrorBody,
+  ErrorResponse,
+  HttpStatus,
+  StatusCodeError,
+  JSONSerializableError,
+} from "@pocket-pixie/contracts";
 
 /**
  * Safely derive a human-readable message from an unknown error value.
@@ -53,16 +40,18 @@ export const handleRouteError = (error: unknown): ErrorResponse => {
     const msg = error.message || "Unknown error";
 
     // Respect explicit statusCode/status if provided (e.g. from mocked or 3rd-party errors)
-    const explicitStatus = (error as any)?.statusCode ?? (error as any)?.status;
+    const statusError = error as StatusCodeError;
+    const explicitStatus = statusError.statusCode ?? statusError.status;
     const allowedStatuses: number[] = [400, 401, 403, 404, 409, 422];
     if (
       typeof explicitStatus === "number" &&
       allowedStatuses.includes(explicitStatus)
     ) {
       // If the error exposes a toJSON that matches our contract, trust it
-      if (typeof (error as any).toJSON === "function") {
+      const jsonError = error as JSONSerializableError;
+      if (typeof jsonError.toJSON === "function") {
         try {
-          const candidate = (error as any).toJSON();
+          const candidate = jsonError.toJSON();
           if (candidate && candidate.success === false && candidate.error) {
             return {
               json: candidate as ErrorBody,

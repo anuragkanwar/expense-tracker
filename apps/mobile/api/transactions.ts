@@ -10,6 +10,7 @@ import {
   TransactionUpdateSchema,
   TransactionCreateWithAIPromptSchema,
   TransactionWithDetailsResponseSchema,
+  buildQueryString,
 } from "@pocket-pixie/contracts";
 
 export type Transaction = z.infer<typeof TransactionResponseSchema>;
@@ -29,7 +30,7 @@ export function useTransactions(filters?: {
     queryFn: () =>
       getValidated(
         `${BASE}` +
-          buildQuery({
+          buildQueryString({
             page: filters?.page,
             limit: filters?.limit,
             type: filters?.type,
@@ -50,7 +51,7 @@ export function useGroupTransactions(
     queryKey: queryKeys.transactions.group(groupId, page, limit),
     queryFn: () =>
       getValidated(
-        `${BASE}/groups/${groupId}` + buildQuery({ page, limit }),
+        `${BASE}/groups/${groupId}` + buildQueryString({ page, limit }),
         TransactionResponseSchema.array()
       ),
     enabled: Boolean(groupId) && enabled,
@@ -68,7 +69,7 @@ export function useFriendTransactions(
     queryKey: queryKeys.transactions.friend(userId, page, limit),
     queryFn: () =>
       getValidated(
-        `${BASE}/friends/${userId}` + buildQuery({ page, limit }),
+        `${BASE}/friends/${userId}` + buildQueryString({ page, limit }),
         TransactionResponseSchema.array()
       ),
     enabled: Boolean(userId) && enabled,
@@ -157,13 +158,4 @@ export function useCreateTransactionWithAI() {
       qc.invalidateQueries({ queryKey: ["groups"] });
     },
   });
-}
-
-// Helper to build query strings
-function buildQuery(params: { [k: string]: any }) {
-  const query = Object.entries(params)
-    .filter(([, v]) => v !== undefined && v !== null)
-    .map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v)}`)
-    .join("&");
-  return query ? `?${query}` : "";
 }

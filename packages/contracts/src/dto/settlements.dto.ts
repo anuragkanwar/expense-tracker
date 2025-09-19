@@ -84,10 +84,33 @@ export const ExpenseShareSettlementAllocateResponseSchema = z
   .openapi("ExpenseShareSettlementAllocateResponse");
 
 // ==============================================
+// Settlement Application Create Schema
+// ==============================================
+export const SettlementApplicationCreateSchema = z
+  .object({
+    settlementId: z.number().int().positive().openapi({
+      example: 55,
+      description: "Associated settlement id",
+    }),
+    expenseShareId: z.number().int().positive().openapi({
+      example: 777,
+      description: "Expense share id this fragment applies to",
+    }),
+    appliedAmount: z.number().positive().openapi({
+      example: 12.5,
+      description: "Amount applied from settlement to this expense share",
+    }),
+  })
+  .openapi("SettlementApplicationCreate");
+
+// ==============================================
 // Type Exports
 // ==============================================
 export type SettlementApplicationResponse = z.infer<
   typeof SettlementApplicationResponseSchema
+>;
+export type SettlementApplicationCreate = z.infer<
+  typeof SettlementApplicationCreateSchema
 >;
 export type ExpenseShareSettlementAllocateRequest = z.infer<
   typeof ExpenseShareSettlementAllocateRequestSchema

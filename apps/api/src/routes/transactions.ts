@@ -10,7 +10,10 @@ import {
   createTransactionWithAIRoute,
 } from "./transactions.contracts";
 
-import type { TransactionCreateWithDetails } from "@pocket-pixie/contracts";
+import type {
+  TransactionCreateWithDetails,
+  TransactionUpdateWithDetails,
+} from "@pocket-pixie/contracts";
 import { requireAuthMiddleware } from "@/middleware/require-auth-middleware";
 import { handleRouteError } from "@/utils/error-response-handler";
 
@@ -20,7 +23,7 @@ transactionRoutesExport.use(requireAuthMiddleware());
 
 transactionRoutesExport.openapi(createTransactionRoute, async (c) => {
   try {
-    const data = c.req.valid("json") as TransactionCreateWithDetails;
+    const data: TransactionCreateWithDetails = c.req.valid("json");
     const { transactionService } = c.get("services");
     const user = c.get("user");
 
@@ -146,7 +149,7 @@ transactionRoutesExport.openapi(updateTransactionRoute, async (c) => {
     }
 
     const { transactionId } = c.req.valid("param");
-    const updateData = c.req.valid("json");
+    const updateData: TransactionUpdateWithDetails = c.req.valid("json");
 
     const updatedTransaction = await transactionService.updateTransaction(
       transactionId,

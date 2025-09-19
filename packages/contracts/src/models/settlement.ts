@@ -1,13 +1,15 @@
-import { createSelectSchema, createInsertSchema } from "drizzle-zod";
 import { z } from "@hono/zod-openapi";
-import { settlement } from "@pocket-pixie/db-schema";
+// We don't directly use the settlement schema, but include this comment
+// to document that these schemas are based on the settlement table structure
+// defined in @pocket-pixie/db-schema
 
 // ==========================================================
 // SETTLEMENT SCHEMAS
 // ==========================================================
 
-export const SettlementResponseSchema = createSelectSchema(settlement)
-  .extend({
+// Define response schema with explicit types for API responses
+export const SettlementResponseSchema = z
+  .object({
     id: z.number().openapi({
       example: 123,
       description: "Unique settlement identifier",
@@ -55,50 +57,46 @@ export const SettlementResponseSchema = createSelectSchema(settlement)
   })
   .openapi("SettlementResponse");
 
-export const SettlementCreateSchema = createInsertSchema(settlement, {
-  amount: z.number().min(0, "Amount must be positive").openapi({
-    example: 25.0,
-    description: "Settlement amount",
-  }),
-  currency: z
-    .string()
-    .min(3, "Currency code required")
-    .max(3, "Invalid currency code")
-    .openapi({
-      example: "USD",
-      description: "Currency code",
+export const SettlementCreateSchema = z
+  .object({
+    amount: z.number().min(0, "Amount must be positive").openapi({
+      example: 25.0,
+      description: "Settlement amount",
     }),
-  settledAt: z.string().optional().openapi({
-    example: "2025-09-01T12:00:00.000Z",
-    description: "Settlement date",
-  }),
-  groupId: z.number().optional().openapi({
-    example: 123,
-    description: "Group ID",
-  }),
-  payerId: z.number().openapi({
-    example: 123,
-    description: "Payer user ID (debtor / participant paying)",
-  }),
-  payeeId: z.number().openapi({
-    example: 123,
-    description: "Payee user ID (original payer receiving)",
-  }),
-  transactionId: z
-    .number()
-    .nullable()
-    .optional()
-    .openapi({ example: 555, description: "Linked ledger transaction id" }),
-  idempotencyKey: z
-    .string()
-    .nullable()
-    .optional()
-    .openapi({ example: "alloc-req-uuid", description: "Idempotency key" }),
-})
-  .omit({
-    id: true,
-    createdAt: true,
-    updatedAt: true,
+    currency: z
+      .string()
+      .min(3, "Currency code required")
+      .max(3, "Invalid currency code")
+      .openapi({
+        example: "USD",
+        description: "Currency code",
+      }),
+    settledAt: z.string().optional().openapi({
+      example: "2025-09-01T12:00:00.000Z",
+      description: "Settlement date",
+    }),
+    groupId: z.number().optional().openapi({
+      example: 123,
+      description: "Group ID",
+    }),
+    payerId: z.number().openapi({
+      example: 123,
+      description: "Payer user ID (debtor / participant paying)",
+    }),
+    payeeId: z.number().openapi({
+      example: 123,
+      description: "Payee user ID (original payer receiving)",
+    }),
+    transactionId: z
+      .number()
+      .nullable()
+      .optional()
+      .openapi({ example: 555, description: "Linked ledger transaction id" }),
+    idempotencyKey: z
+      .string()
+      .nullable()
+      .optional()
+      .openapi({ example: "alloc-req-uuid", description: "Idempotency key" }),
   })
   .openapi("SettlementCreate");
 

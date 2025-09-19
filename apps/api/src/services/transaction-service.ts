@@ -22,6 +22,9 @@ import {
   TXN_TYPE,
   EXPENSE_SHARE_STATUS,
   EXPENSE_SHARE_TYPE,
+  // Import compatibility helpers
+  type CompatibleTransaction,
+  asCompatibleTransaction,
 } from "@/db";
 import {
   NotFoundError,
@@ -94,12 +97,15 @@ export class TransactionService {
     srcAcc: TransactionAccountResponse;
     dstAcc: TransactionAccountResponse;
   }> {
+    // Ensure transaction compatibility
+    const txContext = tx ? asCompatibleTransaction(tx) : undefined;
+
     // For loan transactions, use specialized validation
     if (txnType === TXN_TYPE.LOAN_GIVEN || txnType === TXN_TYPE.LOAN_TAKEN) {
       // For loans, we need to find accounts by ID directly since they may belong to different users
       const txnSrcAcc = await this.transactionAccountRepository.findById(
         srcAccId,
-        tx
+        txContext
       );
       if (!txnSrcAcc) {
         throw new TransactionAccountNotFoundError("`From` account");
@@ -107,7 +113,7 @@ export class TransactionService {
 
       const txnDstAcc = await this.transactionAccountRepository.findById(
         dstAccId,
-        tx
+        txContext
       );
       if (!txnDstAcc) {
         throw new TransactionAccountNotFoundError("`to` account");
@@ -120,7 +126,7 @@ export class TransactionService {
         await this.transactionAccountRepository.findByUserIdAndAccountId(
           payerId,
           srcAccId,
-          tx
+          txContext
         );
 
       if (!txnSrcAcc) {
@@ -131,7 +137,7 @@ export class TransactionService {
         await this.transactionAccountRepository.findByUserIdAndAccountId(
           payerId,
           dstAccId,
-          tx
+          txContext
         );
 
       if (!txnDstAcc) {

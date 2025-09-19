@@ -11,49 +11,13 @@ import {
   type DBTransactionType,
   EXPENSE_SHARE_TYPE,
   ACCOUNT_TYPE,
+  EXPENSE_SHARE_STATUS,
 } from "@/db";
 import type {
-  TransactionResponse,
-  TransactionAccountResponse,
+  PassbookFilters,
+  PassbookEntryResponse,
+  PassbookQueryResult,
 } from "@pocket-pixie/contracts";
-
-export interface PassbookFilters {
-  startDate?: Date;
-  endDate?: Date;
-  categoryId?: number;
-  accountId?: number;
-  entryType?: "transaction" | "expense" | "loan" | "all";
-  status?: "unpaid" | "paid" | "partially_paid" | "all";
-}
-
-// Custom response type for passbook entries with related data
-export interface PassbookEntryResponse {
-  id: number;
-  amount: number;
-  transactionAccountId: number;
-  transactionId: number;
-  createdAt: string;
-  updatedAt: string;
-  transaction: TransactionResponse;
-  transactionAccount: TransactionAccountResponse;
-  // Expense share fields (optional, only present for expense share entries)
-  isExpenseShare?: boolean;
-  expenseShareType?: EXPENSE_SHARE_TYPE;
-  expenseShareId?: number;
-  payerUserId?: number;
-  participantUserId?: number;
-  payerName?: string;
-  participantName?: string;
-  groupId?: number;
-  status?: string;
-}
-
-export interface PassbookQueryResult {
-  entries: PassbookEntryResponse[];
-  total: number;
-  page: number;
-  limit: number;
-}
 
 export class PassbookRepository {
   private db: DBType;
@@ -312,7 +276,9 @@ export class PassbookRepository {
     if (filters.status && filters.status !== "all") {
       // Convert to uppercase for DB enum matching
       const statusUppercase = filters.status.toUpperCase();
-      conditions.push(eq(expenseShare.status, statusUppercase as any));
+      conditions.push(
+        eq(expenseShare.status, statusUppercase as EXPENSE_SHARE_STATUS)
+      );
     }
 
     // Count total expense shares

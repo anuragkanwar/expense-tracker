@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { TransactionService } from "./transaction-service";
+// Using relative imports to avoid path resolution issues in tests
+import { TransactionService } from "../../services/transaction-service";
 // Local enum replicas to avoid path alias resolution in test environment
 const SHARE_TYPE = { GROUP: "GROUP", NONE: "NONE" } as const;
 const TXN_TYPE = {
@@ -60,9 +61,35 @@ describe("TransactionService - shared expense", () => {
     updateAccountsAndCreateEntries: vi.fn(),
   } as any;
 
+  // Create a more complete mock transaction object that matches DBTransactionType
   const mockDb = {
     transaction: vi.fn(async (fn: any) => {
-      const tx = { rollback: vi.fn() };
+      const tx = {
+        rollback: vi.fn(),
+        select: vi.fn().mockReturnValue({
+          from: vi.fn().mockReturnValue({
+            where: vi.fn().mockReturnValue({
+              limit: vi.fn().mockReturnValue([]),
+            }),
+            limit: vi.fn().mockReturnValue([]),
+          }),
+        }),
+        insert: vi.fn().mockReturnValue({
+          values: vi.fn().mockReturnValue({
+            returning: vi.fn().mockReturnValue([]),
+          }),
+        }),
+        update: vi.fn().mockReturnValue({
+          set: vi.fn().mockReturnValue({
+            where: vi.fn().mockReturnValue({}),
+          }),
+        }),
+        delete: vi.fn().mockReturnValue({
+          where: vi.fn().mockReturnValue({
+            rowsAffected: 0,
+          }),
+        }),
+      };
       return await fn(tx);
     }),
   } as any;

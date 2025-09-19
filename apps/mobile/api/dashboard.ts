@@ -7,6 +7,7 @@ import {
   UpcomingBillsResponseSchema,
   NetWorthTrendResponseSchema,
   SpendingAnalyticsResponseSchema,
+  buildQueryString,
 } from "@pocket-pixie/contracts";
 
 const BASE = "/api/v1/dashboard";
@@ -35,7 +36,7 @@ export function useUpcomingBills(days?: number) {
     queryKey: ["dashboard", "upcoming-bills", days ?? "default"],
     queryFn: () =>
       getValidated(
-        `${BASE}/upcoming-bills${buildQuery({ days })}`,
+        `${BASE}/upcoming-bills${buildQueryString({ days })}`,
         UpcomingBillsResponseSchema
       ),
   });
@@ -46,7 +47,7 @@ export function useNetWorthTrend(months?: number) {
     queryKey: ["dashboard", "net-worth-trend", months ?? "default"],
     queryFn: () =>
       getValidated(
-        `${BASE}/net-worth-trend${buildQuery({ months })}`,
+        `${BASE}/net-worth-trend${buildQueryString({ months })}`,
         NetWorthTrendResponseSchema
       ),
   });
@@ -61,12 +62,4 @@ export function useSpendingAnalytics() {
         SpendingAnalyticsResponseSchema
       ),
   });
-}
-
-function buildQuery(params: { [k: string]: any }) {
-  const query = Object.entries(params)
-    .filter(([, v]) => v !== undefined && v !== null)
-    .map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v)}`)
-    .join("&");
-  return query ? `?${query}` : "";
 }

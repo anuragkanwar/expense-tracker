@@ -11,6 +11,7 @@ import {
   SyncResponseSchema,
   MonthlyDataRequestSchema,
   MonthlyDataResponseSchema,
+  buildQueryString,
 } from "@pocket-pixie/contracts";
 
 export type LinkTokenRequest = z.infer<typeof LinkTokenRequestSchema>;
@@ -51,16 +52,8 @@ export function useMonthlyConnectionData(params?: MonthlyDataRequest) {
     ),
     queryFn: () =>
       getValidated(
-        `${BASE}/monthly-data${buildQuery({ year, month })}`,
+        `${BASE}/monthly-data${buildQueryString({ year, month })}`,
         MonthlyDataResponseSchema
       ),
   });
-}
-
-function buildQuery(params: { [k: string]: any }) {
-  const query = Object.entries(params)
-    .filter(([, v]) => v !== undefined && v !== null)
-    .map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v)}`)
-    .join("&");
-  return query ? `?${query}` : "";
 }

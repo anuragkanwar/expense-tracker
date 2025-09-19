@@ -155,3 +155,16 @@ export type LoanUpdate = z.infer<typeof LoanUpdateSchema>;
 export type LoanCreateSymmetricInput = z.input<
   typeof LoanCreateSymmetricSchema
 >;
+
+// Define loan query filters for consistent query building
+export interface LoanFilters {
+  userId?: number;
+  groupId?: number | null;
+  isPersonal?: boolean;
+  asCreditor?: boolean;
+  asDebtor?: boolean;
+  limit?: number;
+  offset?: number;
+  sortOrder?: "asc" | "desc";
+  friendId?: number;
+}

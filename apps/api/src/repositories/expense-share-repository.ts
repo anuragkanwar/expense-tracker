@@ -20,77 +20,19 @@ import {
   SPLIT_TYPE,
 } from "@/db";
 
-// Import the original types from contracts for compatibility
-import type { LoanResponse as OriginalLoanResponse } from "@pocket-pixie/contracts";
+// Import types from contracts
+import type {
+  LoanResponse as OriginalLoanResponse,
+  LoanFilters,
+  ExpenseShareRepoCreate,
+  ExpenseShareRepoUpdate,
+  ExpenseShareRepoResponse,
+} from "@pocket-pixie/contracts";
 
 // Drizzle inferred row type
 type ExpenseShareSelect = typeof expenseShare.$inferSelect;
 
-// Internal types for this repository
-interface ExpenseShareCreate {
-  transactionId: number;
-  payerUserId: number;
-  participantUserId: number;
-  groupId?: number | null;
-  type?: EXPENSE_SHARE_TYPE;
-  description?: string;
-  shareType?: SHARE_TYPE | null;
-  splitType?: SPLIT_TYPE | null;
-  expenseAccountId?: number | null;
-  currency: string;
-  amount: number;
-  paidAmount?: number;
-  status?: EXPENSE_SHARE_STATUS;
-  realizedAt?: Date | null;
-  loanDate?: Date | null;
-  isPayerShare?: number; // 1 or 0
-  metadata?: unknown; // JSON metadata blob (opaque to domain layer)
-}
-
-interface ExpenseShareUpdate {
-  paidAmount?: number;
-  status?: EXPENSE_SHARE_STATUS;
-  metadata?: unknown;
-  description?: string;
-  amount?: number;
-  currency?: string;
-}
-
-interface ExpenseShareResponse {
-  id: number;
-  transactionId: number;
-  payerUserId: number;
-  participantUserId: number;
-  groupId?: number | null;
-  type?: EXPENSE_SHARE_TYPE;
-  description?: string;
-  shareType?: SHARE_TYPE | null;
-  splitType?: SPLIT_TYPE | null;
-  expenseAccountId?: number | null;
-  currency: string;
-  amount: number;
-  paidAmount: number;
-  status: EXPENSE_SHARE_STATUS;
-  realizedAt?: string | null;
-  loanDate?: string | null;
-  isPayerShare: number;
-  metadata?: unknown;
-  createdAt: string;
-  updatedAt: string;
-}
-
-// Define loan query filters for consistent query building
-export interface LoanFilters {
-  userId?: number;
-  groupId?: number | null;
-  isPersonal?: boolean;
-  asCreditor?: boolean;
-  asDebtor?: boolean;
-  limit?: number;
-  offset?: number;
-  sortOrder?: "asc" | "desc";
-  friendId?: number;
-}
+// Using types from contracts package
 
 export class ExpenseShareRepository {
   private db: DBType;
@@ -99,7 +41,7 @@ export class ExpenseShareRepository {
     this.db = db;
   }
 
-  private map(row: ExpenseShareSelect): ExpenseShareResponse {
+  private map(row: ExpenseShareSelect): ExpenseShareRepoResponse {
     if (!row) {
       throw new Error("Cannot map undefined row");
     }
@@ -109,10 +51,12 @@ export class ExpenseShareRepository {
       loanDate: row.loanDate ? row.loanDate.toISOString() : null,
       createdAt: row.createdAt.toISOString(),
       updatedAt: row.updatedAt.toISOString(),
-    } as ExpenseShareResponse;
+    } as ExpenseShareRepoResponse;
   }
 
-  private mapToLoanResponse(item: ExpenseShareResponse): OriginalLoanResponse {
+  private mapToLoanResponse(
+    item: ExpenseShareRepoResponse
+  ): OriginalLoanResponse {
     return {
       id: item.id,
       description: item.description || "",
@@ -130,9 +74,9 @@ export class ExpenseShareRepository {
   }
 
   async createMany(
-    data: ExpenseShareCreate[],
+    data: ExpenseShareRepoCreate[],
     tx?: DBTransactionType
-  ): Promise<ExpenseShareResponse[]> {
+  ): Promise<ExpenseShareRepoResponse[]> {
     if (!data.length) return [];
     const db = tx ?? this.db;
 
@@ -163,7 +107,7 @@ export class ExpenseShareRepository {
       )
       .returning();
 
-    return rows.map((r: typeof expenseShare.$inferSelect) => this.map(r));
+    return rows.map((r) => this.map(r));
   }
 
   async createLoan(
@@ -190,7 +134,7 @@ export class ExpenseShareRepository {
       loanDate,
     } = data;
 
-    const shareData: ExpenseShareCreate = {
+    const shareData: ExpenseShareRepoCreate = {
       transactionId,
       payerUserId: creditorId, // Creditor is always the payer in a loan
       participantUserId: debtorId, // Debtor is the participant
@@ -215,7 +159,7 @@ export class ExpenseShareRepository {
   async findById(
     id: number,
     tx?: DBTransactionType
-  ): Promise<ExpenseShareResponse | null> {
+  ): Promise<ExpenseShareRepoResponse | null> {
     const db = tx ?? this.db;
     const rows = await db
       .select()
@@ -254,7 +198,7 @@ export class ExpenseShareRepository {
     groupId: number | null = null,
     type: EXPENSE_SHARE_TYPE | null = null,
     tx?: DBTransactionType
-  ): Promise<ExpenseShareResponse[]> {
+  ): Promise<ExpenseShareRepoResponse[]> {
     const db = tx ?? this.db;
 
     // Build query conditions
@@ -381,9 +325,7 @@ export class ExpenseShareRepository {
       .limit(limit)
       .offset(offset);
 
-    return rows.map((row: typeof expenseShare.$inferSelect) =>
-      this.mapToLoanResponse(this.map(row))
-    );
+    return rows.map((row) => this.mapToLoanResponse(this.map(row)));
   }
 
   async findLoansBetweenUsers(
@@ -428,9 +370,7 @@ export class ExpenseShareRepository {
       .limit(limit)
       .offset(offset);
 
-    return rows.map((row: typeof expenseShare.$inferSelect) =>
-      this.mapToLoanResponse(this.map(row))
-    );
+    return rows.map((row) => this.mapToLoanResponse(this.map(row)));
   }
 
   async countLoans(
@@ -525,9 +465,9 @@ export class ExpenseShareRepository {
 
   async update(
     id: number,
-    data: ExpenseShareUpdate,
+    data: ExpenseShareRepoUpdate,
     tx?: DBTransactionType
-  ): Promise<ExpenseShareResponse | null> {
+  ): Promise<ExpenseShareRepoResponse | null> {
     const db = tx ?? this.db;
     await db
       .update(expenseShare)
@@ -580,7 +520,7 @@ export class ExpenseShareRepository {
     paidAmount: number,
     status: EXPENSE_SHARE_STATUS,
     tx?: DBTransactionType
-  ): Promise<ExpenseShareResponse | null> {
+  ): Promise<ExpenseShareRepoResponse | null> {
     return this.update(
       id,
       {
@@ -608,7 +548,7 @@ export class ExpenseShareRepository {
     filters: { startDate?: Date; endDate?: Date } = {},
     tx?: DBTransactionType
   ): Promise<{
-    shares: ExpenseShareResponse[];
+    shares: ExpenseShareRepoResponse[];
     total: number;
   }> {
     const db = tx ?? this.db;
@@ -652,9 +592,7 @@ export class ExpenseShareRepository {
       .limit(limit)
       .offset(offset);
 
-    const shares = rows.map((row: typeof expenseShare.$inferSelect) =>
-      this.map(row)
-    );
+    const shares = rows.map((row) => this.map(row));
 
     return {
       shares,

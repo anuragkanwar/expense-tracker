@@ -1,5 +1,8 @@
 // Re-export enums and tables (to be populated)
 export * from "./enums";
+export * from "./constants";
+export * from "./db-types";
+export * from "./type-compatibility";
 export * from "./tables/account";
 export * from "./tables/budget";
 export * from "./tables/friendship";

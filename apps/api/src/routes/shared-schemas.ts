@@ -1,4 +1,7 @@
 import { z } from "@hono/zod-openapi";
+import * as schemas from "@pocket-pixie/contracts";
+
+// Add OpenAPI annotations to the base schemas
 
 // Common numeric ID (positive int) used across params
 export const IdParamSchema = z.coerce
@@ -12,6 +15,7 @@ export const UserIdParamSchema = IdParamSchema.openapi({
   description: "User ID",
 });
 
+// Re-implement pagination schema with OpenAPI annotations
 export const PaginationQuerySchema = z.object({
   page: z.coerce
     .number()
@@ -64,8 +68,8 @@ export const StandardErrorSchema = z
 
 // Differences map used for idempotency conflict errors
 const IdempotencyDifferenceValueSchema = z.object({
-  original: z.any().openapi({ example: 100 }),
-  attempted: z.any().openapi({ example: 120 }),
+  original: z.unknown().openapi({ example: 100 }),
+  attempted: z.unknown().openapi({ example: 120 }),
 });
 
 export const IdempotencyConflictErrorSchema = StandardErrorSchema.extend({

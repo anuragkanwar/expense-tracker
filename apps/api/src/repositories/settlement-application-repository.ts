@@ -1,20 +1,10 @@
 import { settlementApplication } from "@/db";
 import { eq } from "drizzle-orm";
 import { type DBType, type DBTransactionType } from "@/db";
-
-export interface SettlementApplicationCreate {
-  settlementId: number;
-  expenseShareId: number;
-  appliedAmount: number;
-}
-
-export interface SettlementApplicationResponse {
-  id: number;
-  settlementId: number;
-  expenseShareId: number;
-  appliedAmount: number;
-  createdAt: string; // ISO string
-}
+import {
+  type SettlementApplicationCreate,
+  type SettlementApplicationResponse,
+} from "@pocket-pixie/contracts";
 
 export class SettlementApplicationRepository {
   private db: DBType;
@@ -31,7 +21,7 @@ export class SettlementApplicationRepository {
       expenseShareId: row.expenseShareId,
       appliedAmount: row.appliedAmount,
       createdAt: row.createdAt.toISOString(),
-    } as SettlementApplicationResponse;
+    };
   }
 
   async create(
