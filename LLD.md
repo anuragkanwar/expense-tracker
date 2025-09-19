@@ -117,17 +117,15 @@ Each flow lists: Purpose, Trigger/Service, Tables Written (W) / Read (R), Ledger
   4. LoanService calls createLoanRelationship to:
      - Find loan accounts for both users
      - Create ledger entries via TransactionHelperService
-     - Update bilateral balances via InterpersonalDebtEngine/BalanceAdjustmentService
-  5. LoanService creates loan record
-  6. LoanService creates exactly one loan_split record (for the debtor)
-  7. Response includes enriched loan details with creditorId and debtorId
+     - Update bilateral balances via InterpersonalDebtEngine
+  5. LoanService creates an expense_share record with type=LOAN to track the obligation
+  6. Response includes enriched loan details with creditorId and debtorId
 - **Tables & Records**:
   - `transaction`: Single row with {id, description, userId: creditorId, type: LOAN_GIVEN}
   - `transaction_entry`: Two rows:
     - Row 1: {transactionId, transactionAccountId (creditor's LOAN_GIVEN), amount: -amount}
     - Row 2: {transactionId, transactionAccountId (debtor's LOAN_TAKEN), amount: +amount}
-  - `loan`: Single row with {id, createdBy: creditorId, amount, currency, description, groupId (optional), transactionId, loanDate}
-  - `loan_split`: Single row with {id, loanId, userId: debtorId, amountOwed: amount, splitType: EQUAL, metadata}
+  - `expense_share`: Single row with {id, transactionId, payerUserId: creditorId, participantUserId: debtorId, amount, currency, description, type: LOAN, status: UNPAID, paidAmount: 0, groupId (optional), loanDate, isPayerShare: 0}
   - `user_balance`: Two mirrored rows:
     - Row 1: {ownerId: creditorId, counterPartyId: debtorId, amount: +amount, currency, groupId (optional)}
     - Row 2: {ownerId: debtorId, counterPartyId: creditorId, amount: -amount, currency, groupId (optional)}
@@ -140,41 +138,39 @@ Each flow lists: Purpose, Trigger/Service, Tables Written (W) / Read (R), Ledger
   2. amount > 0
   3. currency length = 3 (no FX yet)
   4. Context: (groupId present AND both members) OR existing friendship
-  5. Single implicit split == amount
-  6. Description normalized: blank → ""
-  7. Canonical direction only (creditor LOAN_GIVEN → debtor LOAN_TAKEN)
-  8. Created only via /api/v1/loans/symmetric
+  5. Description normalized: blank → ""
+  6. Canonical direction only (creditor LOAN_GIVEN → debtor LOAN_TAKEN)
+  7. Created only via /api/v1/loans/symmetric
 - **Failure (400)**: self-loan, invalid context, non-positive amount, invalid currency
-- **Notes**: While loans and expense shares use the same underlying debt tracking mechanisms, they are intentionally maintained as separate domain concepts to reflect their different user-facing purposes and settlement patterns
+- **Notes**: While loans and expense shares use the same underlying unified schema, they are intentionally maintained as separate domain concepts (through the type field) to reflect their different user-facing purposes and settlement patterns
 
-### 5.4 Direct Settlement (Legacy Debt Reversal)
+### 5.4 Unified Settlement Approach
 
-- **Purpose**: Record a direct settlement payment between users (not tied to specific expenses)
-- **Trigger**: BalanceService.createSettlement (legacy endpoint)
+- **Purpose**: Record a settlement payment between users with allocation to specific obligations
+- **Trigger**: SettlementService.allocateSettlement (with optional type filter)
 - **Data Flow**:
-  1. User (payer/debtor) submits settlement details (payeeId/creditorId, amount, currency, optional groupId)
-  2. BalanceService validates basic inputs (distinct users, positive amount)
-  3. BalanceService begins a database transaction
-  4. BalanceService creates transaction header record
-  5. BalanceService finds both users' loan accounts
-  6. BalanceService creates double-entry for reversing debt via TransactionHelperService
-  7. BalanceService creates settlement record
-  8. BalanceService updates bilateral balances via BalanceAdjustmentService
-  9. Transaction is committed
+  1. User (payer/debtor) submits allocation details (payeeId, amount, currency, optional groupId, optional type)
+  2. SettlementService validates inputs and idempotency key
+  3. SettlementService begins a database transaction
+  4. SettlementService fetches allocatable expense_share records in FIFO order
+  5. SettlementService creates transaction header and ledger entries
+  6. SettlementService creates settlement record
+  7. SettlementService applies settlement to specific expense shares
+  8. InterpersonalDebtEngine updates bilateral user balances
+  9. Transaction is committed with full allocation details
 - **Tables & Records**:
-  - `transaction`: Single row with {id, description: "Settlement payment", userId: payerId, type: "SETTLEMENT"}
+  - `transaction`: Single row with {id, description: "Settlement allocation", userId: payerId}
   - `transaction_entry`: Two rows:
     - Row 1: {transactionId, transactionAccountId (payer's LOAN_TAKEN), amount: -amount}
     - Row 2: {transactionId, transactionAccountId (payee's LOAN_GIVEN), amount: +amount}
   - `settlement`: Single row with {id, payerId, payeeId, amount, currency, groupId (optional), transactionId, settledAt}
-  - `user_balance`: Two mirrored rows updated:
-    - Row 1: {ownerId: payeeId, counterPartyId: payerId} amount decreased by settlement amount
-    - Row 2: {ownerId: payerId, counterPartyId: payeeId} amount increased by settlement amount
-- **Ledger**: LOAN_TAKEN (-) → LOAN_GIVEN (+) (reversal); optional expense cash flow pair in legacy group variant
-- **Balance Effect**: Reduces payee's claim on payer; reverses original loan entries
-- **Invariants**: amount > 0; parties distinct; idempotency key required
-- **Notes**: Does not inherently cap to net outstanding (legacy behavior) – present only for backward compatibility
-- **Key Difference**: Unlike allocation settlement, this does not update any expense_share records - it simply updates the user_balance directly
+  - `settlement_application`: Multiple rows linking the settlement to specific expense shares
+  - `expense_share`: Records updated with new paidAmount and status
+  - `user_balance`: Two mirrored rows updated appropriately
+- **Ledger**: LOAN_TAKEN (-) → LOAN_GIVEN (+)
+- **Balance Effect**: Reduces outstanding obligations with detailed tracking
+- **Invariants**: amount > 0; parties distinct; idempotency key required; valid expense share allocations
+- **Notes**: Supports settlement of both expenses and loans through the unified expense_share table
 
 ### 5.5 Shared Expense (Multi-Party Upfront Recognition)
 
@@ -224,28 +220,27 @@ Each flow lists: Purpose, Trigger/Service, Tables Written (W) / Read (R), Ledger
 
 #### 5.5.1 Shared Expenses and Loans: Unified Model
 
-Shared expenses and direct loans both utilize the same underlying loan relationship mechanism:
+Shared expenses and direct loans both utilize the same underlying loan relationship mechanism through a unified schema:
 
 - Both shared expenses and direct loans create the same ledger entries: LOAN_GIVEN (-) → LOAN_TAKEN (+)
-- Both use the same balance update mechanism through `InterpersonalDebtEngine` or `BalanceAdjustmentService`
+- Both use the same balance update mechanism through `InterpersonalDebtEngine`
 - Both follow the same sign convention: positive amount increases creditor's balance and decreases debtor's
+- Both are now stored in the unified `expense_share` table with a type field differentiating them
 - Key differences:
-  1. Shared expenses generate `expense_share` records for tracking obligations and enabling FIFO allocation
-  2. Direct loans track obligations via `loan` and `loan_split` tables
-  3. Shared expenses have a parent expense transaction showing OUTGOING → EXPENSE for the payer's share
-  4. Shared expenses track partial payments with status transitions (UNPAID → PARTIALLY_PAID → PAID)
-  5. Direct loans are typically settled through direct transactions rather than granular allocations
-  6. Shared expenses relate to specific purchases while loans represent direct money transfers
-  7. The UI presentation needs differ: expenses show what was purchased, loans show simple money transfers
+  1. Different `type` values in `expense_share` table: `EXPENSE` vs `LOAN`
+  2. Shared expenses have a parent expense transaction showing OUTGOING → EXPENSE for the payer's share
+  3. Both track partial payments with status transitions (UNPAID → PARTIALLY_PAID → PAID)
+  4. Shared expenses relate to specific purchases while loans represent direct money transfers
+  5. The UI presentation needs differ: expenses show what was purchased, loans show simple money transfers
 
-This approach provides consistent underlying debt tracking while preserving the semantic differences that are important to users. Both mechanisms maintain bilateral balances through the same services and create appropriate ledger entries, ensuring consistency in the core financial model.
+This unified approach provides consistent underlying debt tracking while preserving the semantic differences that are important to users. Both mechanisms maintain bilateral balances through the same services and create appropriate ledger entries, ensuring consistency in the core financial model.
 
 ### 5.6 Settlement Allocation (Canonical FIFO Repayment)
 
-- **Purpose**: Allocate a settlement payment across multiple expense obligations using FIFO order
-- **Trigger**: SettlementService.allocateExpenseShareSettlement
+- **Purpose**: Allocate a settlement payment across multiple obligations (expense shares or loans) using FIFO order
+- **Trigger**: SettlementService.allocateSettlement (with optional type filter)
 - **Data Flow**:
-  1. User (payer/debtor) submits allocation details (payeeId, amount, currency, optional groupId)
+  1. User (payer/debtor) submits allocation details (payeeId, amount, currency, optional groupId, optional type)
   2. SettlementService validates inputs and idempotency key
   3. SettlementService begins database transaction
   4. SettlementService fetches allocatable expense_share records (FIFO order):
@@ -254,6 +249,7 @@ This approach provides consistent underlying debt tracking while preserving the 
      - status = UNPAID or PARTIALLY_PAID
      - isPayerShare = 0
      - matching currency and optional groupId
+     - optional type filter (EXPENSE or LOAN)
   5. Validates total outstanding ≥ allocation amount
   6. Creates transaction header and ledger entries
   7. Creates settlement record
@@ -263,7 +259,7 @@ This approach provides consistent underlying debt tracking while preserving the 
      - Creates settlement_application record linking settlement to expense_share
      - Decrements remaining allocation amount
      - Continues until fully allocated or no more shares
-  9. Updates bilateral user_balance through BalanceAdjustmentService
+  9. Updates bilateral user_balance through InterpersonalDebtEngine
   10. Returns settlement details with applications and outstanding amounts
 - **Tables & Records**:
   - `transaction`: Single row with {id, description: "Settlement allocation", userId: payerId}
@@ -285,7 +281,7 @@ This approach provides consistent underlying debt tracking while preserving the 
 - Invariants: amount > 0; amount ≤ totalOutstanding + ε (ε≈1e-8); homogeneous currency & group; payerId != payeeId
 - Result: Outstanding reduced; shares’ status transitions UNPAID → PARTIALLY_PAID → PAID
 - Design Gap: Missing ledger parity (pending summarized or per-allocation entries)
-- Settlement Approach: This allocation-based settlement is currently used only for expense shares, not for direct loans. Direct loans use the simpler reversal approach (5.4) with less granular tracking. This separation is intentional and aligns with the different user-facing concepts and typical settlement patterns.
+- Settlement Approach: The unified allocation-based settlement can now be used for both expense shares and loans, with an optional type filter to specify which type of obligations should be settled.
 
 ### 5.7 Aggregation & Derived Views
 
@@ -1155,11 +1151,93 @@ This section outlines the implementation of the schema unification and debt trac
    - All service implementations updated to use the unified schema
    - API routes consolidated and standardized
    - Documentation updated to reflect the new architecture
+   - Unified passbook view implementation (showing transactions and expense shares together)
 
 2. **Future Work**:
    - Mark `loan` and `loan_split` tables as deprecated after sufficient verification period
    - Schedule removal of deprecated tables in a future release
    - Consider renaming service and repository files to remove "unified" prefix
    - Perform additional performance tuning and optimization of the unified schema
+
+## 23. Unified Passbook Implementation
+
+### 23.1 Overview
+
+The Unified Passbook feature provides a comprehensive chronological view of a user's financial activity by combining regular transactions, expense shares, and loans into a single, integrated view. This integration allows users to see all financial events in one place, regardless of the underlying storage mechanism.
+
+### 23.2 Technical Design
+
+#### 23.2.1 Core Components
+
+1. **PassbookRepository**: Central repository class that:
+   - Retrieves transaction entries from regular transactions
+   - Retrieves expense shares (both expenses and loans) formatted as passbook entries
+   - Combines and sorts entries chronologically
+   - Applies pagination and filtering to the combined dataset
+
+2. **PassbookService**: Business logic layer that:
+   - Validates inputs and filters
+   - Delegates data retrieval to the repository
+   - Provides enriched passbook views and summaries
+
+3. **API Contract**: Enhanced schema for the passbook entries that includes:
+   - Core transaction fields for all entry types
+   - Additional fields for expense shares (payerName, participantName, status)
+   - Type differentiation to allow filtering and specialized rendering
+
+#### 23.2.2 Data Flow
+
+1. Client makes a request to `/api/v1/passbook` with optional filters
+2. `PassbookService` validates inputs and applies default values
+3. `PassbookRepository` fetches transaction entries and expense shares in parallel
+4. Both data sources are merged, sorted chronologically, and paginated
+5. The combined result is returned to the client
+
+#### 23.2.3 Filter System
+
+The passbook supports a rich filtering system:
+
+- **Date Range**: `startDate` and `endDate` to limit entries by time period
+- **Entry Type**: `entryType` filter to show only `transaction`, `expense`, `loan`, or `all`
+- **Status**: `status` filter to show only `unpaid`, `partially_paid`, `paid`, or `all` (for expense shares and loans)
+- **Category/Account**: `categoryId` and `accountId` filters to focus on specific categories or accounts
+
+### 23.3 Benefits
+
+1. **Unified View**: Users see a complete financial timeline without switching between tabs
+2. **Consistent Pagination**: Works across heterogeneous data sources
+3. **Rich Filtering**: Allows users to drill down to specific entry types and statuses
+4. **Bi-directional View**: Shows both outgoing and incoming financial events
+5. **Mobile-Friendly API**: Mobile apps can use the same endpoint with flexible filter combinations
+
+### 23.4 Implementation Details
+
+1. **Sign Convention**: For expense shares, the user's perspective determines sign:
+   - When user is the payer: negative amount (money going out)
+   - When user is the participant: positive amount (money coming in)
+
+2. **Display Formatting**:
+   - Regular transactions display based on their account types
+   - Expense shares show payer and participant names
+   - Loans are prefixed with "Loan:" in the description
+
+3. **Status Tracking**:
+   - Expense shares and loans include status information (UNPAID, PARTIALLY_PAID, PAID)
+   - Regular transactions don't have a status concept (display only)
+
+### 23.5 Future Enhancements
+
+1. **Performance Optimization**:
+   - Use more efficient queries for very large datasets
+   - Add materialized views or caches for frequently accessed date ranges
+
+2. **Expanded Filters**:
+   - Add group filtering for expense shares
+   - Support tag-based filtering
+   - Add amount-range filtering
+
+3. **UI Enhancements**:
+   - Specialized card views per entry type
+   - Interactive filtering interface
 
 End of Document.

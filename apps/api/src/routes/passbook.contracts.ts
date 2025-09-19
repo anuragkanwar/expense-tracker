@@ -34,6 +34,22 @@ export const getPassbookRoute = createRoute({
         example: 123,
         description: "Filter by account",
       }),
+      entryType: z
+        .enum(["transaction", "expense", "loan", "all"])
+        .optional()
+        .openapi({
+          example: "all",
+          description:
+            "Filter by entry type: transaction (regular transactions only), expense (expense shares only), loan (loans only), or all (default)",
+        }),
+      status: z
+        .enum(["unpaid", "partially_paid", "paid", "all"])
+        .optional()
+        .openapi({
+          example: "all",
+          description:
+            "Filter by status: unpaid, partially_paid, paid, or all (default) - only applies to expense shares and loans",
+        }),
     }),
   },
   responses: {

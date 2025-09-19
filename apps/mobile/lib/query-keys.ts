@@ -57,8 +57,16 @@ export const queryKeys = {
     summary: () => ["dashboard", "summary"] as const,
   },
   passbook: {
-    list: (filters?: { page?: number; limit?: number; accountId?: number }) =>
-      ["passbook", "list", filters ?? {}] as const,
+    list: (filters?: {
+      page?: number;
+      limit?: number;
+      accountId?: number;
+      startDate?: string;
+      endDate?: string;
+      categoryId?: number;
+      entryType?: "transaction" | "expense" | "loan" | "all";
+      status?: "unpaid" | "partially_paid" | "paid" | "all";
+    }) => ["passbook", "list", filters ?? {}] as const,
   },
   recurringItems: {
     list: () => ["recurring-items", "list"] as const,

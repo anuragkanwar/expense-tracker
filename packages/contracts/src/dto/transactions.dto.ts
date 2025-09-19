@@ -1,6 +1,9 @@
 import { z } from "@hono/zod-openapi";
-import { LoanResponseSchema, LoanCreateSchema } from "../models/loan";
-import { LoanSplitCreateSchema } from "../models/loan-split";
+// Import from the unified expense-share model
+import {
+  LoanResponseSchema,
+  LoanCreateSymmetricSchema as LoanCreateSchema,
+} from "../models/expense-share";
 import { SHARE_TYPE, SPLIT_TYPE, TXN_TYPE } from "@pocket-pixie/db-schema";
 
 // Complex schema for creating transaction with payers and splits
@@ -31,11 +34,11 @@ export const TransactionCreateWithDetailsSchema = z
     }),
     splits: z
       .array(
-        LoanSplitCreateSchema.omit({
-          loanId: true,
-          splitType: true,
-          metadata: true,
-        }) // loanId will be set after creation
+        z.object({
+          userId: z.number().int(),
+          amount: z.number().positive(),
+          percentage: z.number().optional(),
+        })
       )
       .optional()
       .openapi({

@@ -42,6 +42,14 @@ passbookRoutes.openapi(getPassbookRoute, async (c) => {
       filters.accountId = query.accountId;
     }
 
+    if (query.entryType) {
+      filters.entryType = query.entryType;
+    }
+
+    if (query.status) {
+      filters.status = query.status;
+    }
+
     // Get passbook entries
     const result = await passbookService.getPassbookEntries(
       user.id,

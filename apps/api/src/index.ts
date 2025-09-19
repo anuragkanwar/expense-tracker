@@ -105,7 +105,8 @@ app.route("/api/v1/transactions", transactionRoutesExport);
 // No longer need to import routes here
 
 // Mount loan routes
-// Using the standard implementation that works with the unified schema
+// This is the standard implementation that works with the unified schema
+// Loans are now stored in the expense_share table with type=LOAN
 app.route("/api/v1/loans", loanRoutes);
 
 // Mount financial tracking routes

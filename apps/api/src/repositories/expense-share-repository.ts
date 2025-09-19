@@ -6,6 +6,8 @@ import {
   desc,
   eq,
   gt,
+  gte,
+  lte,
   isNull,
   or,
   type SQL,
@@ -161,7 +163,7 @@ export class ExpenseShareRepository {
       )
       .returning();
 
-    return rows.map((r) => this.map(r));
+    return rows.map((r: typeof expenseShare.$inferSelect) => this.map(r));
   }
 
   async createLoan(
@@ -267,7 +269,7 @@ export class ExpenseShareRepository {
       or(
         eq(expenseShare.status, EXPENSE_SHARE_STATUS.UNPAID),
         eq(expenseShare.status, EXPENSE_SHARE_STATUS.PARTIALLY_PAID)
-      ),
+      ) as SQL<unknown>,
       // Never allocate payer's own share
       eq(expenseShare.isPayerShare, 0),
       // Must have some remaining amount to pay
@@ -301,7 +303,7 @@ export class ExpenseShareRepository {
         asc(expenseShare.id)
       );
 
-    return rows.map((row) => this.map(row));
+    return rows.map((row: typeof expenseShare.$inferSelect) => this.map(row));
   }
 
   async findLoans(
@@ -350,7 +352,7 @@ export class ExpenseShareRepository {
       }
 
       if (userConditions.length > 0) {
-        conditions.push(or(...userConditions));
+        conditions.push(or(...userConditions) as SQL<unknown>);
       }
     }
 
@@ -379,7 +381,9 @@ export class ExpenseShareRepository {
       .limit(limit)
       .offset(offset);
 
-    return rows.map((row) => this.mapToLoanResponse(this.map(row)));
+    return rows.map((row: typeof expenseShare.$inferSelect) =>
+      this.mapToLoanResponse(this.map(row))
+    );
   }
 
   async findLoansBetweenUsers(
@@ -399,7 +403,7 @@ export class ExpenseShareRepository {
       and(
         eq(expenseShare.payerUserId, user1Id),
         eq(expenseShare.participantUserId, user2Id)
-      )
+      ) as SQL<unknown>
     );
 
     // User 2 as creditor, User 1 as debtor
@@ -407,7 +411,7 @@ export class ExpenseShareRepository {
       and(
         eq(expenseShare.payerUserId, user2Id),
         eq(expenseShare.participantUserId, user1Id)
-      )
+      ) as SQL<unknown>
     );
 
     // Find loans in both directions
@@ -417,14 +421,16 @@ export class ExpenseShareRepository {
       .where(
         and(
           eq(expenseShare.type, EXPENSE_SHARE_TYPE.LOAN),
-          or(...userConditions)
+          or(...userConditions) as SQL<unknown>
         )
       )
       .orderBy(desc(expenseShare.createdAt))
       .limit(limit)
       .offset(offset);
 
-    return rows.map((row) => this.mapToLoanResponse(this.map(row)));
+    return rows.map((row: typeof expenseShare.$inferSelect) =>
+      this.mapToLoanResponse(this.map(row))
+    );
   }
 
   async countLoans(
@@ -452,7 +458,7 @@ export class ExpenseShareRepository {
         and(
           eq(expenseShare.payerUserId, userId),
           eq(expenseShare.participantUserId, friendId)
-        )
+        ) as SQL<unknown>
       );
 
       // Friend as creditor, User as debtor
@@ -460,7 +466,7 @@ export class ExpenseShareRepository {
         and(
           eq(expenseShare.payerUserId, friendId),
           eq(expenseShare.participantUserId, userId)
-        )
+        ) as SQL<unknown>
       );
 
       const result = await db
@@ -469,7 +475,7 @@ export class ExpenseShareRepository {
         .where(
           and(
             eq(expenseShare.type, EXPENSE_SHARE_TYPE.LOAN),
-            or(...userConditions)
+            or(...userConditions) as SQL<unknown>
           )
         );
 
@@ -505,7 +511,7 @@ export class ExpenseShareRepository {
       }
 
       if (userConditions.length > 0) {
-        conditions.push(or(...userConditions));
+        conditions.push(or(...userConditions) as SQL<unknown>);
       }
     }
 
@@ -583,5 +589,76 @@ export class ExpenseShareRepository {
       },
       tx
     );
+  }
+
+  /**
+   * Get expense shares for a user for passbook integration
+   *
+   * @param userId The user ID
+   * @param page Page number (1-indexed)
+   * @param limit Results per page
+   * @param filters Optional date range filters
+   * @param tx Optional transaction context
+   * @returns Expense shares where user is either payer or participant
+   */
+  async getExpenseSharesForPassbook(
+    userId: number,
+    page: number = 1,
+    limit: number = 20,
+    filters: { startDate?: Date; endDate?: Date } = {},
+    tx?: DBTransactionType
+  ): Promise<{
+    shares: ExpenseShareResponse[];
+    total: number;
+  }> {
+    const db = tx ?? this.db;
+    const offset = (page - 1) * limit;
+
+    // Build conditions
+    const conditions: SQL<unknown>[] = [
+      or(
+        eq(expenseShare.payerUserId, userId),
+        eq(expenseShare.participantUserId, userId)
+      ) as SQL<unknown>,
+    ];
+
+    // Add date filters if provided
+    if (filters.startDate) {
+      conditions.push(
+        gte(expenseShare.createdAt, filters.startDate) as SQL<unknown>
+      );
+    }
+
+    if (filters.endDate) {
+      conditions.push(
+        lte(expenseShare.createdAt, filters.endDate) as SQL<unknown>
+      );
+    }
+
+    // Count total
+    const countResult = await db
+      .select({ value: count() })
+      .from(expenseShare)
+      .where(and(...conditions));
+
+    const total = Number(countResult[0]?.value || 0);
+
+    // Get paginated results
+    const rows = await db
+      .select()
+      .from(expenseShare)
+      .where(and(...conditions))
+      .orderBy(desc(expenseShare.createdAt))
+      .limit(limit)
+      .offset(offset);
+
+    const shares = rows.map((row: typeof expenseShare.$inferSelect) =>
+      this.map(row)
+    );
+
+    return {
+      shares,
+      total,
+    };
   }
 }

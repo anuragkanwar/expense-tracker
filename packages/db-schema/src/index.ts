@@ -6,8 +6,8 @@ export * from "./tables/friendship";
 export * from "./tables/group-member";
 export * from "./tables/group";
 
-export * from "./tables/loan-splits";
-export * from "./tables/loan";
+// Loan tables have been deprecated in favor of unified expense_share model
+// with type=LOAN (see LLD section 22)
 export * from "./tables/recurring";
 export * from "./tables/session";
 export * from "./tables/settlement";

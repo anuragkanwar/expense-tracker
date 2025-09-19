@@ -13,6 +13,16 @@ export const PassbookEntryResponseSchema = z
     updatedAt: z.string(),
     transaction: TransactionResponseSchema,
     transactionAccount: TransactionAccountResponseSchema,
+    // Expense share fields (optional, only present for expense share entries)
+    isExpenseShare: z.boolean().optional(),
+    expenseShareType: z.string().optional(),
+    expenseShareId: z.number().optional(),
+    payerUserId: z.number().optional(),
+    participantUserId: z.number().optional(),
+    payerName: z.string().optional(),
+    participantName: z.string().optional(),
+    groupId: z.number().optional(),
+    status: z.string().optional(),
   })
   .openapi("PassbookEntryResponse");
 

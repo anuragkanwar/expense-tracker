@@ -24,6 +24,8 @@ export function usePassbook(filters?: {
   endDate?: string;
   categoryId?: number;
   accountId?: number;
+  entryType?: "transaction" | "expense" | "loan" | "all";
+  status?: "unpaid" | "partially_paid" | "paid" | "all";
 }) {
   return useQuery({
     queryKey: queryKeys.passbook.list(filters),
