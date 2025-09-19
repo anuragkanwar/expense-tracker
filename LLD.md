@@ -142,7 +142,6 @@ Each flow lists: Purpose, Trigger/Service, Tables Written (W) / Read (R), Ledger
   6. Canonical direction only (creditor LOAN_GIVEN → debtor LOAN_TAKEN)
   7. Created only via /api/v1/loans/symmetric
 - **Failure (400)**: self-loan, invalid context, non-positive amount, invalid currency
-- **Notes**: While loans and expense shares use the same underlying unified schema, they are intentionally maintained as separate domain concepts (through the type field) to reflect their different user-facing purposes and settlement patterns
 
 ### 5.4 Unified Settlement Approach
 
