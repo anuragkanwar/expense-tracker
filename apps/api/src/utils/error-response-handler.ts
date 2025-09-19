@@ -53,7 +53,7 @@ export const handleRouteError = (error: unknown): ErrorResponse => {
     const msg = error.message || "Unknown error";
 
     // Respect explicit statusCode/status if provided (e.g. from mocked or 3rd-party errors)
-    const explicitStatus = error?.statusCode ?? (error as any)?.status;
+    const explicitStatus = (error as any)?.statusCode ?? (error as any)?.status;
     const allowedStatuses: number[] = [400, 401, 403, 404, 409, 422];
     if (
       typeof explicitStatus === "number" &&
