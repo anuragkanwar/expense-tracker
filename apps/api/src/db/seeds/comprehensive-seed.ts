@@ -1613,10 +1613,24 @@ async function createSettlements(
           .where(eq(expenseShare.id, bobToAliceLoanShare.id));
 
         // Update user balances
+        // First retrieve current balance for Alice
+        const aliceBalance = await db
+          .select({ amount: userBalance.amount })
+          .from(userBalance)
+          .where(
+            and(
+              eq(userBalance.ownerId, aliceId),
+              eq(userBalance.counterPartyId, bobId),
+              isNull(userBalance.groupId)
+            )
+          )
+          .then((rows) => rows[0]?.amount || 0);
+
+        // Update Alice's balance
         await db
           .update(userBalance)
           .set({
-            amount: Number(userBalance.amount) - bobToAliceSettlementAmount,
+            amount: Number(aliceBalance) - bobToAliceSettlementAmount,
             updatedAt: bobToAliceSettlementDate,
           })
           .where(
@@ -1627,10 +1641,24 @@ async function createSettlements(
             )
           );
 
+        // First retrieve current balance for Bob
+        const bobBalance = await db
+          .select({ amount: userBalance.amount })
+          .from(userBalance)
+          .where(
+            and(
+              eq(userBalance.ownerId, bobId),
+              eq(userBalance.counterPartyId, aliceId),
+              isNull(userBalance.groupId)
+            )
+          )
+          .then((rows) => rows[0]?.amount || 0);
+
+        // Update Bob's balance
         await db
           .update(userBalance)
           .set({
-            amount: Number(userBalance.amount) + bobToAliceSettlementAmount,
+            amount: Number(bobBalance) + bobToAliceSettlementAmount,
             updatedAt: bobToAliceSettlementDate,
           })
           .where(
@@ -1732,6 +1760,7 @@ async function createSettlements(
           .where(eq(expenseShare.id, dianaToCharlieLoanShare.id));
 
         // Update user balances to zero since this is a full payment
+        // For Charlie
         await db
           .update(userBalance)
           .set({
@@ -1746,6 +1775,7 @@ async function createSettlements(
             )
           );
 
+        // For Diana
         await db
           .update(userBalance)
           .set({
