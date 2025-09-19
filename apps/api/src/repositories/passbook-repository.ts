@@ -147,6 +147,7 @@ export class PassbookRepository {
           transactionDescription: transaction.description,
           transactionDate: transaction.transactionDate,
           transactionUserId: transaction.userId,
+          transactionParentId: transaction.parentTransactionId,
           transactionCreatedAt: transaction.createdAt,
           transactionUpdatedAt: transaction.updatedAt,
           // Transaction Account fields
@@ -187,6 +188,7 @@ export class PassbookRepository {
           description: row.transactionDescription,
           transactionDate: row.transactionDate?.toISOString(),
           userId: row.transactionUserId,
+          parentTransactionId: row.transactionParentId || null,
           createdAt: row.transactionCreatedAt.toISOString(),
           updatedAt: row.transactionUpdatedAt.toISOString(),
         },
@@ -341,6 +343,7 @@ export class PassbookRepository {
         transactionDescription: transaction.description,
         transactionDate: transaction.transactionDate,
         transactionUserId: transaction.userId,
+        transactionParentId: transaction.parentTransactionId,
         transactionCreatedAt: transaction.createdAt,
         transactionUpdatedAt: transaction.updatedAt,
         // Get payer and participant names (optional)
@@ -404,6 +407,7 @@ export class PassbookRepository {
               : `Expense: ${row.description || "No description"}`,
           transactionDate: row.transactionDate?.toISOString(),
           userId: row.transactionUserId,
+          parentTransactionId: row.transactionParentId || null,
           createdAt: row.transactionCreatedAt.toISOString(),
           updatedAt: row.transactionUpdatedAt.toISOString(),
         },
@@ -459,6 +463,7 @@ export class PassbookRepository {
         transactionDescription: transaction.description,
         transactionDate: transaction.transactionDate,
         transactionUserId: transaction.userId,
+        transactionParentId: transaction.parentTransactionId,
         transactionCreatedAt: transaction.createdAt,
         transactionUpdatedAt: transaction.updatedAt,
         // Transaction Account fields
@@ -500,6 +505,7 @@ export class PassbookRepository {
           description: row.transactionDescription,
           transactionDate: row.transactionDate?.toISOString(),
           userId: row.transactionUserId,
+          parentTransactionId: row.transactionParentId || null,
           createdAt: row.transactionCreatedAt.toISOString(),
           updatedAt: row.transactionUpdatedAt.toISOString(),
         },
@@ -539,6 +545,7 @@ export class PassbookRepository {
         transactionDescription: transaction.description,
         transactionDate: transaction.transactionDate,
         transactionUserId: transaction.userId,
+        transactionParentId: transaction.parentTransactionId,
         transactionCreatedAt: transaction.createdAt,
         transactionUpdatedAt: transaction.updatedAt,
       })
@@ -595,6 +602,7 @@ export class PassbookRepository {
             : `Expense: ${row.description || "No description"}`,
         transactionDate: row.transactionDate?.toISOString(),
         userId: row.transactionUserId,
+        parentTransactionId: row.transactionParentId || null,
         createdAt: row.transactionCreatedAt.toISOString(),
         updatedAt: row.transactionUpdatedAt.toISOString(),
       },

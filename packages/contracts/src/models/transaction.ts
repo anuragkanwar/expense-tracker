@@ -28,6 +28,11 @@ export const TransactionCreateSchema = createInsertSchema(transaction, {
     example: 123,
     description: "User ID",
   }),
+  parentTransactionId: z.number().optional().openapi({
+    example: 456,
+    description:
+      "Parent transaction ID for linked transactions (e.g., allocation entries)",
+  }),
 })
   .omit({
     id: true,

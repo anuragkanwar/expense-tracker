@@ -1,4 +1,5 @@
 import { db } from "../database";
+import { auth } from "../auth";
 import {
   user,
   account,
@@ -25,7 +26,6 @@ import {
   SPLIT_TYPE,
   TIME_PERIOD,
 } from "@pocket-pixie/db-schema";
-import { genSalt, hash } from "bcryptjs";
 import { eq, and, isNull } from "drizzle-orm";
 
 // Type definitions
@@ -213,48 +213,41 @@ async function cleanupExistingData() {
   await db.delete(user);
 }
 
-// Create 4 users
+// Auth is imported at the top
+
+// Create 4 users using better-auth
 async function createUsers(
   userData: UserWithPassword[]
 ): Promise<CreatedUser[]> {
   const createdUsers: CreatedUser[] = [];
 
   for (const data of userData) {
-    const salt = await genSalt(10);
-    const hashedPassword = await hash(data.password, salt);
+    try {
+      // Use better-auth's signUpEmail to create a user
+      const response = await auth.api.signUpEmail({
+        body: {
+          name: data.name,
+          email: data.email,
+          password: data.password,
+          currency: data.currency || "USD",
+        },
+      });
 
-    const result = await db
-      .insert(user)
-      .values({
-        name: data.name,
-        email: data.email,
-        currency: data.currency || "USD",
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      })
-      .returning({ id: user.id });
+      // Extract user ID from the response
+      const userId = Number(response.user.id);
 
-    if (result.length === 0) {
-      throw new Error(`Failed to create user: ${data.email}`);
+      if (!userId) {
+        throw new Error(`Failed to get ID for user: ${data.email}`);
+      }
+
+      // Add to our list of created users
+      createdUsers.push({ id: userId, ...data });
+
+      console.log(`Created user ${data.name} with ID ${userId}`);
+    } catch (error) {
+      console.error(`Failed to create user ${data.email}:`, error);
+      throw error;
     }
-
-    const userId = result[0]?.id;
-
-    if (userId === undefined) {
-      throw new Error(`Failed to get ID for user: ${data.email}`);
-    }
-
-    // Create account for auth
-    await db.insert(account).values({
-      accountId: "credentials", // Changed from provider
-      providerId: userId.toString(), // Changed from providerAccountId
-      userId: userId,
-      password: hashedPassword,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    });
-
-    createdUsers.push({ id: userId, ...data });
   }
 
   return createdUsers;
@@ -458,70 +451,94 @@ async function createTransactionAccounts(
   for (const user of users) {
     const accounts: UserAccounts = {};
 
-    // Create income account
-    const incomeAccount = await createAccount(
-      user.id,
+    // First check which accounts already exist
+    const existingAccounts = await db
+      .select()
+      .from(transactionAccount)
+      .where(eq(transactionAccount.userId, user.id));
+
+    console.log(
+      `Found ${existingAccounts.length} existing accounts for user ${user.id}`
+    );
+
+    // Create a map of existing accounts by type for easy lookup
+    const existingAccountsByType = new Map();
+    existingAccounts.forEach((account) => {
+      existingAccountsByType.set(account.type, account);
+    });
+
+    // Function to get or create account based on type
+    async function getOrCreateAccount(
+      name: string,
+      type: ACCOUNT_TYPE,
+      isPaymentSource: boolean = false
+    ) {
+      // If account already exists, use it
+      const existingAccount = existingAccountsByType.get(type);
+      if (existingAccount) {
+        console.log(`Using existing ${type} account for user ${user.id}`);
+        return existingAccount;
+      }
+
+      // Otherwise create a new one
+      return await createAccount(user.id, name, type, isPaymentSource);
+    }
+
+    // Get or create income account
+    const incomeAccount = await getOrCreateAccount(
       "Salary",
       ACCOUNT_TYPE.INCOME
     );
     if (incomeAccount) accounts.income = incomeAccount;
 
-    // Create expense accounts
-    const groceriesAccount = await createAccount(
-      user.id,
+    // Get or create expense accounts
+    const groceriesAccount = await getOrCreateAccount(
       "Groceries",
       ACCOUNT_TYPE.EXPENSE
     );
     if (groceriesAccount) accounts.groceries = groceriesAccount;
 
-    const diningAccount = await createAccount(
-      user.id,
+    const diningAccount = await getOrCreateAccount(
       "Dining Out",
       ACCOUNT_TYPE.EXPENSE
     );
     if (diningAccount) accounts.dining = diningAccount;
 
-    const entertainmentAccount = await createAccount(
-      user.id,
+    const entertainmentAccount = await getOrCreateAccount(
       "Entertainment",
       ACCOUNT_TYPE.EXPENSE
     );
     if (entertainmentAccount) accounts.entertainment = entertainmentAccount;
 
-    // Create saving account
-    const savingAccount = await createAccount(
-      user.id,
+    // Get or create saving account
+    const savingAccount = await getOrCreateAccount(
       "Savings",
       ACCOUNT_TYPE.SAVING
     );
     if (savingAccount) accounts.saving = savingAccount;
 
-    // Create loan accounts
-    const loanGivenAccount = await createAccount(
-      user.id,
+    // Get or create loan accounts
+    const loanGivenAccount = await getOrCreateAccount(
       "Loans Given",
       ACCOUNT_TYPE.LOAN_GIVEN
     );
     if (loanGivenAccount) accounts.loanGiven = loanGivenAccount;
 
-    const loanTakenAccount = await createAccount(
-      user.id,
+    const loanTakenAccount = await getOrCreateAccount(
       "Loans Taken",
       ACCOUNT_TYPE.LOAN_TAKEN
     );
     if (loanTakenAccount) accounts.loanTaken = loanTakenAccount;
 
-    // Create external account
-    const externalAccount = await createAccount(
-      user.id,
+    // Get or create external account
+    const externalAccount = await getOrCreateAccount(
       "External",
       ACCOUNT_TYPE.EXTERNAL
     );
     if (externalAccount) accounts.external = externalAccount;
 
-    // Create outgoing account
-    const outgoingAccount = await createAccount(
-      user.id,
+    // Get or create outgoing account
+    const outgoingAccount = await getOrCreateAccount(
       "Outgoing",
       ACCOUNT_TYPE.OUTGOING,
       true

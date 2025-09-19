@@ -178,6 +178,14 @@ export class SettlementService {
    * This unified implementation works with both expense shares and loans stored in the
    * unified expense_share table.
    *
+   * The implementation includes per-allocation ledger entries, addressing the design gap
+   * mentioned in LLD section 5.6. For each allocation:
+   * 1. A child transaction is created (linked to the parent settlement transaction)
+   * 2. Double-entry ledger entries are created for the specific allocation amount
+   * 3. Transaction descriptions include detailed context (expense/loan type, share ID)
+   *
+   * This improves audit trails and ensures user_balance is fully derivable from allocation entries.
+   *
    * @param params Settlement allocation parameters
    * @param params.payerId User ID of the person making the payment (debtor)
    * @param params.payeeId User ID of the person receiving the payment (creditor)
@@ -402,6 +410,46 @@ export class SettlementService {
           tx
         );
         applications.push(app);
+
+        // Create per-allocation ledger entries for better audit trail
+        // This implements the ledger parity mentioned in the LLD section 5.6
+        // Get more information about the expense share for better context
+        const expenseShare = await this.expenseShareRepository.findById(
+          share.id,
+          tx
+        );
+        if (!expenseShare) {
+          throw new Error(`Could not find expense share with id ${share.id}`);
+        }
+
+        // Create a descriptive name for the allocation transaction
+        const shareType =
+          expenseShare.type === EXPENSE_SHARE_TYPE.LOAN ? "loan" : "expense";
+        const allocationDescription = `Allocation: ${apply} ${currency} for ${shareType} share #${share.id}`;
+
+        // Create child transaction for this specific allocation
+        const allocationTxn = await this.transactionRepository.create(
+          {
+            description: allocationDescription,
+            userId: payerId,
+            parentTransactionId: txn.id, // Link to the parent settlement transaction
+          },
+          tx
+        );
+
+        // Create allocation-specific ledger entries
+        await this.transactionHelperService.updateAccountsAndCreateEntries(
+          [
+            {
+              srcAcc: payerLoanTakenAcc,
+              dstAcc: payeeLoanGivenAcc,
+              amount: apply,
+              txnId: allocationTxn.id,
+            },
+          ],
+          tx
+        );
+
         remaining -= apply;
       }
 

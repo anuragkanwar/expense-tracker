@@ -597,13 +597,13 @@ Future Work:
 
 ## 17. Known Gaps (Non-Flag Form)
 
-- Allocation ledger parity absent (no transaction entries yet)
+- ✅ Allocation ledger parity implemented (per-allocation transaction entries with parent-child relationships)
 - Concurrency protection for parallel allocations pending (row locks / mutex)
 - Reconciliation utility (derive & compare user_balance vs obligations) pending
 - Share listing / filtering endpoints for richer obligation queries pending
 - Zero-balance row pruning optimization not implemented
 - Multi-currency normalization & FX handling deferred
-- Optional summarized or per-allocation ledger emission design pending
+- ✅ Per-allocation ledger emission design implemented (creating detailed transaction entries for each allocation)
 
 ---
 
@@ -617,7 +617,7 @@ Future Work:
 
 ## 19. Planned Enhancements (High-Level)
 
-- Ledger entries for allocation (micro vs summarized strategy)
+- ✅ Ledger entries for allocation implemented (micro-level per-allocation strategy)
 - Reconciliation & audit tooling
 - Concurrency controls for allocation (row locking / logical mutex)
 - Multi-currency normalization / functional currency support
