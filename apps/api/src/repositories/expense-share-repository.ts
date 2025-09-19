@@ -256,7 +256,7 @@ export class ExpenseShareRepository {
     const db = tx ?? this.db;
 
     // Build query conditions
-    const conditions: SQL<unknown>[] = [
+    const conditions: SQL[] = [
       // Debtor is the participant who owes money
       eq(expenseShare.participantUserId, debtorId),
       // Creditor is the original payer
