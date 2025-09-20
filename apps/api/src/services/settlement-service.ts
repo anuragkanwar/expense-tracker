@@ -2,6 +2,7 @@ import type {
   SettlementResponse,
   SettlementCreate,
   SettlementUpdate,
+  SettlementApplicationResponse,
 } from "@pocket-pixie/contracts";
 import { BadRequestError } from "@/errors/base-error";
 import { SettlementRepository } from "@/repositories/settlement-repository";
@@ -20,10 +21,7 @@ import { TransactionAccountNotFoundError } from "@/errors/transaction-account-er
 import { TransactionHelperService } from "./transaction-helper-service";
 import { ExpenseShareRepository } from "@/repositories/expense-share-repository";
 import { InterpersonalDebtEngine } from "./interpersonal-debt-engine";
-import {
-  SettlementApplicationRepository,
-  type SettlementApplicationResponse,
-} from "@/repositories/settlement-application-repository";
+import { SettlementApplicationRepository } from "@/repositories/settlement-application-repository";
 import { IdempotencyKeyConflictError } from "@/errors/idempotency-errors";
 
 interface SettlementResult {

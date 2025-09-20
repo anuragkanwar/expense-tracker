@@ -208,13 +208,15 @@ export class PassbookRepository {
     }
 
     // Combine both types of entries and sort by date
-    const combinedEntries = [
+    const combinedEntries: PassbookEntryResponse[] = [
       ...transactionEntries,
       ...expenseShareEntries,
     ].sort((a, b) => {
-      const dateA = new Date(a.transaction.transactionDate || a.createdAt);
-      const dateB = new Date(b.transaction.transactionDate || b.createdAt);
-      return dateB.getTime() - dateA.getTime();
+      // const dateA = new Date(a.transaction.transactionDate || a.createdAt);
+      // const dateB = new Date(b.transaction.transactionDate || b.createdAt);
+      // return dateB.getTime() - dateA.getTime();
+
+      return a.transaction.id - b.transaction.id;
     });
 
     const totalEntries = transactionTotal + expenseShareTotal;

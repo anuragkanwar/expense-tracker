@@ -22,8 +22,6 @@ import {
   TXN_TYPE,
   EXPENSE_SHARE_STATUS,
   EXPENSE_SHARE_TYPE,
-  // Import compatibility helpers
-  type CompatibleTransaction,
   asCompatibleTransaction,
 } from "@/db";
 import {
@@ -46,7 +44,6 @@ export class TransactionService {
   private readonly friendService;
   private readonly expenseShareRepository;
   private readonly interpersonalDebtEngine: InterpersonalDebtEngine;
-  // Removed loanService dependency to avoid circular reference
   private db: DBType;
 
   constructor({
@@ -166,8 +163,6 @@ export class TransactionService {
     );
   }
 
-  // Removed duplicate updateAccountsAndCreateEntries - use TransactionHelperService instead
-
   /**
    * Main transaction creation endpoint for personal expenses, income, saving and shared expenses.
    * Note: Direct loan creation has been moved to LoanService and accessed via /api/v1/loans
@@ -176,8 +171,6 @@ export class TransactionService {
     transactionCreateWithDetails: TransactionCreateWithDetails,
     userCurrency: string = "INR"
   ) {
-    // Flag F5 (Dual Loan Pathways Divergence): Block direct loan creation here.
-    // Canonical path for LOAN_GIVEN / LOAN_TAKEN is now LoanService via /api/v1/loans.
     if (
       transactionCreateWithDetails.type === TXN_TYPE.LOAN_GIVEN ||
       transactionCreateWithDetails.type === TXN_TYPE.LOAN_TAKEN

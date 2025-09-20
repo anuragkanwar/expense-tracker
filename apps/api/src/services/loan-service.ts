@@ -332,8 +332,7 @@ export class LoanService {
     }
 
     // Use the unified repository
-    const loans =
-      await this.expenseShareRepository.findLoans(loanFilters);
+    const loans = await this.expenseShareRepository.findLoans(loanFilters);
 
     // Count total for pagination
     const total = await this.expenseShareRepository.countLoans({
@@ -392,8 +391,7 @@ export class LoanService {
       offset,
     };
 
-    const loans =
-      await this.expenseShareRepository.findLoans(loanFilters);
+    const loans = await this.expenseShareRepository.findLoans(loanFilters);
 
     // Get count for pagination
     const total = await this.expenseShareRepository.countLoans({
@@ -426,8 +424,7 @@ export class LoanService {
       isPersonal: true, // Only personal loans between friends
     };
 
-    const loans =
-      await this.expenseShareRepository.findLoans(loanFilters);
+    const loans = await this.expenseShareRepository.findLoans(loanFilters);
 
     // Get count for pagination
     const total = await this.expenseShareRepository.countLoans({
@@ -442,14 +439,11 @@ export class LoanService {
   async updateLoan(loanId: number, userId: number, updateData: LoanUpdate) {
     await this.getLoanById(loanId, userId); // access check
 
-    const updatedLoan = await this.expenseShareRepository.updateLoan(
-      loanId,
-      {
-        description: updateData.description,
-        amount: updateData.amount,
-        currency: updateData.currency,
-      }
-    );
+    const updatedLoan = await this.expenseShareRepository.updateLoan(loanId, {
+      description: updateData.description,
+      amount: updateData.amount,
+      currency: updateData.currency,
+    });
 
     if (!updatedLoan) throw new NotFoundError("Failed to update loan");
     return updatedLoan;
@@ -462,3 +456,4 @@ export class LoanService {
     return { message: "Loan deleted successfully" };
   }
 }
+

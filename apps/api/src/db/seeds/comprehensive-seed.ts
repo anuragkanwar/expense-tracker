@@ -229,7 +229,7 @@ async function createUsers(
           name: data.name,
           email: data.email,
           password: data.password,
-          currency: data.currency || "USD",
+          currency: data.currency || "INR",
         },
       });
 
@@ -1576,7 +1576,7 @@ async function createSettlements(
       return;
     }
 
-    // Create settlement transaction
+    // Create parent settlement transaction
     const bobToAliceSettlementTx = await createTransaction(
       bobId,
       "Partial Loan Repayment to Alice",
@@ -1584,7 +1584,7 @@ async function createSettlements(
     );
 
     if (bobToAliceSettlementTx) {
-      // Create entries for settlement
+      // Create entries for the parent settlement transaction
       await createTransactionEntries(bobToAliceSettlementTx.id, [
         {
           accountId: bobAccounts.loanTaken.id,
@@ -1598,7 +1598,38 @@ async function createSettlements(
         },
       ]);
 
-      // Create settlement record
+      // Create a child allocation transaction
+      const allocationDescription = `Allocation: ${bobToAliceSettlementAmount} USD for loan share #${bobToAliceLoanShare.id}`;
+      const allocationTx = await createTransaction(
+        bobId,
+        allocationDescription,
+        bobToAliceSettlementDate
+      );
+
+      // Process child allocation transaction if it was created successfully
+      if (allocationTx) {
+        // Update the parent transaction ID for the allocation transaction
+        await db
+          .update(transaction)
+          .set({ parentTransactionId: bobToAliceSettlementTx.id })
+          .where(eq(transaction.id, allocationTx.id));
+
+        // Create entries for the child allocation transaction
+        await createTransactionEntries(allocationTx.id, [
+          {
+            accountId: bobAccounts.loanTaken.id,
+            amount: -bobToAliceSettlementAmount,
+            date: bobToAliceSettlementDate,
+          },
+          {
+            accountId: aliceAccounts.loanGiven.id,
+            amount: bobToAliceSettlementAmount,
+            date: bobToAliceSettlementDate,
+          },
+        ]);
+      }
+
+      // Create settlement record linked to the parent transaction
       const bobToAliceSettlement = await createSettlementRecord(
         bobId,
         aliceId,
@@ -1723,7 +1754,7 @@ async function createSettlements(
       return;
     }
 
-    // Create settlement transaction
+    // Create parent settlement transaction
     const dianaToCharlieSettlementTx = await createTransaction(
       dianaId,
       "Full Loan Repayment to Charlie",
@@ -1731,7 +1762,7 @@ async function createSettlements(
     );
 
     if (dianaToCharlieSettlementTx) {
-      // Create entries for settlement
+      // Create entries for parent settlement transaction
       await createTransactionEntries(dianaToCharlieSettlementTx.id, [
         {
           accountId: dianaAccounts.loanTaken.id,
@@ -1744,6 +1775,37 @@ async function createSettlements(
           date: dianaToCharlieSettlementDate,
         },
       ]);
+
+      // Create a child allocation transaction
+      const allocationDescription = `Allocation: ${dianaToCharlieSettlementAmount} USD for loan share #${dianaToCharlieLoanShare.id}`;
+      const allocationTx = await createTransaction(
+        dianaId,
+        allocationDescription,
+        dianaToCharlieSettlementDate
+      );
+
+      // Process child allocation transaction if it was created successfully
+      if (allocationTx) {
+        // Update the parent transaction ID for the allocation transaction
+        await db
+          .update(transaction)
+          .set({ parentTransactionId: dianaToCharlieSettlementTx.id })
+          .where(eq(transaction.id, allocationTx.id));
+
+        // Create entries for the child allocation transaction
+        await createTransactionEntries(allocationTx.id, [
+          {
+            accountId: dianaAccounts.loanTaken.id,
+            amount: -dianaToCharlieSettlementAmount,
+            date: dianaToCharlieSettlementDate,
+          },
+          {
+            accountId: charlieAccounts.loanGiven.id,
+            amount: dianaToCharlieSettlementAmount,
+            date: dianaToCharlieSettlementDate,
+          },
+        ]);
+      }
 
       // Create settlement record
       const dianaToCharlieSettlement = await createSettlementRecord(
