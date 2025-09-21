@@ -105,7 +105,7 @@ Each flow lists: Purpose, Trigger/Service, Tables Written (W) / Read (R), Ledger
 - **user_balance**: none (no interpersonal debt)
 - **Invariants**: Sum(entries)=0; single-user context; amount > 0; valid account types
 
-### 5.3 Symmetric Loan Creation (/api/v1/loans/symmetric)
+### 5.3 Symmetric Loan Creation (/api/v1/loans)
 
 - **Purpose**: Create a direct bilateral loan between two users (creditor lends to debtor)
 - **Endpoint**: POST /api/v1/loans/symmetric

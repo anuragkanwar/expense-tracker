@@ -16,7 +16,7 @@ import {
 export const createLoanSymmetricRoute = createRoute({
   method: "post",
   path: "/",
-  summary: "Create direct loan (symmetric – canonical)",
+  summary: "Create loan",
   description:
     "Creates a bilateral loan between a creditor and debtor where either can be the authenticated user. " +
     "Both creditorId and debtorId must be explicitly provided, and one of them must match the authenticated user. " +
