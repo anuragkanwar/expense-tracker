@@ -5,7 +5,7 @@ import {
   expenseShare,
   user,
 } from "@/db";
-import { eq, and, gte, lte, desc, sql, or } from "drizzle-orm";
+import { eq, ne, and, gte, lte, desc, sql, or } from "drizzle-orm";
 import {
   type DBType,
   type DBTransactionType,
@@ -79,6 +79,9 @@ export class PassbookRepository {
       if (filters.accountId) {
         whereConditions.push(eq(transactionAccount.id, filters.accountId));
       }
+
+      whereConditions.push(ne(transactionAccount.type, ACCOUNT_TYPE.EXTERNAL));
+      whereConditions.push(ne(transactionAccount.type, ACCOUNT_TYPE.OUTGOING));
 
       // Get total count for regular transactions
       const totalResult = await db
@@ -212,11 +215,9 @@ export class PassbookRepository {
       ...transactionEntries,
       ...expenseShareEntries,
     ].sort((a, b) => {
-      // const dateA = new Date(a.transaction.transactionDate || a.createdAt);
-      // const dateB = new Date(b.transaction.transactionDate || b.createdAt);
-      // return dateB.getTime() - dateA.getTime();
-
-      return a.transaction.id - b.transaction.id;
+      const dateA = new Date(a.transaction.transactionDate || a.createdAt);
+      const dateB = new Date(b.transaction.transactionDate || b.createdAt);
+      return dateB.getTime() - dateA.getTime();
     });
 
     const totalEntries = transactionTotal + expenseShareTotal;

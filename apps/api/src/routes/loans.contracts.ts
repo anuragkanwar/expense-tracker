@@ -15,10 +15,11 @@ import {
 // symmetric POST /api/v1/loans/symmetric endpoint.
 export const createLoanSymmetricRoute = createRoute({
   method: "post",
-  path: "/symmetric",
+  path: "/",
   summary: "Create direct loan (symmetric – canonical)",
   description:
-    "Creates a bilateral loan where the authenticated user is implicitly the creditor lending to the debtor. " +
+    "Creates a bilateral loan between a creditor and debtor where either can be the authenticated user. " +
+    "Both creditorId and debtorId must be explicitly provided, and one of them must match the authenticated user. " +
     "Follows LOAN_GIVEN (-) → LOAN_TAKEN (+) accounting pattern. " +
     "Requires either an existing friendship between creditor and debtor or both must be members of the specified group. " +
     "Creates a transaction record, two transaction_entry ledger rows, a loan record, one loan_split record, and updates bilateral balances.",
@@ -79,6 +80,16 @@ export const createLoanSymmetricRoute = createRoute({
                 error: {
                   code: "INVALID_CURRENCY",
                   message: "Currency must be a valid 3-letter ISO code",
+                },
+              },
+            },
+            "invalid-user-role": {
+              value: {
+                success: false,
+                error: {
+                  code: "INVALID_USER_ROLE",
+                  message:
+                    "Authenticated user must be either creditor or debtor",
                 },
               },
             },

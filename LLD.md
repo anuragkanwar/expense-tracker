@@ -111,15 +111,16 @@ Each flow lists: Purpose, Trigger/Service, Tables Written (W) / Read (R), Ledger
 - **Endpoint**: POST /api/v1/loans/symmetric
 - **Trigger**: LoanService.createDirectLoanSymmetric
 - **Data Flow**:
-  1. User (creditor) submits loan details (debtorId, amount, currency, description, optional groupId)
-  2. LoanService validates relationship context (friendship or group membership)
-  3. LoanService creates transaction header via TransactionService
-  4. LoanService calls createLoanRelationship to:
+  1. User submits loan details (creditorId, debtorId, amount, currency, description, optional groupId)
+  2. LoanService validates that the authenticated user is either the creditor or debtor
+  3. LoanService validates relationship context (friendship or group membership)
+  4. LoanService creates transaction header via TransactionService
+  5. LoanService calls createLoanRelationship to:
      - Find loan accounts for both users
      - Create ledger entries via TransactionHelperService
      - Update bilateral balances via InterpersonalDebtEngine
-  5. LoanService creates an expense_share record with type=LOAN to track the obligation
-  6. Response includes enriched loan details with creditorId and debtorId
+  6. LoanService creates an expense_share record with type=LOAN to track the obligation
+  7. Response includes enriched loan details with creditorId and debtorId
 - **Tables & Records**:
   - `transaction`: Single row with {id, description, userId: creditorId, type: LOAN_GIVEN}
   - `transaction_entry`: Two rows:
@@ -131,8 +132,8 @@ Each flow lists: Purpose, Trigger/Service, Tables Written (W) / Read (R), Ledger
     - Row 2: {ownerId: debtorId, counterPartyId: creditorId, amount: -amount, currency, groupId (optional)}
 - **Ledger**: LOAN_GIVEN (-) → LOAN_TAKEN (+)
 - **user_balance**: +amount (creditor perspective), -amount (debtor perspective)
-- **Payload**: debtorId, amount, currency (3-letter), optional groupId, description, loanDate
-- **Implicit**: Auth user = creditor
+- **Payload**: creditorId, debtorId, amount, currency (3-letter), optional groupId, description, loanDate
+- **Auth Requirements**: Authenticated user must be either creditor or debtor
 - **Invariants**:
   1. creditorId != debtorId
   2. amount > 0
@@ -141,7 +142,8 @@ Each flow lists: Purpose, Trigger/Service, Tables Written (W) / Read (R), Ledger
   5. Description normalized: blank → ""
   6. Canonical direction only (creditor LOAN_GIVEN → debtor LOAN_TAKEN)
   7. Created only via /api/v1/loans/symmetric
-- **Failure (400)**: self-loan, invalid context, non-positive amount, invalid currency
+  8. Authenticated user must be either creditor or debtor
+- **Failure (400)**: self-loan, invalid context, non-positive amount, invalid currency, authenticated user not involved
 
 ### 5.4 Unified Settlement Approach
 

@@ -151,7 +151,12 @@ export class TransactionAccountRepository {
     const result = await db
       .select()
       .from(transactionAccount)
-      .where(eq(transactionAccount.userId, userId));
+      .where(
+        and(
+          eq(transactionAccount.userId, userId),
+          eq(transactionAccount.type, ACCOUNT_TYPE.EXPENSE)
+        )
+      );
     return result.map((item) => ({
       ...item,
       createdAt: item.createdAt.toISOString(),

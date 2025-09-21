@@ -206,10 +206,27 @@ export class LoanService {
     params: LoanCreateSymmetricInput,
     authenticatedUserId: number
   ): Promise<LoanResponse> {
-    const { debtorId, amount, currency, groupId, description, loanDate } =
-      params;
+    const {
+      creditorId,
+      debtorId,
+      amount,
+      currency,
+      groupId,
+      description,
+      loanDate,
+    } = params;
 
-    const creditorId = authenticatedUserId; // implicit
+    // Both creditorId and debtorId are required and explicitly provided
+
+    // Validate user roles
+    if (
+      authenticatedUserId !== creditorId &&
+      authenticatedUserId !== debtorId
+    ) {
+      throw new ValidationError(
+        "Authenticated user must be either creditor or debtor"
+      );
+    }
 
     if (creditorId === debtorId) {
       throw new ValidationError("Creditor and debtor must be different users");
@@ -456,4 +473,3 @@ export class LoanService {
     return { message: "Loan deleted successfully" };
   }
 }
-

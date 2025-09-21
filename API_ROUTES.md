@@ -44,7 +44,7 @@ GET /api/v1/friends/{userId}/transactions List bilateral (non-group) shared tran
 POST /api/v1/transactions/ai (Stub 501) Create transaction via AI prompt parsing (NOT IMPLEMENTED)
 
 Loans
-POST /api/v1/loans/symmetric Creates a direct bilateral loan; authenticated user is creditor lending to debtor; follows LOAN_GIVEN (-) → LOAN_TAKEN (+) accounting pattern. (Canonical path.)
+POST /api/v1/loans Creates a direct bilateral loan; authenticated user is creditor lending to debtor; follows LOAN_GIVEN (-) → LOAN_TAKEN (+) accounting pattern. (Canonical path.)
 GET /api/v1/loans Lists loans created by the user (future: participation filter).
 GET /api/v1/loans/{loanId} Retrieves details of a loan (creator only currently).
 PUT /api/v1/loans/{loanId} Updates a loan (description / date).

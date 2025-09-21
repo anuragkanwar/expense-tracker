@@ -24,7 +24,7 @@ export interface IPassbookEntryResponse {
 }
 
 // Custom passbook entry response with related data
-export const PassbookEntryResponseSchema: z.ZodType<any> = z
+export const PassbookEntryResponseSchema = z
   .object({
     id: z.number(),
     amount: z.number(),
@@ -56,7 +56,7 @@ export interface IPassbookResponse {
 }
 
 // Passbook list response with pagination
-export const PassbookResponseSchema: z.ZodType<any> = z
+export const PassbookResponseSchema = z
   .object({
     entries: z.array(PassbookEntryResponseSchema).openapi({
       description: "List of transaction entries with related data",

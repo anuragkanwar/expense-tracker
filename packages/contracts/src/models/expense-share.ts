@@ -95,11 +95,16 @@ export const LoanResponseSchema = z
 // Symmetric direct-loan create schema (creditor/debtor explicit)
 export const LoanCreateSymmetricSchema = z
   .object({
-    // Creditor is implicitly the authenticated user; client only supplies debtor + context
+    // Either creditor or debtor must be the authenticated user
+    creditorId: z.number().int().openapi({
+      example: 12,
+      description:
+        "User ID of creditor (lender). Either creditorId or debtorId must match the authenticated user.",
+    }),
     debtorId: z.number().int().openapi({
       example: 34,
       description:
-        "User ID of debtor (owes money). Must be different from the authenticated user (creditor).",
+        "User ID of debtor (borrower). Must be different from creditorId.",
     }),
     amount: z.number().positive("Amount must be > 0").openapi({
       example: 250.5,
