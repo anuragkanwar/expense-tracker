@@ -7,6 +7,7 @@
     "dev": "turbo run dev",
     "dev:server": "turbo run dev --filter=@pocket-pixie/api",
     "dev:mobile": "turbo run dev --filter=@pocket-pixie/mobile",
+    "dev:web": "turbo run dev --filter=@pocket-pixie/web",
     "serve": "turbo run serve",
     "lint": "turbo run lint",
     "lint:fix": "turbo run lint -- --fix",

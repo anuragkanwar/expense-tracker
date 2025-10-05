@@ -176,8 +176,7 @@ export class SettlementService {
    * This unified implementation works with both expense shares and loans stored in the
    * unified expense_share table.
    *
-   * The implementation includes per-allocation ledger entries, addressing the design gap
-   * mentioned in LLD section 5.6. For each allocation:
+   * The implementation includes per-allocation ledger entries, For each allocation:
    * 1. A child transaction is created (linked to the parent settlement transaction)
    * 2. Double-entry ledger entries are created for the specific allocation amount
    * 3. Transaction descriptions include detailed context (expense/loan type, share ID)
@@ -221,7 +220,7 @@ export class SettlementService {
     }
 
     const result = await this.db.transaction(async (tx) => {
-      // 1. Fetch allocatable shares using our helper method
+      // 1. Fetch allocatable Expense shares using our helper method based on type
       const shares = await this.findAllocatableShares(
         payerId,
         payeeId,
@@ -239,6 +238,8 @@ export class SettlementService {
         (acc, s) => acc + (s.amount - s.paidAmount),
         0
       );
+
+      // settlement cant exceed exisintg outstanding amount (no overpay)
       if (amount > outstandingBefore + 1e-8) {
         throw new BadRequestError(
           `Settlement amount ${amount} exceeds outstanding ${outstandingBefore}`
@@ -346,6 +347,7 @@ export class SettlementService {
         tx
       );
 
+      // TODO: Why this is here, we have to figure out
       // Post double-entry reversing debt for full applied amount
       if (amount > 0) {
         await this.transactionHelperService.updateAccountsAndCreateEntries(
@@ -409,9 +411,6 @@ export class SettlementService {
         );
         applications.push(app);
 
-        // Create per-allocation ledger entries for better audit trail
-        // This implements the ledger parity mentioned in the LLD section 5.6
-        // Get more information about the expense share for better context
         const expenseShare = await this.expenseShareRepository.findById(
           share.id,
           tx

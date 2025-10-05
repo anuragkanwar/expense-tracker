@@ -69,6 +69,13 @@ export class TransactionAccountService {
     user: UserAuth,
     tx?: DBTransactionType
   ): Promise<TransactionAccountResponse[]> {
+    return this.transactionAccountRepository.findAllByUserId(user.id, tx);
+  }
+
+  async getAllExpenseAccounts(
+    user: UserAuth,
+    tx?: DBTransactionType
+  ): Promise<TransactionAccountResponse[]> {
     return this.transactionAccountRepository.findByUserId(user.id, tx);
   }
 

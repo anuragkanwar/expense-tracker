@@ -16,14 +16,19 @@
 // Current Scope: Interface + minimal base implementation delegating
 // to BalanceAdjustmentService only (no persistence beyond balances).
 
+import { ValidationError } from "@/errors/base-error";
 import { BalanceAdjustmentService } from "./balance-adjustment-service";
-import type { DBTransactionType } from "@/db";
+import { ACCOUNT_TYPE, type DBTransactionType } from "@/db";
+import { TransactionAccountRepository } from "@/repositories";
+import { TransactionAccountNotFoundError } from "@/errors/transaction-account-errors";
+import { TransactionHelperService } from "./transaction-helper-service";
 
 export interface LoanOriginParams {
   creditorId: number; // lender / payer
   debtorId: number; // borrower / participant
   amount: number; // positive amount increases debtor obligation
   currency: string;
+  transactionId: number;
   groupId?: number | null;
   description?: string; // future: persisted metadata
 }
@@ -50,24 +55,78 @@ export interface InterpersonalDebtEngine {
 
 export class InterpersonalDebtEngineImpl implements InterpersonalDebtEngine {
   private readonly balanceAdjustmentService: BalanceAdjustmentService;
-
+  private readonly transactionAccountRepository: TransactionAccountRepository;
+  private readonly transactionHelperService: TransactionHelperService;
   constructor({
     balanceAdjustmentService,
+    transactionAccountRepository,
+    transactionHelperService
   }: {
     balanceAdjustmentService: BalanceAdjustmentService;
+    transactionAccountRepository: TransactionAccountRepository
+    transactionHelperService: TransactionHelperService
   }) {
     this.balanceAdjustmentService = balanceAdjustmentService;
+    this.transactionAccountRepository = transactionAccountRepository;
+    this.transactionHelperService = transactionHelperService;
   }
 
   async recordDirectLoan(
-    { creditorId, debtorId, amount, currency, groupId }: LoanOriginParams,
+    { creditorId, debtorId, amount, currency, groupId, transactionId }: LoanOriginParams,
     tx?: DBTransactionType
   ): Promise<void> {
-    if (amount <= 0) throw new Error("Loan amount must be positive");
-    if (creditorId === debtorId)
-      throw new Error("Creditor and debtor must differ");
+    // Validate inputs
+    if (creditorId === debtorId) {
+      throw new ValidationError("Creditor and debtor must be different users");
+    }
+    if (amount <= 0) {
+      throw new ValidationError("Amount must be positive");
+    }
+    if (currency.length !== 3) {
+      throw new ValidationError("Currency must be a 3-letter ISO code");
+    }
 
     try {
+      // Fetch loan accounts
+      const creditorLoanGiven =
+        await this.transactionAccountRepository.findByUserIdAndCategoryName(
+          creditorId,
+          ACCOUNT_TYPE.LOAN_GIVEN,
+          tx
+        );
+
+      if (!creditorLoanGiven) {
+        throw new TransactionAccountNotFoundError(
+          `LOAN_GIVEN account not found for user ${creditorId}`
+        );
+      }
+
+      const debtorLoanTaken =
+        await this.transactionAccountRepository.findByUserIdAndCategoryName(
+          debtorId,
+          ACCOUNT_TYPE.LOAN_TAKEN,
+          tx
+        );
+
+      if (!debtorLoanTaken) {
+        throw new TransactionAccountNotFoundError(
+          `LOAN_TAKEN account not found for user ${debtorId}`
+        );
+      }
+
+      // Create ledger entries
+      await this.transactionHelperService.updateAccountsAndCreateEntries(
+        [
+          {
+            srcAcc: creditorLoanGiven,
+            dstAcc: debtorLoanTaken,
+            amount: amount,
+            txnId: transactionId,
+          },
+        ],
+        tx
+      );
+
       await this.balanceAdjustmentService.applyBilateralDelta(
         creditorId,
         debtorId,
@@ -100,8 +159,3 @@ export class InterpersonalDebtEngineImpl implements InterpersonalDebtEngine {
     );
   }
 }
-
-// Registration Guidance (future):
-// container.register({ interpersonalDebtEngine: asClass(InterpersonalDebtEngineImpl, { lifetime: Lifetime.SCOPED }).inject(
-//   () => ({ balanceAdjustmentService: container.resolve("balanceAdjustmentService") })
-// )});

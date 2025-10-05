@@ -2,6 +2,7 @@ import {
   TransactionCreateWithDetails,
   TransactionUpdateWithDetails,
   TransactionAccountResponse,
+  ExpenseShareRepoCreate,
 } from "@pocket-pixie/contracts";
 import { TransactionAccountNotFoundError } from "@/errors/transaction-account-errors";
 import {
@@ -94,12 +95,9 @@ export class TransactionService {
     srcAcc: TransactionAccountResponse;
     dstAcc: TransactionAccountResponse;
   }> {
-    // Ensure transaction compatibility
     const txContext = tx ? asCompatibleTransaction(tx) : undefined;
 
-    // For loan transactions, use specialized validation
     if (txnType === TXN_TYPE.LOAN_GIVEN || txnType === TXN_TYPE.LOAN_TAKEN) {
-      // For loans, we need to find accounts by ID directly since they may belong to different users
       const txnSrcAcc = await this.transactionAccountRepository.findById(
         srcAccId,
         txContext
@@ -118,7 +116,6 @@ export class TransactionService {
 
       return { srcAcc: txnSrcAcc, dstAcc: txnDstAcc };
     } else {
-      // For non-loan transactions, both accounts must belong to the payer
       const txnSrcAcc =
         await this.transactionAccountRepository.findByUserIdAndAccountId(
           payerId,
@@ -165,7 +162,7 @@ export class TransactionService {
 
   /**
    * Main transaction creation endpoint for personal expenses, income, saving and shared expenses.
-   * Note: Direct loan creation has been moved to LoanService and accessed via /api/v1/loans
+   * Note: Splits will not contain payers data
    */
   async createTransaction(
     transactionCreateWithDetails: TransactionCreateWithDetails,
@@ -191,6 +188,7 @@ export class TransactionService {
           tx
         );
 
+        // creater txn header for the txn
         const txnHeader = await this.createTransactionHeader(
           payerId,
           transactionCreateWithDetails.description,
@@ -225,14 +223,12 @@ export class TransactionService {
             );
             const payerTotal = transactionCreateWithDetails.amount - splitTotal;
 
-            // Validate payerTotal for expense transactions
-            // For expenses, payerTotal must be >= 0
             if (payerTotal < 0) {
               throw new ValidationError(
                 `Split amounts (${splitTotal}) cannot exceed total transaction amount (${transactionCreateWithDetails.amount})`
               );
             }
-
+            // payers double ledger entry
             await this.transactionHelperService.updateAccountsAndCreateEntries(
               [
                 {
@@ -248,53 +244,13 @@ export class TransactionService {
             // Handle splits for shared transactions
             if (splits.length > 0) {
               for (const split of splits) {
-                // Handle loan creation for this split
-                // First find the appropriate accounts
-                const payeeLoanTakenAcc =
-                  await this.transactionAccountRepository.findByUserIdAndCategoryName(
-                    split.userId,
-                    ACCOUNT_TYPE.LOAN_TAKEN,
-                    tx
-                  );
-
-                if (!payeeLoanTakenAcc) {
-                  throw new TransactionAccountNotFoundError(
-                    `${split.userId} , LOAN_TAKEN`
-                  );
-                }
-                const payerLoanGiveAcc =
-                  await this.transactionAccountRepository.findByUserIdAndCategoryName(
-                    payerId,
-                    ACCOUNT_TYPE.LOAN_GIVEN,
-                    tx
-                  );
-
-                if (!payerLoanGiveAcc) {
-                  throw new TransactionAccountNotFoundError(
-                    `${payerId} ,  LOAN_GIVEN`
-                  );
-                }
-
-                // Create the ledger entries
-                await this.transactionHelperService.updateAccountsAndCreateEntries(
-                  [
-                    {
-                      srcAcc: payerLoanGiveAcc,
-                      dstAcc: payeeLoanTakenAcc,
-                      amount: split.amount,
-                      txnId: txnHeader.id,
-                    },
-                  ],
-                  tx
-                );
-
-                // Update the bilateral balances
                 await this.interpersonalDebtEngine.recordDirectLoan(
                   {
                     creditorId: payerId, // original payer
                     debtorId: split.userId, // participant
                     amount: split.amount,
                     currency: userCurrency,
+                    transactionId: txnHeader.id,
                     groupId: transactionCreateWithDetails.groupId ?? null,
                   },
                   tx
@@ -304,21 +260,7 @@ export class TransactionService {
 
             // Upfront expense recognition (expense_share rows) ONLY for EXPENSE transactions
             if (transactionCreateWithDetails.type === TXN_TYPE.EXPENSE) {
-              const shareRows: Array<{
-                transactionId: number;
-                payerUserId: number;
-                participantUserId: number;
-                groupId: number | null;
-                type: EXPENSE_SHARE_TYPE;
-                shareType: SHARE_TYPE;
-                splitType: typeof transactionCreateWithDetails.splitType;
-                expenseAccountId: number;
-                currency: string;
-                amount: number;
-                paidAmount: number;
-                status: EXPENSE_SHARE_STATUS;
-                isPayerShare: 0 | 1;
-              }> = [];
+              const shareRows: Array<ExpenseShareRepoCreate> = [];
               const groupIdValue =
                 transactionCreateWithDetails.sharedWith === SHARE_TYPE.GROUP
                   ? (transactionCreateWithDetails.groupId ?? null)
@@ -333,15 +275,12 @@ export class TransactionService {
                 type: EXPENSE_SHARE_TYPE.EXPENSE,
                 shareType: transactionCreateWithDetails.sharedWith,
                 splitType: transactionCreateWithDetails.splitType,
-                expenseAccountId: dstAcc.id,
+                expenseAccountId: dstAcc.id, // FIX: why this is here
                 currency: userCurrency,
                 amount: payerTotal,
-                paidAmount: payerTotal, // payer has already effectively paid their share
-                // change this as payer has already effectively paid their share
-                status:
-                  payerTotal > 0
-                    ? EXPENSE_SHARE_STATUS.PAID
-                    : EXPENSE_SHARE_STATUS.UNPAID,
+                paidAmount: payerTotal,
+                // payer has already effectively paid their share
+                status: EXPENSE_SHARE_STATUS.PAID,
                 isPayerShare: 1,
               });
 
@@ -355,7 +294,7 @@ export class TransactionService {
                   type: EXPENSE_SHARE_TYPE.EXPENSE,
                   shareType: transactionCreateWithDetails.sharedWith,
                   splitType: transactionCreateWithDetails.splitType,
-                  expenseAccountId: dstAcc.id, // why this is here
+                  expenseAccountId: dstAcc.id, // FIX: why this is here
                   currency: userCurrency,
                   amount: split.amount,
                   paidAmount: 0,

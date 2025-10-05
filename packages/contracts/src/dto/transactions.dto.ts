@@ -2,7 +2,7 @@ import { z } from "@hono/zod-openapi";
 // Import from the unified expense-share model
 import {
   LoanResponseSchema,
-  LoanCreateSymmetricSchema as LoanCreateSchema,
+  LoanCreateSchema,
 } from "../models/expense-share";
 import { SHARE_TYPE, SPLIT_TYPE, TXN_TYPE } from "@pocket-pixie/db-schema";
 

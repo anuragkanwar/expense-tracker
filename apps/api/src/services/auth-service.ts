@@ -33,7 +33,6 @@ export class AuthService {
         );
         return { headers, response };
       } catch (error: unknown) {
-        // propagate for route-level handler
         tx.rollback();
         throw error;
       }

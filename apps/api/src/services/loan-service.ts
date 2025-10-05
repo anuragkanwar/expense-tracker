@@ -20,7 +20,7 @@ import { GroupNotFoundError } from "@/errors/group-errors";
 import {
   type LoanUpdate,
   type LoanResponse,
-  type LoanCreateSymmetricInput,
+  type LoanCreateInput,
 } from "@pocket-pixie/contracts";
 
 /**
@@ -78,132 +78,8 @@ export class LoanService {
     this.interpersonalDebtEngine = interpersonalDebtEngine;
   }
 
-  // ---------------------------------------------
-  // Internal Helpers & Reusable Methods
-  // ---------------------------------------------
-
-  /**
-   * Creates a loan relationship between two users
-   *
-   * This method handles the common logic for both direct loans and
-   * shared expense loan creation, including:
-   * - Finding and validating loan accounts
-   * - Creating double-entry ledger entries
-   * - Updating bilateral balances
-   *
-   * The method enforces these invariants:
-   * - Creditor and debtor must be different users
-   * - Amount must be positive
-   * - Both users must have appropriate loan accounts
-   *
-   * If groupId is provided, the method doesn't validate group membership
-   * as this should be done by the calling service.
-   *
-   * @param creditorId The user providing the loan (creditor)
-   * @param debtorId The user receiving the loan (debtor)
-   * @param amount The loan amount (must be > 0)
-   * @param transactionId The transaction header ID to associate with
-   * @param currency The 3-letter currency code
-   * @param groupId Optional group ID for scoping the loan
-   * @param tx Optional DB transaction
-   * @returns The created loan accounts for both parties
-   * @throws ValidationError if inputs are invalid
-   * @throws TransactionAccountNotFoundError if required accounts don't exist
-   */
-  async createLoanRelationship(
-    creditorId: number,
-    debtorId: number,
-    amount: number,
-    transactionId: number,
-    currency: string,
-    groupId: number | null = null,
-    tx?: DBTransactionType
-  ): Promise<{
-    creditorLoanGiven: TransactionAccountResponse;
-    debtorLoanTaken: TransactionAccountResponse;
-  }> {
-    // Validate inputs
-    if (creditorId === debtorId) {
-      throw new ValidationError("Creditor and debtor must be different users");
-    }
-    if (amount <= 0) {
-      throw new ValidationError("Amount must be positive");
-    }
-    if (currency.length !== 3) {
-      throw new ValidationError("Currency must be a 3-letter ISO code");
-    }
-
-    // Fetch loan accounts
-    const creditorLoanGiven =
-      await this.transactionAccountRepository.findByUserIdAndCategoryName(
-        creditorId,
-        ACCOUNT_TYPE.LOAN_GIVEN,
-        tx
-      );
-
-    if (!creditorLoanGiven) {
-      throw new TransactionAccountNotFoundError(
-        `LOAN_GIVEN account not found for user ${creditorId}`
-      );
-    }
-
-    const debtorLoanTaken =
-      await this.transactionAccountRepository.findByUserIdAndCategoryName(
-        debtorId,
-        ACCOUNT_TYPE.LOAN_TAKEN,
-        tx
-      );
-
-    if (!debtorLoanTaken) {
-      throw new TransactionAccountNotFoundError(
-        `LOAN_TAKEN account not found for user ${debtorId}`
-      );
-    }
-
-    // Create ledger entries
-    await this.transactionHelperService.updateAccountsAndCreateEntries(
-      [
-        {
-          srcAcc: creditorLoanGiven,
-          dstAcc: debtorLoanTaken,
-          amount: amount,
-          txnId: transactionId,
-        },
-      ],
-      tx
-    );
-
-    // Update balances
-    try {
-      await this.interpersonalDebtEngine.recordDirectLoan(
-        {
-          creditorId,
-          debtorId,
-          amount,
-          currency,
-          groupId,
-        },
-        tx
-      );
-    } catch (error) {
-      console.error(
-        "Error updating balances in createLoanRelationship:",
-        error
-      );
-      throw error; // Re-throw to ensure transaction rolls back
-    }
-
-    return {
-      creditorLoanGiven,
-      debtorLoanTaken,
-    };
-  }
-
-  // ---------------------------------------------
-  // Symmetric direct loan create (canonical)
-  // ---------------------------------------------
-  async createDirectLoanSymmetric(
-    params: LoanCreateSymmetricInput,
+  async createLoanDirect(
+    params: LoanCreateInput,
     authenticatedUserId: number
   ): Promise<LoanResponse> {
     const {
@@ -217,7 +93,6 @@ export class LoanService {
     } = params;
 
     // Both creditorId and debtorId are required and explicitly provided
-
     // Validate user roles
     if (
       authenticatedUserId !== creditorId &&
@@ -282,14 +157,16 @@ export class LoanService {
           tx
         );
 
-        // Use the shared helper method to create the loan relationship
-        await this.createLoanRelationship(
-          creditorId,
-          debtorId,
-          amount,
-          txnHeader.id,
-          currency,
-          groupId ?? null,
+        // record direct loan with IDE
+        await this.interpersonalDebtEngine.recordDirectLoan(
+          {
+            creditorId,
+            debtorId,
+            amount,
+            currency,
+            transactionId: txnHeader.id,
+            groupId
+          },
           tx
         );
 

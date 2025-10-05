@@ -143,6 +143,26 @@ export class TransactionAccountRepository {
     } as TransactionAccountResponse;
   }
 
+  async findAllByUserId(
+    userId: number,
+    tx?: DBTransactionType
+  ): Promise<TransactionAccountResponse[]> {
+    const db = tx ?? this.db;
+    const result = await db
+      .select()
+      .from(transactionAccount)
+      .where(
+        and(
+          eq(transactionAccount.userId, userId),
+        )
+      );
+    return result.map((item) => ({
+      ...item,
+      createdAt: item.createdAt.toISOString(),
+      updatedAt: item.updatedAt.toISOString(),
+    })) as TransactionAccountResponse[];
+  }
+
   async findByUserId(
     userId: number,
     tx?: DBTransactionType

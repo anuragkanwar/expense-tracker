@@ -20,6 +20,7 @@ export { recurring } from "./recurring";
 // Splitwise schemas
 export { group } from "./group";
 export { groupMember } from "./group-member";
+export { groupExpense } from "./group-expense";
 // Loan tables have been migrated to the unified expense-share schema
 export { userBalance } from "./user-balance";
 export { settlement } from "./settlement";

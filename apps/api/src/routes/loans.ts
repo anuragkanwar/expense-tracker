@@ -25,7 +25,7 @@ loanRoutes.openapi(createLoanSymmetricRoute, async (c) => {
     if (!user) return c.json({ message: "Unauthorized" }, 401);
     const body = c.req.valid("json");
     const { loanService } = c.get("services");
-    const created = await loanService.createDirectLoanSymmetric(body, user.id);
+    const created = await loanService.createLoan(body, user.id);
     return c.json(created, 201);
   } catch (error: unknown) {
     const { json, status } = handleRouteError(error);

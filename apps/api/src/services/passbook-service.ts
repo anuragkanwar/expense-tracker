@@ -1,9 +1,11 @@
 import {
   PassbookRepository,
-  PassbookFilters,
-  PassbookQueryResult,
-  PassbookEntryResponse,
 } from "@/repositories/passbook-repository";
+import type {
+  PassbookFilters,
+  PassbookEntryResponse,
+  PassbookQueryResult,
+} from "@pocket-pixie/contracts";
 import { BadRequestError } from "@/errors/base-error";
 
 export class PassbookService {

@@ -93,7 +93,7 @@ export const LoanResponseSchema = z
   .openapi("LoanResponse");
 
 // Symmetric direct-loan create schema (creditor/debtor explicit)
-export const LoanCreateSymmetricSchema = z
+export const LoanCreateSchema = z
   .object({
     // Either creditor or debtor must be the authenticated user
     creditorId: z.number().int().openapi({
@@ -139,7 +139,7 @@ export const LoanCreateSymmetricSchema = z
       description: "ISO date (defaults to now if omitted).",
     }),
   })
-  .openapi("LoanCreateSymmetricRequest");
+  .openapi("LoanCreate");
 
 export const LoanUpdateSchema = z
   .object({
@@ -155,10 +155,10 @@ export const LoanUpdateSchema = z
 // ==========================================
 export type ExpenseShareResponse = z.infer<typeof ExpenseShareResponseSchema>;
 export type LoanResponse = z.infer<typeof LoanResponseSchema>;
-export type LoanCreateSymmetric = z.infer<typeof LoanCreateSymmetricSchema>;
+export type LoanCreate = z.infer<typeof LoanCreateSchema>;
 export type LoanUpdate = z.infer<typeof LoanUpdateSchema>;
-export type LoanCreateSymmetricInput = z.input<
-  typeof LoanCreateSymmetricSchema
+export type LoanCreateInput = z.input<
+  typeof LoanCreateSchema
 >;
 
 // Define loan query filters for consistent query building

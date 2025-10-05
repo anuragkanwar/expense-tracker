@@ -11,7 +11,6 @@ import { group } from "./group";
 import { transactionAccount } from "./transaction-account";
 import { EXPENSE_SHARE_TYPE } from "../enums";
 
-// Unified obligation tracking mechanism for both expenses and loans
 export const expenseShare = sqliteTable("expense_share", {
   id: integer("id").primaryKey({ autoIncrement: true }),
   transactionId: integer("transaction_id")

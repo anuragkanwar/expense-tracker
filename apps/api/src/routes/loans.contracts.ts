@@ -6,7 +6,7 @@ import {
 } from "./shared-schemas";
 import {
   LoanResponseSchema,
-  LoanCreateSymmetricSchema,
+  LoanCreateSchema,
   LoanUpdateSchema,
 } from "@pocket-pixie/contracts";
 
@@ -24,13 +24,13 @@ export const createLoanSymmetricRoute = createRoute({
     "Requires either an existing friendship between creditor and debtor or both must be members of the specified group. " +
     "Creates a transaction record, two transaction_entry ledger rows, a loan record, one loan_split record, and updates bilateral balances.",
   tags: ["Loans"],
-  operationId: "createLoanSymmetric", // Added operationId for unique identification
+  operationId: "createLoan", // Added operationId for unique identification
   request: {
     body: {
       content: {
         "application/json": {
-          schema: LoanCreateSymmetricSchema.openapi(
-            "LoanCreateSymmetricRequestBody"
+          schema: LoanCreateSchema.openapi(
+            "LoanCreate"
           ),
         },
       },
