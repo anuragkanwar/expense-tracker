@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "@/lib/api-client";
+import { getValidated } from "@/lib/api-utils";
 import { queryKeys } from "@/lib/query-keys";
 
 import { z } from "@hono/zod-openapi";
@@ -13,14 +14,6 @@ export type Category = z.infer<typeof CategoryResponseSchema>;
 export type CategoryCreateInput = z.infer<typeof CategoryCreateSchema>;
 
 const BASE = "/api/v1/categories";
-
-async function getValidated<T>(
-  url: string,
-  schema: { parse: (d: unknown) => T }
-): Promise<T> {
-  const res = await apiClient.get(url);
-  return schema.parse(res.data);
-}
 
 // List categories
 export function useCategories() {

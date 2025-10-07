@@ -12,10 +12,16 @@ export class StudentEmailConflictError extends ConflictError {
   }
 }
 
-export class StudentValidationError extends Error {
-  public readonly details: any;
+export interface StudentValidationDetail {
+  path?: (string | number)[];
+  message: string;
+  [key: string]: unknown;
+}
 
-  constructor(message: string, details?: any) {
+export class StudentValidationError extends Error {
+  public readonly details?: StudentValidationDetail[];
+
+  constructor(message: string, details?: StudentValidationDetail[]) {
     super(message);
     this.name = "StudentValidationError";
     this.details = details;

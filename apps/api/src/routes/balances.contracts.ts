@@ -1,24 +1,25 @@
 import { createRoute, z } from "@hono/zod-openapi";
+import { IdParamSchema, UserIdParamSchema } from "./shared-schemas";
 import {
-  IdParamSchema,
-  UserIdParamSchema,
-  MessageResponseSchema,
-} from "./shared-schemas";
-import {
-  SettlementCreateSchema,
   BalanceSummaryResponseSchema,
   FriendBalanceResponseSchema,
   GroupBalanceResponseSchema,
   BalancesSettlementPlanResponseSchema,
 } from "@pocket-pixie/contracts";
 
+// [REMOVED] createDirectSettlementRoute: Legacy direct settlement endpoint removed as part of migration to allocation-based settlement.
+
 export const getBalanceSummaryRoute = createRoute({
   method: "get",
   path: "/",
   summary: "Get balance summary",
   description:
-    "Gets the user's total balance (total owed vs. total owed to you).",
+    "Gets the user's total balance (total owed vs. total owed to you). " +
+    "Based on the user_balance system where positive amounts mean counterParty owes owner, " +
+    "and negative amounts mean owner owes counterParty. These balances are materialized in real-time " +
+    "for loans, shared expenses, allocations, and settlements.",
   tags: ["Balances"],
+  operationId: "getBalanceSummary",
   responses: {
     200: {
       content: {
@@ -36,7 +37,11 @@ export const getFriendBalanceRoute = createRoute({
   method: "get",
   path: "/friends/{userId}",
   summary: "Get friend balance",
-  description: "Gets the total consolidated balance with a specific friend.",
+  description:
+    "Gets the total consolidated balance with a specific friend. " +
+    "This represents the net position between two users across all non-group contexts. " +
+    "Based on the materialized user_balance table where positive values indicate the friend owes you, " +
+    "and negative values indicate you owe the friend.",
   tags: ["Balances"],
   request: {
     params: z.object({
@@ -61,7 +66,12 @@ export const getGroupBalanceRoute = createRoute({
   method: "get",
   path: "/groups/{groupId}",
   summary: "Get group balance",
-  description: "Gets the user's net balance within a specific group.",
+  description:
+    "Gets the user's net balance within a specific group. " +
+    "Retrieves group-scoped balances from the user_balance table where groupId matches. " +
+    "Balances follow the sign convention: positive means other group members owe you, " +
+    "negative means you owe other group members. This is a materialized view that's " +
+    "updated in real time through loans, expense shares, and settlements.",
   tags: ["Balances"],
   request: {
     params: z.object({
@@ -82,36 +92,8 @@ export const getGroupBalanceRoute = createRoute({
   },
 });
 
-export const createSettlementRoute = createRoute({
-  method: "post",
-  path: "/",
-  summary: "Record settlement",
-  description: "Records a payment to settle a debt (e.g., 'I paid Jane $20').",
-  tags: ["Settlements"],
-  request: {
-    body: {
-      content: {
-        "application/json": {
-          schema: SettlementCreateSchema,
-        },
-      },
-    },
-  },
-  responses: {
-    201: {
-      content: {
-        "application/json": {
-          schema: MessageResponseSchema.openapi({
-            example: { message: "Settlement recorded successfully" },
-          }),
-        },
-      },
-      description: "Settlement recorded successfully",
-    },
-    400: { description: "Validation Error" },
-    401: { description: "Unauthorized" },
-  },
-});
+/* Direct settlement route removed as part of legacy flow cleanup */
+// // [REMOVED] createDirectSettlementRoute: Legacy direct settlement endpoint removed as part of migration to allocation-based settlement.
 
 export const getGlobalSettlementPlanRoute = createRoute({
   method: "get",

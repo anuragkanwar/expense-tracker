@@ -1,5 +1,5 @@
 import { type DBType, auth } from "@/db";
-import { UserCreate } from "@/models";
+import type { UserCreate } from "@pocket-pixie/contracts";
 import { TransactionAccountService } from "./transaction-account-service";
 
 export class AuthService {
@@ -32,7 +32,7 @@ export class AuthService {
           tx
         );
         return { headers, response };
-      } catch (error: any) {
+      } catch (error: unknown) {
         tx.rollback();
         throw error;
       }

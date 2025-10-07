@@ -1,4 +1,4 @@
-import { SessionAuth, UserAuth } from "@/models/auth";
+import type { SessionAuth, UserAuth } from "@pocket-pixie/contracts";
 import { auth } from "@/db";
 import { MiddlewareHandler } from "hono";
 
@@ -11,7 +11,6 @@ declare module "hono" {
 
 export const authMiddeware = (): MiddlewareHandler => {
   return async (c, next) => {
-    // Skip auth middleware for Better Auth routes
     if (c.req.path.startsWith("/api/v1/auth/")) {
       return next();
     }

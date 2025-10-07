@@ -7,6 +7,7 @@
     "dev": "turbo run dev",
     "dev:server": "turbo run dev --filter=@pocket-pixie/api",
     "dev:mobile": "turbo run dev --filter=@pocket-pixie/mobile",
+    "dev:web": "turbo run dev --filter=@pocket-pixie/web",
     "serve": "turbo run serve",
     "lint": "turbo run lint",
     "lint:fix": "turbo run lint -- --fix",
@@ -36,6 +37,9 @@
     "node": ">=18"
   },
   "dependencies": {
+    "@types/bcryptjs": "^3.0.0",
+    "api": "^6.1.3",
+    "bcryptjs": "^3.0.2",
     "eslint-plugin-react": "^7.34.3"
   }
 }

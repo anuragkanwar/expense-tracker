@@ -14,3 +14,5 @@ export * from "./settlement-service";
 export * from "./transaction-helper-service";
 export * from "./transaction-service";
 export * from "./user-service";
+export * from "./balance-adjustment-service";
+export * from "./interpersonal-debt-engine";

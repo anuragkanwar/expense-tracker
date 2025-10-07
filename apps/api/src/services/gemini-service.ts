@@ -1,34 +1,19 @@
-import { GoogleGenAI } from "@google/genai";
+// import { GoogleGenAI } from "@google/genai"; // deferred usage
 
-export async function getGeminiResponse() {
-  const ai = new GoogleGenAI({
-    apiKey: process.env.GEMINI_API_KEY,
-  });
-  const config = {
-    temperature: 0.1,
-    thinkingConfig: {
-      thinkingBudget: 0,
-    },
-  };
-  const model = "gemini-2.5-flash-lite";
-  const contents = [
-    {
-      role: "user",
-      parts: [
-        {
-          text: `INSERT_INPUT_HERE`,
-        },
-      ],
-    },
-  ];
-
-  // const response = await ai.models.generateContentStream({
-  //   model,
-  //   config,
-  //   contents,
-  // });
-  // let fileIndex = 0;
-  // for await (const chunk of response) {
-  //   console.log(chunk.text);
-  // }
+/**
+ * Temporary Gemini integration stub.
+ * Returns void currently; left in place for future feature work.
+ * Lint-safe: unused locals removed / commented.
+ */
+export async function getGeminiResponse(): Promise<void> {
+  if (!process.env.GEMINI_API_KEY) {
+    // soft guard
+     
+    console.warn("GEMINI_API_KEY not configured – skipping Gemini call");
+    return;
+  }
+  // Placeholder client (kept to show intended shape) – real invocation deferred.
+  // const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+  // Future plan: stream content generation with generateContentStream.
+  return;
 }

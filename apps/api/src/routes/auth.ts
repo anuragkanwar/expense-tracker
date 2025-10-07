@@ -11,8 +11,10 @@ authRoutes.openapi(registerRoute, async (c) => {
     return c.json(result.response, {
       headers: result.headers,
     });
-  } catch (error: any) {
-    return c.json({ error: error }, 500);
+  } catch (error: unknown) {
+    const { handleRouteError } = await import("@/utils/error-response-handler");
+    const { json, status } = handleRouteError(error);
+    return c.json(json, status);
   }
 });
 
@@ -27,8 +29,10 @@ authRoutes.openapi(loginRoute, async (c) => {
       },
     });
     return c.json(response, { headers });
-  } catch (error: any) {
-    return c.json({ error: error.message || error }, 401);
+  } catch (error: unknown) {
+    const { handleRouteError } = await import("@/utils/error-response-handler");
+    const { json, status } = handleRouteError(error);
+    return c.json(json, status);
   }
 });
 
@@ -39,7 +43,9 @@ authRoutes.openapi(logoutRoute, async (c) => {
       returnHeaders: true,
     });
     return c.json(response, { headers });
-  } catch (error: any) {
-    return c.json({ error: error.message || error }, 500);
+  } catch (error: unknown) {
+    const { handleRouteError } = await import("@/utils/error-response-handler");
+    const { json, status } = handleRouteError(error);
+    return c.json(json, status);
   }
 });

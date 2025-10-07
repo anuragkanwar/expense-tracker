@@ -1,6 +1,10 @@
 import { budget } from "@/db";
 import { eq } from "drizzle-orm";
-import { BudgetResponse, BudgetCreate, BudgetUpdate } from "@/models/budget";
+import type {
+  BudgetResponse,
+  BudgetCreate,
+  BudgetUpdate,
+} from "@pocket-pixie/contracts";
 import { type DBType, type DBTransactionType } from "@/db";
 
 export class BudgetRepository {

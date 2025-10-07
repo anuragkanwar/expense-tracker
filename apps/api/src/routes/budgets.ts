@@ -53,14 +53,10 @@ budgetRoutes.openapi(getBudgetRoute, async (c) => {
       budgetId
     );
     return c.json(budget, 200);
-  } catch (error: any) {
-    if (error.message === "Budget not found") {
-      return c.json({ message: "Budget not found" }, 404);
-    }
-    if (error.message === "Forbidden") {
-      return c.json({ message: "Forbidden" }, 403);
-    }
-    return c.json({ message: "Internal server error" }, 500);
+  } catch (error: unknown) {
+    const { handleRouteError } = await import("@/utils/error-response-handler");
+    const { json, status } = handleRouteError(error);
+    return c.json(json, status);
   }
 });
 
@@ -84,14 +80,10 @@ budgetRoutes.openapi(updateBudgetRoute, async (c) => {
       return c.json({ message: "Budget not found" }, 404);
     }
     return c.json(budget, 200);
-  } catch (error: any) {
-    if (error.message === "Budget not found") {
-      return c.json({ message: "Budget not found" }, 404);
-    }
-    if (error.message === "Forbidden") {
-      return c.json({ message: "Forbidden" }, 403);
-    }
-    return c.json({ message: "Internal server error" }, 500);
+  } catch (error: unknown) {
+    const { handleRouteError } = await import("@/utils/error-response-handler");
+    const { json, status } = handleRouteError(error);
+    return c.json(json, status);
   }
 });
 
@@ -107,13 +99,9 @@ budgetRoutes.openapi(deleteBudgetRoute, async (c) => {
   try {
     await services.budgetService.deleteBudgetByUser(user.id, budgetId);
     return c.json({ message: "Budget deleted successfully" }, 200);
-  } catch (error: any) {
-    if (error.message === "Budget not found") {
-      return c.json({ message: "Budget not found" }, 404);
-    }
-    if (error.message === "Forbidden") {
-      return c.json({ message: "Forbidden" }, 403);
-    }
-    return c.json({ message: "Internal server error" }, 500);
+  } catch (error: unknown) {
+    const { handleRouteError } = await import("@/utils/error-response-handler");
+    const { json, status } = handleRouteError(error);
+    return c.json(json, status);
   }
 });

@@ -11,9 +11,9 @@ import {
   GroupMemberCreateSchema,
   GroupMemberBulkCreateSchema,
   GroupMemberBulkResponseSchema,
-  SettlementCreateSchema,
   GroupBalancesResponseSchema,
   SettlementPlanResponseSchema,
+  LoanResponseSchema,
 } from "@pocket-pixie/contracts";
 
 export const createGroupRoute = createRoute({
@@ -323,36 +323,162 @@ export const getGroupMembersRoute = createRoute({
   },
 });
 
-export const createSettlementRoute = createRoute({
-  method: "post",
-  path: "/settlements",
-  summary: "Record settlement",
+// [REMOVED] createGroupDirectSettlementRoute: Legacy group direct settlement endpoint removed as part of migration to allocation-based settlement.
+
+// Group Loan Query Schema
+export const GroupLoanListQuerySchema = z.object({
+  page: z.coerce.number().int().positive().optional().openapi({ example: 1 }),
+  limit: z.coerce.number().int().positive().optional().openapi({ example: 20 }),
+  type: z.enum(["given", "taken", "all"]).optional().openapi({
+    example: "all",
+    description:
+      "Filter loans by user's role in the group: 'given' (as creditor), 'taken' (as debtor), or 'all' (both)",
+  }),
+});
+
+export type GroupLoanListQuery = z.infer<typeof GroupLoanListQuerySchema>;
+
+// Group Loans API Contract
+export const getGroupLoansRoute = createRoute({
+  method: "get",
+  path: "/{groupId}/loans",
+  summary: "List group loans",
   description:
-    "Records that a payment has been made to settle a debt. This action triggers balance updates and settlement events.",
-  tags: ["Groups"],
+    "Lists loans within a specific group context. Requires group membership. " +
+    "Returns all loans associated with the specified group where the authenticated user " +
+    "is involved either as a creditor or debtor. Supports pagination and optional filtering " +
+    "by the user's role (given, taken, or all loans).",
+  tags: ["Groups", "Loans"],
   request: {
-    body: {
-      content: {
-        "application/json": {
-          schema: SettlementCreateSchema,
-        },
-      },
-    },
+    params: z.object({
+      groupId: IdParamSchema.openapi({ description: "Group ID" }),
+    }),
+    query: GroupLoanListQuerySchema,
   },
   responses: {
-    201: {
+    200: {
+      content: {
+        "application/json": {
+          schema: z
+            .object({
+              loans: z.array(LoanResponseSchema),
+              total: z.number(),
+              page: z.number(),
+              limit: z.number(),
+            })
+            .openapi("GroupLoanListResponse"),
+          examples: {
+            "group-loans": {
+              value: {
+                loans: [
+                  {
+                    id: 101,
+                    amount: 50,
+                    currency: "USD",
+                    description: "Group dinner expense",
+                    creditorId: 100,
+                    debtorId: 200,
+                    groupId: 300,
+                    transactionId: 401,
+                    createdAt: "2025-09-16T12:00:00Z",
+                    loanDate: "2025-09-16T12:00:00Z",
+                  },
+                  {
+                    id: 102,
+                    amount: 75.5,
+                    currency: "USD",
+                    description: "Concert tickets",
+                    creditorId: 200,
+                    debtorId: 100,
+                    groupId: 300,
+                    transactionId: 402,
+                    createdAt: "2025-09-17T15:30:00Z",
+                    loanDate: "2025-09-17T15:30:00Z",
+                  },
+                ],
+                total: 2,
+                page: 1,
+                limit: 20,
+              },
+            },
+          },
+        },
+      },
+      description: "Group loans retrieved successfully",
+    },
+    400: {
+      description: "Validation Error",
       content: {
         "application/json": {
           schema: z.object({
-            message: z
-              .string()
-              .openapi({ example: "Settlement recorded successfully" }),
+            success: z.boolean(),
+            error: z.object({
+              code: z.string(),
+              message: z.string(),
+            }),
+          }),
+          examples: {
+            "not-member": {
+              value: {
+                success: false,
+                error: {
+                  code: "INVALID_RELATIONSHIP",
+                  message: "You don't have access to this group",
+                },
+              },
+            },
+            "invalid-params": {
+              value: {
+                success: false,
+                error: {
+                  code: "VALIDATION_ERROR",
+                  message: "Invalid pagination parameters",
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+    401: { description: "Unauthorized" },
+    403: {
+      description: "Not a group member",
+      content: {
+        "application/json": {
+          schema: z.object({
+            success: z.boolean(),
+            error: z.object({
+              code: z.string(),
+              message: z.string(),
+            }),
           }),
         },
       },
-      description: "Settlement recorded successfully",
     },
-    400: { description: "Validation Error" },
-    401: { description: "Unauthorized" },
+    404: {
+      description: "Group not found",
+      content: {
+        "application/json": {
+          schema: z.object({
+            success: z.boolean(),
+            error: z.object({
+              code: z.string(),
+              message: z.string(),
+            }),
+          }),
+          examples: {
+            "group-not-found": {
+              value: {
+                success: false,
+                error: {
+                  code: "NOT_FOUND",
+                  message: "Group not found",
+                },
+              },
+            },
+          },
+        },
+      },
+    },
   },
 });

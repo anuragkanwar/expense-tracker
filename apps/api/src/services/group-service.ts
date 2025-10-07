@@ -1,20 +1,23 @@
-import type { GroupResponse, GroupCreate, GroupUpdate } from "@/models/group";
 import type {
+  GroupResponse,
+  GroupCreate,
+  GroupUpdate,
+  GroupMemberBulkResponse,
   GroupBalancesResponse,
   SettlementPlanResponse,
-} from "@/dto/groups.dto";
+} from "@pocket-pixie/contracts";
+
 import {
   BadRequestError,
   NotFoundError,
   ForbiddenError,
-  ConflictError,
-} from "../errors/base-error";
+  // ConflictError, // reserved for future group invariants
+} from "@/errors/base-error";
 import { GroupRepository } from "@/repositories/group-repository";
 import { GroupMemberService } from "./group-member-service";
 import { LoanService } from "./loan-service";
 import { FriendService } from "./friend-service";
 import { type DBType } from "@/db";
-import type { GroupMemberBulkResponse } from "@/models/group-member";
 
 export class GroupService {
   private readonly groupRepository;
@@ -81,7 +84,8 @@ export class GroupService {
     }
 
     if (group.createdBy !== userId) {
-      throw new ForbiddenError("You do not have access to this group");
+      // Standardize forbidden message to align with route error mapping & tests
+      throw new ForbiddenError();
     }
 
     return group;
@@ -103,8 +107,12 @@ export class GroupService {
         );
 
         return group;
-      } catch (error: any) {
-        console.error("Failed to create group:", error);
+      } catch (error: unknown) {
+        // rollback handled implicitly by driver after throw
+        // Swallow original low-level error details in production; log in non-prod
+        if (process.env.NODE_ENV !== "production") {
+          console.error("Failed to create group:", error);
+        }
         throw new BadRequestError("Failed to create group");
       }
     });
@@ -237,10 +245,12 @@ export class GroupService {
         });
 
         results.added.push(memberId);
-      } catch (error: any) {
+      } catch (error: unknown) {
+        const message =
+          error instanceof Error ? error.message : "Failed to add member";
         results.failed.push({
           userId: memberId,
-          reason: error.message || "Failed to add member",
+          reason: message,
         });
       }
     }
@@ -319,8 +329,8 @@ export class GroupService {
   }
 
   private calculateGroupBalances(
-    members: any[],
-    expenses: any[]
+    members: Array<{ userId: number }>,
+    expenses: Array<{ amount: number; createdBy: number }>
   ): GroupBalancesResponse {
     // This is a simplified balance calculation
     // In a real implementation, you'd need to consider:

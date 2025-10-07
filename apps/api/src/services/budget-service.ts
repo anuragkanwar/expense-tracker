@@ -2,7 +2,7 @@ import type {
   BudgetResponse,
   BudgetCreate,
   BudgetUpdate,
-} from "@/models/budget";
+} from "@pocket-pixie/contracts";
 import { BadRequestError } from "../errors/base-error";
 import { BudgetRepository } from "@/repositories/budget-repository";
 

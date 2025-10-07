@@ -1,8 +1,8 @@
 import { FriendRepository } from "@/repositories/friend-repository";
-import { UserResponse } from "@/models/user";
+import type { UserResponse, UserAuth } from "@pocket-pixie/contracts";
 import { FRIEND_STATUS } from "@/db";
 import { NotFoundError, ValidationError } from "@/errors/base-error";
-import { UserAuth } from "@/models/auth";
+
 import { type DBTransactionType } from "@/db";
 
 export class FriendService {

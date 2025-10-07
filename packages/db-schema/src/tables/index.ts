@@ -20,11 +20,9 @@ export { recurring } from "./recurring";
 // Splitwise schemas
 export { group } from "./group";
 export { groupMember } from "./group-member";
-export { loan } from "./loan";
-export { loanPayer } from "./loan-payer";
-export { loanSplit } from "./loan-splits";
+export { groupExpense } from "./group-expense";
+// Loan tables have been migrated to the unified expense-share schema
 export { userBalance } from "./user-balance";
 export { settlement } from "./settlement";
-
-// Student schema
-export { student } from "./student";
+export { expenseShare } from "./expense-share";
+export { settlementApplication } from "./settlement-application";

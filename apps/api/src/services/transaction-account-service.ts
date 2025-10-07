@@ -1,12 +1,13 @@
 import { ACCOUNT_TYPE, type DBType, type DBTransactionType } from "@/db";
 import { initialAccountSeed } from "@/utils/constants";
 import { TransactionAccountRepository } from "@/repositories";
-import {
+import type {
   TransactionAccountCreate,
   TransactionAccountUpdate,
   TransactionAccountResponse,
-} from "@/models/transaction-account";
-import { UserAuth } from "@/models/auth";
+  UserAuth,
+} from "@pocket-pixie/contracts";
+
 import { NotFoundError, ValidationError } from "@/errors/base-error";
 import { FriendService } from "./friend-service";
 
@@ -65,6 +66,13 @@ export class TransactionAccountService {
   }
 
   async getAll(
+    user: UserAuth,
+    tx?: DBTransactionType
+  ): Promise<TransactionAccountResponse[]> {
+    return this.transactionAccountRepository.findAllByUserId(user.id, tx);
+  }
+
+  async getAllExpenseAccounts(
     user: UserAuth,
     tx?: DBTransactionType
   ): Promise<TransactionAccountResponse[]> {

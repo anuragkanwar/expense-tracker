@@ -19,10 +19,10 @@ export async function getValidated<T>(
 /**
  * Perform a mutation style request (POST/PUT/PATCH/DELETE) optionally validating response.
  */
-export async function sendValidated<T>(
+export async function sendValidated<T, D = Record<string, unknown>>(
   method: "post" | "put" | "delete" | "patch",
   url: string,
-  data?: any,
+  data?: D,
   schema?: ParseSchema<T>,
   config?: AxiosRequestConfig
 ): Promise<T | undefined> {

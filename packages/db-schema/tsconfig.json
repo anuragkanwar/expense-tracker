@@ -8,7 +8,8 @@
     "declarationMap": true,
     "outDir": "dist",
     "module": "ESNext",
-    "moduleResolution": "bundler"
+    "moduleResolution": "bundler",
+    "lib": ["ESNext"]
   },
   "include": ["src"],
   "exclude": ["dist"]

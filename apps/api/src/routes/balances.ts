@@ -3,7 +3,6 @@ import {
   getBalanceSummaryRoute,
   getFriendBalanceRoute,
   getGroupBalanceRoute,
-  createSettlementRoute,
   getGlobalSettlementPlanRoute,
   getGroupSettlementPlanRoute,
 } from "./balances.contracts";
@@ -37,8 +36,10 @@ balanceRoutes.openapi(getFriendBalanceRoute, async (c) => {
   try {
     const balance = await balanceService.getFriendBalance(userId, friendId);
     return c.json(balance, 200);
-  } catch {
-    return c.json({ message: "Friend not found" }, 404);
+  } catch (error: unknown) {
+    const { handleRouteError } = await import("@/utils/error-response-handler");
+    const { json, status } = handleRouteError(error);
+    return c.json(json, status);
   }
 });
 
@@ -56,27 +57,14 @@ balanceRoutes.openapi(getGroupBalanceRoute, async (c) => {
   try {
     const balance = await balanceService.getGroupBalance(userId, groupId);
     return c.json(balance, 200);
-  } catch {
-    return c.json({ message: "Group not found" }, 404);
+  } catch (error: unknown) {
+    const { handleRouteError } = await import("@/utils/error-response-handler");
+    const { json, status } = handleRouteError(error);
+    return c.json(json, status);
   }
 });
 
-balanceRoutes.openapi(createSettlementRoute, async (c) => {
-  const user = c.get("user");
-  if (!user) {
-    return c.json({ message: "Unauthorized" }, 401);
-  }
-
-  const settlementData = c.req.valid("json");
-  const { balanceService } = c.get("services");
-
-  try {
-    await balanceService.createSettlement(settlementData);
-    return c.json({ message: "Settlement recorded successfully" }, 201);
-  } catch {
-    return c.json({ message: "Failed to record settlement" }, 400);
-  }
-});
+// [REMOVED] Direct settlement handler: Legacy direct settlement endpoint removed as part of migration to allocation-based settlement.
 
 balanceRoutes.openapi(getGlobalSettlementPlanRoute, async (c) => {
   const user = c.get("user");
@@ -105,7 +93,9 @@ balanceRoutes.openapi(getGroupSettlementPlanRoute, async (c) => {
   try {
     const plan = await balanceService.getGroupSettlementPlan(userId, groupId);
     return c.json(plan, 200);
-  } catch (error) {
-    return c.json({ message: "Group not found" }, 404);
+  } catch (error: unknown) {
+    const { handleRouteError } = await import("@/utils/error-response-handler");
+    const { json, status } = handleRouteError(error);
+    return c.json(json, status);
   }
 });

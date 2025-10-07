@@ -1,10 +1,10 @@
 import { friendship } from "@/db";
 import { eq } from "drizzle-orm";
-import {
+import type {
   FriendshipResponse,
   FriendshipCreate,
   FriendshipUpdate,
-} from "@/models/friendship";
+} from "@pocket-pixie/contracts";
 import { type DBType, type DBTransactionType } from "@/db";
 import { FRIEND_STATUS } from "@/db";
 

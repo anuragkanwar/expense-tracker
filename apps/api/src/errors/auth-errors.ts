@@ -3,6 +3,7 @@ import {
   ConflictError,
   ValidationError,
   UnauthorizedError,
+  type ValidationErrorDetail,
 } from "./base-error";
 
 export class AuthNotFoundError extends NotFoundError {
@@ -18,7 +19,7 @@ export class AuthConflictError extends ConflictError {
 }
 
 export class AuthValidationError extends ValidationError {
-  constructor(message: string, details?: any) {
+  constructor(message: string, details?: ValidationErrorDetail[]) {
     super(message, details);
   }
 }

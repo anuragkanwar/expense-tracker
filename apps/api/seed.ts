@@ -1,21 +1,16 @@
-// #!/usr/bin/env node
-//
-// import { seedCategories, seedStandardCategories } from "./src/db/seeds/index.js";
-//
-// async function main() {
-//   const userId = process.argv[2];
-//
-//   try {
-//     if (userId) {
-//       await seedCategories(parseInt(userId));
-//     } else {
-//       await seedStandardCategories();
-//     }
-//     console.log("Seeding completed successfully");
-//   } catch (error) {
-//     console.error("Seeding failed:", error);
-//     process.exit(1);
-//   }
-// }
-//
-// main();
+#!/usr/bin/env node
+
+import { seedComprehensive } from "./src/db/seeds/comprehensive-seed";
+
+async function main() {
+  try {
+    console.log("Starting comprehensive seed process...");
+    await seedComprehensive();
+    console.log("Comprehensive seeding completed successfully");
+  } catch (error) {
+    console.error("Comprehensive seeding failed:", error);
+    process.exit(1);
+  }
+}
+
+await main()

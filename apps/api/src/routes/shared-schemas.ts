@@ -1,4 +1,7 @@
 import { z } from "@hono/zod-openapi";
+import * as schemas from "@pocket-pixie/contracts";
+
+// Add OpenAPI annotations to the base schemas
 
 // Common numeric ID (positive int) used across params
 export const IdParamSchema = z.coerce
@@ -12,6 +15,7 @@ export const UserIdParamSchema = IdParamSchema.openapi({
   description: "User ID",
 });
 
+// Re-implement pagination schema with OpenAPI annotations
 export const PaginationQuerySchema = z.object({
   page: z.coerce
     .number()
@@ -46,4 +50,46 @@ export const SettlementMessageResponseSchema = MessageResponseSchema.openapi({
 
 export const DeletionMessageResponseSchema = MessageResponseSchema.openapi({
   example: { message: "Resource deleted successfully" },
+});
+
+// -------------------------------------------------------------
+// Standardized Error Schemas (shared across OpenAPI contracts)
+// -------------------------------------------------------------
+
+export const StandardErrorSchema = z
+  .object({
+    success: z.literal(false).openapi({ example: false }),
+    error: z.object({
+      code: z.string().openapi({ example: "BAD_REQUEST" }),
+      message: z.string().openapi({ example: "Invalid request" }),
+    }),
+  })
+  .openapi({ description: "Standard error response wrapper" });
+
+// Differences map used for idempotency conflict errors
+const IdempotencyDifferenceValueSchema = z.object({
+  original: z.unknown().openapi({ example: 100 }),
+  attempted: z.unknown().openapi({ example: 120 }),
+});
+
+export const IdempotencyConflictErrorSchema = StandardErrorSchema.extend({
+  error: StandardErrorSchema.shape.error.extend({
+    differences: z
+      .record(z.string(), IdempotencyDifferenceValueSchema)
+      .optional()
+      .openapi({
+        example: {
+          amount: { original: 100, attempted: 120 },
+          currency: { original: "USD", attempted: "EUR" },
+        },
+        description:
+          "Field-level differences between the original idempotent request payload and the conflicting replay attempt",
+      }),
+  }),
+}).openapi({
+  description:
+    "Idempotency conflict error with field differences. " +
+    "Occurs when an Idempotency-Key is reused with a different payload. " +
+    "Per LLD section 16.1, idempotency keys are REQUIRED for all settlement operations " +
+    "and have uniqueness scope of (userId, idempotencyKey, endpoint).",
 });

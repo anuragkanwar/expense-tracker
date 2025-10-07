@@ -1,6 +1,10 @@
-import { TransactionCreateWithDetails } from "@/dto/transactions.dto";
+import {
+  TransactionCreateWithDetails,
+  TransactionUpdateWithDetails,
+  TransactionAccountResponse,
+  ExpenseShareRepoCreate,
+} from "@pocket-pixie/contracts";
 import { TransactionAccountNotFoundError } from "@/errors/transaction-account-errors";
-import { UserAuth } from "@/models/auth";
 import {
   TransactionRepository,
   TransactionEntryRepository,
@@ -8,6 +12,7 @@ import {
   GroupRepository,
   BalanceRepository,
   GroupMemberRepository,
+  ExpenseShareRepository,
 } from "@/repositories";
 import { FriendService } from "./friend-service";
 import {
@@ -16,17 +21,18 @@ import {
   type DBTransactionType,
   SHARE_TYPE,
   TXN_TYPE,
+  EXPENSE_SHARE_STATUS,
+  EXPENSE_SHARE_TYPE,
+  asCompatibleTransaction,
 } from "@/db";
 import {
   NotFoundError,
   ValidationError,
   ForbiddenError,
 } from "@/errors/base-error";
-import { GroupNotFoundError } from "@/errors/group-errors";
-import { TransactionUpdateWithDetails } from "@/dto/transactions.dto";
-import { mathOperationAndGetFixedNumber } from "@/utils/mathUtils";
-import { TransactionAccountResponse } from "@/models";
-import { TransactionHelperService } from "./transaction-helper-service";
+
+import { TransactionHelperService } from "./transaction-helper-service"; // helper for double-entry updates
+import { InterpersonalDebtEngine } from "./interpersonal-debt-engine";
 
 export class TransactionService {
   private readonly balanceRepository;
@@ -37,6 +43,8 @@ export class TransactionService {
   private readonly transactionRepository;
   private readonly transactionHelperService;
   private readonly friendService;
+  private readonly expenseShareRepository;
+  private readonly interpersonalDebtEngine: InterpersonalDebtEngine;
   private db: DBType;
 
   constructor({
@@ -49,6 +57,8 @@ export class TransactionService {
     transactionRepository,
     transactionHelperService,
     friendService,
+    expenseShareRepository,
+    interpersonalDebtEngine,
   }: {
     balanceRepository: BalanceRepository;
     db: DBType;
@@ -59,6 +69,8 @@ export class TransactionService {
     transactionRepository: TransactionRepository;
     transactionHelperService: TransactionHelperService;
     friendService: FriendService;
+    expenseShareRepository: ExpenseShareRepository;
+    interpersonalDebtEngine: InterpersonalDebtEngine;
   }) {
     this.balanceRepository = balanceRepository;
     this.db = db;
@@ -69,6 +81,8 @@ export class TransactionService {
     this.transactionRepository = transactionRepository;
     this.transactionHelperService = transactionHelperService;
     this.friendService = friendService;
+    this.expenseShareRepository = expenseShareRepository;
+    this.interpersonalDebtEngine = interpersonalDebtEngine;
   }
 
   async validateTransactionAccounts(
@@ -81,12 +95,12 @@ export class TransactionService {
     srcAcc: TransactionAccountResponse;
     dstAcc: TransactionAccountResponse;
   }> {
-    // For loan transactions, use specialized validation
+    const txContext = tx ? asCompatibleTransaction(tx) : undefined;
+
     if (txnType === TXN_TYPE.LOAN_GIVEN || txnType === TXN_TYPE.LOAN_TAKEN) {
-      // For loans, we need to find accounts by ID directly since they may belong to different users
       const txnSrcAcc = await this.transactionAccountRepository.findById(
         srcAccId,
-        tx
+        txContext
       );
       if (!txnSrcAcc) {
         throw new TransactionAccountNotFoundError("`From` account");
@@ -94,7 +108,7 @@ export class TransactionService {
 
       const txnDstAcc = await this.transactionAccountRepository.findById(
         dstAccId,
-        tx
+        txContext
       );
       if (!txnDstAcc) {
         throw new TransactionAccountNotFoundError("`to` account");
@@ -102,12 +116,11 @@ export class TransactionService {
 
       return { srcAcc: txnSrcAcc, dstAcc: txnDstAcc };
     } else {
-      // For non-loan transactions, both accounts must belong to the payer
       const txnSrcAcc =
         await this.transactionAccountRepository.findByUserIdAndAccountId(
           payerId,
           srcAccId,
-          tx
+          txContext
         );
 
       if (!txnSrcAcc) {
@@ -118,7 +131,7 @@ export class TransactionService {
         await this.transactionAccountRepository.findByUserIdAndAccountId(
           payerId,
           dstAccId,
-          tx
+          txContext
         );
 
       if (!txnDstAcc) {
@@ -131,140 +144,38 @@ export class TransactionService {
 
   async createTransactionHeader(
     payerId: number,
-    description: string,
+    description?: string,
     tx?: DBTransactionType
   ) {
+    const finalDescription =
+      typeof description === "string" && description.trim().length > 0
+        ? description.trim()
+        : "";
     return await this.transactionRepository.create(
       {
-        description,
+        description: finalDescription,
         userId: payerId,
       },
       tx
     );
   }
 
-  async updateAccountsAndCreateEntries(
-    entries: Array<{
-      srcAcc: TransactionAccountResponse;
-      dstAcc: TransactionAccountResponse;
-      amount: number;
-      txnId: number;
-    }>,
-    tx?: DBTransactionType
-  ): Promise<void> {
-    for (const entry of entries) {
-      if (entry.amount <= 0) {
-        continue;
-      }
-
-      // Update source account balance (money going out)
-      await this.transactionAccountRepository.update(
-        entry.srcAcc.id,
-        {
-          balance: entry.srcAcc.balance - entry.amount,
-        },
-        tx
-      );
-
-      // Update destination account balance (money coming in)
-      await this.transactionAccountRepository.update(
-        entry.dstAcc.id,
-        {
-          balance: entry.dstAcc.balance + entry.amount,
-        },
-        tx
-      );
-
-      // Create transaction entries (double-entry)
-      await this.transactionEntryRepository.create(
-        {
-          amount: entry.amount,
-          transactionAccountId: entry.dstAcc.id,
-          transactionId: entry.txnId,
-        },
-        tx
-      );
-
-      await this.transactionEntryRepository.create(
-        {
-          amount: -entry.amount,
-          transactionAccountId: entry.srcAcc.id,
-          transactionId: entry.txnId,
-        },
-        tx
-      );
-    }
-  }
-
-  async updateBalances(
-    payerId: number,
-    payeeId: number,
-    amount: number,
-    currency: string,
-    groupId?: number,
-    tx?: DBTransactionType
-  ) {
-    // Payer owes payee: payee (owner) is owed by payer (counterparty) +amount
-    const payeeBalance = await this.balanceRepository.findBalance(
-      payeeId,
-      payerId,
-      groupId,
-      tx
-    );
-    if (payeeBalance) {
-      await this.balanceRepository.update(
-        payeeBalance.id,
-        {
-          amount: payeeBalance.amount + amount,
-        },
-        tx
-      );
-    } else {
-      await this.balanceRepository.create(
-        {
-          ownerId: payeeId,
-          counterPartyId: payerId,
-          amount: amount,
-          currency,
-          groupId: groupId,
-        },
-        tx
-      );
-    }
-
-    // Payer is owed by payee: payer (owner) is owed by payee (counterparty) -amount
-    const payerBalance = await this.balanceRepository.findBalance(
-      payerId,
-      payeeId,
-      groupId,
-      tx
-    );
-    if (payerBalance) {
-      await this.balanceRepository.update(
-        payerBalance.id,
-        {
-          amount: payerBalance.amount - amount,
-        },
-        tx
-      );
-    } else {
-      await this.balanceRepository.create(
-        {
-          ownerId: payerId,
-          counterPartyId: payeeId,
-          amount: -amount,
-          currency,
-          groupId: groupId,
-        },
-        tx
-      );
-    }
-  }
-
+  /**
+   * Main transaction creation endpoint for personal expenses, income, saving and shared expenses.
+   * Note: Splits will not contain payers data
+   */
   async createTransaction(
     transactionCreateWithDetails: TransactionCreateWithDetails,
     userCurrency: string = "INR"
   ) {
+    if (
+      transactionCreateWithDetails.type === TXN_TYPE.LOAN_GIVEN ||
+      transactionCreateWithDetails.type === TXN_TYPE.LOAN_TAKEN
+    ) {
+      throw new ValidationError(
+        "Direct loan transactions must be created via /api/v1/loans"
+      );
+    }
     const payerId = transactionCreateWithDetails.payer;
 
     await this.db.transaction(async (tx) => {
@@ -277,17 +188,14 @@ export class TransactionService {
           tx
         );
 
+        // creater txn header for the txn
         const txnHeader = await this.createTransactionHeader(
           payerId,
           transactionCreateWithDetails.description,
           tx
         );
 
-        if (
-          transactionCreateWithDetails.type === TXN_TYPE.EXPENSE ||
-          transactionCreateWithDetails.type === TXN_TYPE.LOAN_GIVEN ||
-          transactionCreateWithDetails.type === TXN_TYPE.LOAN_TAKEN
-        ) {
+        if (transactionCreateWithDetails.type === TXN_TYPE.EXPENSE) {
           if (transactionCreateWithDetails.sharedWith === SHARE_TYPE.NONE) {
             await this.transactionHelperService.updateAccountsAndCreateEntries(
               [
@@ -301,8 +209,7 @@ export class TransactionService {
               tx
             );
           } else if (
-            transactionCreateWithDetails.sharedWith === SHARE_TYPE.GROUP ||
-            transactionCreateWithDetails.sharedWith === SHARE_TYPE.FRIENDS
+            transactionCreateWithDetails.sharedWith === SHARE_TYPE.GROUP
           ) {
             if (!transactionCreateWithDetails.splitType) {
               throw new ValidationError("Split type must be set");
@@ -311,31 +218,17 @@ export class TransactionService {
             const splits = transactionCreateWithDetails.splits || [];
 
             const splitTotal = splits.reduce(
-              (acc, split) => acc + split.amountOwed,
+              (acc, split) => acc + split.amount,
               0
             );
             const payerTotal = transactionCreateWithDetails.amount - splitTotal;
 
-            // Validate payerTotal based on transaction type
-            if (
-              transactionCreateWithDetails.type === TXN_TYPE.LOAN_GIVEN ||
-              transactionCreateWithDetails.type === TXN_TYPE.LOAN_TAKEN
-            ) {
-              // For loans, payerTotal must be exactly 0
-              if (payerTotal !== 0) {
-                throw new ValidationError(
-                  `For loan transactions, payer total must be 0, got ${payerTotal}`
-                );
-              }
-            } else if (transactionCreateWithDetails.type === TXN_TYPE.EXPENSE) {
-              // For expenses, payerTotal must be >= 0
-              if (payerTotal < 0) {
-                throw new ValidationError(
-                  `Split amounts (${splitTotal}) cannot exceed total transaction amount (${transactionCreateWithDetails.amount})`
-                );
-              }
+            if (payerTotal < 0) {
+              throw new ValidationError(
+                `Split amounts (${splitTotal}) cannot exceed total transaction amount (${transactionCreateWithDetails.amount})`
+              );
             }
-
+            // payers double ledger entry
             await this.transactionHelperService.updateAccountsAndCreateEntries(
               [
                 {
@@ -351,52 +244,68 @@ export class TransactionService {
             // Handle splits for shared transactions
             if (splits.length > 0) {
               for (const split of splits) {
-                const payeeLoanTakenAcc =
-                  await this.transactionAccountRepository.findByUserIdAndCategoryName(
-                    split.userId,
-                    ACCOUNT_TYPE.LOAN_TAKEN,
-                    tx
-                  );
-
-                if (!payeeLoanTakenAcc) {
-                  throw new TransactionAccountNotFoundError(
-                    `${split.userId} , LOAN_TAKEN`
-                  );
-                }
-                const payerLoanGiveAcc =
-                  await this.transactionAccountRepository.findByUserIdAndCategoryName(
-                    payerId,
-                    ACCOUNT_TYPE.LOAN_GIVEN,
-                    tx
-                  );
-
-                if (!payerLoanGiveAcc) {
-                  throw new TransactionAccountNotFoundError(
-                    `${payerId} ,  LOAN_GIVEN`
-                  );
-                }
-
-                await this.transactionHelperService.updateAccountsAndCreateEntries(
-                  [
-                    {
-                      srcAcc: payerLoanGiveAcc,
-                      dstAcc: payeeLoanTakenAcc,
-                      amount: split.amountOwed,
-                      txnId: txnHeader.id,
-                    },
-                  ],
-                  tx
-                );
-
-                await this.updateBalances(
-                  payerId,
-                  split.userId,
-                  split.amountOwed,
-                  userCurrency,
-                  transactionCreateWithDetails.groupId,
+                await this.interpersonalDebtEngine.recordDirectLoan(
+                  {
+                    creditorId: payerId, // original payer
+                    debtorId: split.userId, // participant
+                    amount: split.amount,
+                    currency: userCurrency,
+                    transactionId: txnHeader.id,
+                    groupId: transactionCreateWithDetails.groupId ?? null,
+                  },
                   tx
                 );
               }
+            }
+
+            // Upfront expense recognition (expense_share rows) ONLY for EXPENSE transactions
+            if (transactionCreateWithDetails.type === TXN_TYPE.EXPENSE) {
+              const shareRows: Array<ExpenseShareRepoCreate> = [];
+              const groupIdValue =
+                transactionCreateWithDetails.sharedWith === SHARE_TYPE.GROUP
+                  ? (transactionCreateWithDetails.groupId ?? null)
+                  : null;
+
+              // Payer share row (always insert for consistency)
+              shareRows.push({
+                transactionId: txnHeader.id,
+                payerUserId: payerId,
+                participantUserId: payerId,
+                groupId: groupIdValue,
+                type: EXPENSE_SHARE_TYPE.EXPENSE,
+                shareType: transactionCreateWithDetails.sharedWith,
+                splitType: transactionCreateWithDetails.splitType,
+                expenseAccountId: dstAcc.id, // FIX: why this is here
+                currency: userCurrency,
+                amount: payerTotal,
+                paidAmount: payerTotal,
+                // payer has already effectively paid their share
+                status: EXPENSE_SHARE_STATUS.PAID,
+                realizedAt: new Date(),
+                isPayerShare: 1,
+              });
+
+              // Participant shares
+              for (const split of splits) {
+                shareRows.push({
+                  transactionId: txnHeader.id,
+                  payerUserId: payerId,
+                  participantUserId: split.userId,
+                  groupId: groupIdValue,
+                  type: EXPENSE_SHARE_TYPE.EXPENSE,
+                  shareType: transactionCreateWithDetails.sharedWith,
+                  splitType: transactionCreateWithDetails.splitType,
+                  expenseAccountId: dstAcc.id, // FIX: why this is here
+                  currency: userCurrency,
+                  amount: split.amount,
+                  paidAmount: 0,
+                  status: EXPENSE_SHARE_STATUS.UNPAID,
+                  realizedAt: new Date(),
+                  isPayerShare: 0,
+                });
+              }
+
+              await this.expenseShareRepository.createMany(shareRows, tx);
             }
           } else {
             throw new NotFoundError("Provided share type not found");
@@ -419,7 +328,7 @@ export class TransactionService {
         } else {
           throw new NotFoundError("Provided transaction type not found");
         }
-      } catch (error: any) {
+      } catch (error: unknown) {
         tx.rollback();
         throw error;
       }
@@ -444,9 +353,9 @@ export class TransactionService {
     );
 
     // Filter transactions based on user involvement
-    const userTransactions = transactions.filter((transaction) => {
+    const userTransactions = transactions.filter((t) => {
       // User is the payer
-      if (transaction.userId === userId) return true;
+      if (t.userId === userId) return true;
 
       // For now, we'll return all transactions - in a real implementation,
       // you'd check if user is involved in the transaction splits
@@ -456,7 +365,7 @@ export class TransactionService {
     // Apply type filter if specified
     let filteredTransactions = userTransactions;
     if (type) {
-      filteredTransactions = userTransactions.filter((transaction) => {
+      filteredTransactions = userTransactions.filter(() => {
         // This is a simplified type check - in a real implementation,
         // you'd check the transaction type from the related transaction entries
         return true; // Placeholder
@@ -520,7 +429,7 @@ export class TransactionService {
     );
 
     // Filter transactions that belong to this group
-    const groupTransactions = transactions.filter((transaction) => {
+    const groupTransactions = transactions.filter(() => {
       // In a real implementation, you'd check if the transaction is associated with the group
       // For now, we'll return a placeholder
       return true;
@@ -577,10 +486,7 @@ export class TransactionService {
     updateData: TransactionUpdateWithDetails
   ) {
     // Verify transaction exists and user has access
-    const existingTransaction = await this.getTransactionById(
-      transactionId,
-      userId
-    );
+    await this.getTransactionById(transactionId, userId);
 
     // Update the transaction
     const updatedTransaction = await this.transactionRepository.update(

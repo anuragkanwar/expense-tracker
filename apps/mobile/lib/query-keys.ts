@@ -1,5 +1,6 @@
 // Centralized React Query keys for consistency & cache scoping
 // Keys are arrays to allow hierarchical invalidation (e.g., invalidateQueries({ queryKey: queryKeys.groups._def }))
+import type { PassbookFilters } from "@/api/passbook";
 
 export const queryKeys = {
   groups: {
@@ -57,8 +58,17 @@ export const queryKeys = {
     summary: () => ["dashboard", "summary"] as const,
   },
   passbook: {
-    list: (filters?: { page?: number; limit?: number; accountId?: number }) =>
-      ["passbook", "list", filters ?? {}] as const,
+    list: (filters?: {
+      page?: number;
+      limit?: number;
+      accountId?: number;
+      startDate?: string;
+      endDate?: string;
+      categoryId?: number;
+      entryType?: "transaction" | "expense" | "loan" | "all";
+      status?: "unpaid" | "partially_paid" | "paid" | "all";
+      [key: string]: string | number | boolean | undefined | null;
+    }) => ["passbook", "list", filters ?? {}] as const,
   },
   recurringItems: {
     list: () => ["recurring-items", "list"] as const,

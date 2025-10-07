@@ -8,15 +8,17 @@ import {
   authRoutes,
   friendRoutes,
   groupRoutes,
-  transactionRoutesExport,
   passbookRoutes,
   budgetRoutes,
   accountRoutes,
   recurringItemRoutes,
   balanceRoutes,
-  dashboardRoutes,
   connectionRoutes,
 } from "./routes";
+import { dashboardRoutes } from "./routes/dashboard";
+import { transactionRoutesExport } from "./routes/transactions";
+import { loanRoutes } from "./routes/loans";
+import { settlementRoutes } from "./routes/settlements";
 
 import { cors } from "hono/cors";
 import { auth } from "@/db";
@@ -37,7 +39,7 @@ app.use(
       "http://localhost:8081",
       "http://YOUR_COMPUTER_IP:3000", // Replace with your computer's IP
     ], // replace with your origin
-    allowHeaders: ["Content-Type", "Authorization"],
+    allowHeaders: ["Content-Type", "Authorization", "Idempotency-Key"],
     allowMethods: ["POST", "GET", "PUT", "DELETE", "OPTIONS"],
     exposeHeaders: ["Content-Length"],
     maxAge: 600,
@@ -52,7 +54,7 @@ app.get("/", (c) => {
     version: "1.0.0",
     timestamp: new Date().toISOString(),
     environment: process.env.NODE_ENV || "development",
-    docs: "http://localhost:4000/docs",
+    docs: "http://localhost:3000/docs",
     endpoints: {
       auth: "/api/v1/auth",
       users: "/api/v1/users",
@@ -66,6 +68,7 @@ app.get("/", (c) => {
       categories: "/api/v1/categories",
       "recurring-items": "/api/v1/recurring-items",
       balances: "/api/v1/balances",
+      settlements: "/api/v1/settlements",
       dashboard: "/api/v1/dashboard",
       connections: "/api/v1/connections",
     },
@@ -96,8 +99,15 @@ app.route("/api/v1/friends", friendRoutes);
 // Mount group management routes
 app.route("/api/v1/groups", groupRoutes);
 
-// Mount transaction management routes
+// Mount transaction routes
 app.route("/api/v1/transactions", transactionRoutesExport);
+
+// No longer need to import routes here
+
+// Mount loan routes
+// This is the standard implementation that works with the unified schema
+// Loans are now stored in the expense_share table with type=LOAN
+app.route("/api/v1/loans", loanRoutes);
 
 // Mount financial tracking routes
 app.route("/api/v1/passbook", passbookRoutes);
@@ -111,8 +121,11 @@ app.route("/api/v1/accounts", accountRoutes);
 // Mount recurring-items routes
 app.route("/api/v1/recurring-items", recurringItemRoutes);
 
-// Mount balances and settlements routes
+// Mount balances routes
 app.route("/api/v1/balances", balanceRoutes);
+
+// Mount settlements routes
+app.route("/api/v1/settlements", settlementRoutes);
 
 // Mount dashboard routes
 app.route("/api/v1/dashboard", dashboardRoutes);
@@ -121,15 +134,31 @@ app.route("/api/v1/dashboard", dashboardRoutes);
 app.route("/api/v1/connections", connectionRoutes);
 
 // OpenAPI documentation - generated from Zod schemas
-app.doc("/openapi.json", {
-  openapi: "3.1.0",
-  info: {
-    version: "1.0.0",
-    title: "Pocket Pixie API",
-    description:
-      "A comprehensive financial management API for loan tracking, budgeting, group loans, and financial insights.",
-  },
-});
+// Add debug wrapper to catch OpenAPI generation errors
+try {
+  app.doc("/openapi.json", {
+    openapi: "3.1.0",
+    info: {
+      version: "1.0.0",
+      title: "Pocket Pixie API",
+      description:
+        "A comprehensive financial management API for loan tracking, budgeting, group loans, and financial insights.\n\n" +
+        "## Idempotency\n\n" +
+        "Settlement operations require an Idempotency-Key header to safely retry requests without side effects.\n" +
+        "The key must be unique per request and consistent on retries. If the same key is reused with a different payload, " +
+        "the API will return a 409 Conflict error with details about the payload differences.",
+    },
+  });
+} catch (error) {
+  console.error("OpenAPI generation error:", error);
+  // Add a fallback route to see the error details
+  app.get("/openapi-debug", (c) => {
+    return c.json({
+      error: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined,
+    });
+  });
+}
 
 // Scalar API Reference UI
 app.get(
@@ -159,7 +188,7 @@ app.notFound((c) => {
         message: "Endpoint not found",
       },
     },
-    404 as any
+    404
   );
 });
 

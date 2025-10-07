@@ -1,6 +1,6 @@
 import { user } from "@/db";
 import { eq } from "drizzle-orm";
-import { UserResponse } from "@/models/user";
+import type { UserResponse } from "@pocket-pixie/contracts";
 import { type DBType, type DBTransactionType } from "@/db";
 
 export class UserRepository {

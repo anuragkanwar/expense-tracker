@@ -190,7 +190,7 @@ export const CURRENCY_SYMBOL_MAP = {
 
 export const CURRENCIES = Object.keys(CURRENCY_SYMBOL_MAP);
 
-import { UserAuth } from "@/models/auth";
+import type { UserAuth } from "@pocket-pixie/contracts";
 
 /**
  * Get the user's default currency from their preferences

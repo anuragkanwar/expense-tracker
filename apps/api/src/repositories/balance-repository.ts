@@ -1,17 +1,17 @@
 import {
   userBalance,
-  loan,
-  loanSplit,
   transactionEntry,
   transactionAccount,
   ACCOUNT_TYPE,
+  expenseShare,
+  EXPENSE_SHARE_TYPE,
 } from "@/db";
-import { eq, and, sql, isNull, or, gt } from "drizzle-orm";
-import {
+import { eq, and, sql, isNull, or } from "drizzle-orm";
+import type {
   UserBalanceResponse,
   UserBalanceCreate,
   UserBalanceUpdate,
-} from "@/models/user-balance";
+} from "@pocket-pixie/contracts";
 import { type DBType, type DBTransactionType } from "@/db";
 
 export class BalanceRepository {
@@ -23,7 +23,9 @@ export class BalanceRepository {
   /**
    * Helper method to format balance rows with ISO timestamps
    */
-  private formatBalanceRow(row: any): UserBalanceResponse {
+  private formatBalanceRow(
+    row: typeof userBalance.$inferSelect
+  ): UserBalanceResponse {
     return {
       ...row,
       createdAt: row.createdAt.toISOString(),
@@ -42,7 +44,9 @@ export class BalanceRepository {
       .from(userBalance)
       .limit(limit)
       .offset(offset);
-    return result.map((row) => this.formatBalanceRow(row));
+    return result.map((row) =>
+      this.formatBalanceRow(row as typeof userBalance.$inferSelect)
+    );
   }
 
   async findById(
@@ -127,11 +131,14 @@ export class BalanceRepository {
       .from(userBalance)
       .where(eq(userBalance.ownerId, userId));
 
-    return result.map((row) => ({
-      ...row,
-      createdAt: row.createdAt.toISOString(),
-      updatedAt: row.updatedAt.toISOString(),
-    })) as UserBalanceResponse[];
+    return result.map(
+      (row) =>
+        ({
+          ...row,
+          createdAt: row.createdAt.toISOString(),
+          updatedAt: row.updatedAt.toISOString(),
+        }) as UserBalanceResponse
+    );
   }
 
   async getBalancesBetweenUsers(
@@ -159,11 +166,14 @@ export class BalanceRepository {
         )
       );
 
-    return result.map((row) => ({
-      ...row,
-      createdAt: row.createdAt.toISOString(),
-      updatedAt: row.updatedAt.toISOString(),
-    })) as UserBalanceResponse[];
+    return result.map(
+      (row) =>
+        ({
+          ...row,
+          createdAt: row.createdAt.toISOString(),
+          updatedAt: row.updatedAt.toISOString(),
+        }) as UserBalanceResponse
+    );
   }
 
   async getGroupBalances(
@@ -179,11 +189,14 @@ export class BalanceRepository {
         and(eq(userBalance.ownerId, userId), eq(userBalance.groupId, groupId))
       );
 
-    return result.map((row) => ({
-      ...row,
-      createdAt: row.createdAt.toISOString(),
-      updatedAt: row.updatedAt.toISOString(),
-    })) as UserBalanceResponse[];
+    return result.map(
+      (row) =>
+        ({
+          ...row,
+          createdAt: row.createdAt.toISOString(),
+          updatedAt: row.updatedAt.toISOString(),
+        }) as UserBalanceResponse
+    );
   }
 
   async getUserDebts(
@@ -202,11 +215,14 @@ export class BalanceRepository {
         )
       );
 
-    return result.map((row) => ({
-      ...row,
-      createdAt: row.createdAt.toISOString(),
-      updatedAt: row.updatedAt.toISOString(),
-    })) as UserBalanceResponse[];
+    return result.map(
+      (row) =>
+        ({
+          ...row,
+          createdAt: row.createdAt.toISOString(),
+          updatedAt: row.updatedAt.toISOString(),
+        }) as UserBalanceResponse
+    );
   }
 
   async getGroupBalancesForSettlement(
@@ -228,11 +244,14 @@ export class BalanceRepository {
         )
       );
 
-    return result.map((row) => ({
-      ...row,
-      createdAt: row.createdAt.toISOString(),
-      updatedAt: row.updatedAt.toISOString(),
-    })) as UserBalanceResponse[];
+    return result.map(
+      (row) =>
+        ({
+          ...row,
+          createdAt: row.createdAt.toISOString(),
+          updatedAt: row.updatedAt.toISOString(),
+        }) as UserBalanceResponse
+    );
   }
 
   async findBalance(
@@ -247,12 +266,14 @@ export class BalanceRepository {
       eq(userBalance.counterPartyId, counterPartyId),
     ];
 
-    if (groupId !== undefined) {
-      if (groupId === null || groupId === undefined) {
-        conditions.push(isNull(userBalance.groupId));
-      } else {
-        conditions.push(eq(userBalance.groupId, groupId));
-      }
+    // Fixed logic for groupId handling:
+    // - If groupId is null, we want to find rows where groupId IS NULL
+    // - If groupId is a number, we want to find rows where groupId = that number
+    // - If groupId is undefined, we don't care about groupId (don't add condition)
+    if (groupId === null) {
+      conditions.push(isNull(userBalance.groupId));
+    } else if (groupId !== undefined) {
+      conditions.push(eq(userBalance.groupId, groupId));
     }
 
     const result = await db
@@ -281,16 +302,18 @@ export class BalanceRepository {
   ): Promise<string> {
     const db = tx ?? this.db;
 
-    // Find the underlying loan category from transaction accounts
+    // Find the underlying loan expense share from transaction accounts using the unified schema
     const loanQuery = await db
-      .select({ transactionId: loan.transactionId })
-      .from(loan)
-      .innerJoin(loanSplit, eq(loan.id, loanSplit.loanId))
+      .select({ transactionId: expenseShare.transactionId })
+      .from(expenseShare)
       .where(
         and(
-          eq(loan.groupId, groupId),
-          eq(loan.createdBy, payerId),
-          eq(loanSplit.userId, payeeId)
+          groupId
+            ? eq(expenseShare.groupId, groupId)
+            : isNull(expenseShare.groupId),
+          eq(expenseShare.payerUserId, payerId),
+          eq(expenseShare.participantUserId, payeeId),
+          eq(expenseShare.type, EXPENSE_SHARE_TYPE.LOAN)
         )
       )
       .limit(1);
@@ -307,7 +330,7 @@ export class BalanceRepository {
           .where(
             and(
               eq(transactionEntry.transactionId, txnId),
-              gt(transactionEntry.amount, 0)
+              sql`${transactionEntry.amount} > 0`
             )
           )
           .limit(1);
@@ -329,6 +352,8 @@ export class BalanceRepository {
             if (accountQuery.length > 0) {
               category = accountQuery[0]?.name || "GENERAL";
             }
+
+            return category;
           }
         }
       }

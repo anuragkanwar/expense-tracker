@@ -10,7 +10,7 @@ export const getAccountsRoute = createRoute({
   path: "/",
   summary: "List user accounts",
   description:
-    "Lists all of the user's financial accounts (e.g., bank accounts, cash).",
+    "Lists all of the user's Expense accounts (e.g., rent, groceris).",
   tags: ["Accounts"],
   responses: {
     200: {

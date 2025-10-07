@@ -1,10 +1,10 @@
 import { ACCOUNT_TYPE, transactionAccount } from "@/db";
-import { and, eq, inArray } from "drizzle-orm";
-import {
+import { and, eq } from "drizzle-orm";
+import type {
   TransactionAccountResponse,
   TransactionAccountCreate,
   TransactionAccountUpdate,
-} from "@/models/transaction-account";
+} from "@pocket-pixie/contracts";
 import { type DBType, type DBTransactionType } from "@/db";
 
 export class TransactionAccountRepository {
@@ -143,6 +143,26 @@ export class TransactionAccountRepository {
     } as TransactionAccountResponse;
   }
 
+  async findAllByUserId(
+    userId: number,
+    tx?: DBTransactionType
+  ): Promise<TransactionAccountResponse[]> {
+    const db = tx ?? this.db;
+    const result = await db
+      .select()
+      .from(transactionAccount)
+      .where(
+        and(
+          eq(transactionAccount.userId, userId),
+        )
+      );
+    return result.map((item) => ({
+      ...item,
+      createdAt: item.createdAt.toISOString(),
+      updatedAt: item.updatedAt.toISOString(),
+    })) as TransactionAccountResponse[];
+  }
+
   async findByUserId(
     userId: number,
     tx?: DBTransactionType
@@ -151,7 +171,12 @@ export class TransactionAccountRepository {
     const result = await db
       .select()
       .from(transactionAccount)
-      .where(eq(transactionAccount.userId, userId));
+      .where(
+        and(
+          eq(transactionAccount.userId, userId),
+          eq(transactionAccount.type, ACCOUNT_TYPE.EXPENSE)
+        )
+      );
     return result.map((item) => ({
       ...item,
       createdAt: item.createdAt.toISOString(),

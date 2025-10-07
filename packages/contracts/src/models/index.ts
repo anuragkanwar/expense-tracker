@@ -16,11 +16,20 @@ export * from "./recurring";
 // Splitwise models
 export * from "./group";
 export * from "./group-member";
-export * from "./loan";
-export * from "./loan-payer";
-export * from "./loan-split";
+
+// Loan/ExpenseShare models
+export * from "./expense-share";
+export * from "./expense-share-repo";
 export * from "./user-balance";
 export * from "./settlement";
+export * from "./settlement-application";
 
 // Student model - commented out as file doesn't exist
 // export * from "./student";
+
+// Error response models
+export * from "./error-response";
+export * from "./extended-error";
+
+// API utilities
+export * from "./query-params";

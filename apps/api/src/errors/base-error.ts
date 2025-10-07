@@ -40,10 +40,17 @@ export abstract class BaseError extends Error {
   }
 }
 
-export class ValidationError extends BaseError {
-  public readonly details?: any;
+export interface ValidationErrorDetail {
+  path?: (string | number)[];
+  message: string;
+  code?: string;
+  [key: string]: unknown;
+}
 
-  constructor(message: string, details?: any) {
+export class ValidationError extends BaseError {
+  public readonly details?: ValidationErrorDetail[];
+
+  constructor(message: string, details?: ValidationErrorDetail[] | undefined) {
     super(message, "VALIDATION_ERROR", 400);
     this.details = details;
   }

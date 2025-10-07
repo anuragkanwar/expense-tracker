@@ -1,4 +1,8 @@
-import { SignUpSchema, AuthResponseSchema, SignInSchema } from "@/models/user";
+import {
+  SignUpSchema,
+  AuthResponseSchema,
+  SignInSchema,
+} from "@pocket-pixie/contracts";
 import { createRoute, z } from "@hono/zod-openapi";
 
 export const registerRoute = createRoute({

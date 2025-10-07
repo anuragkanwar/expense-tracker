@@ -2,45 +2,102 @@ import type {
   SettlementResponse,
   SettlementCreate,
   SettlementUpdate,
-} from "@/models/settlement";
-import { BadRequestError } from "../errors/base-error";
+  SettlementApplicationResponse,
+} from "@pocket-pixie/contracts";
+import { BadRequestError } from "@/errors/base-error";
 import { SettlementRepository } from "@/repositories/settlement-repository";
 import {
   TransactionRepository,
-  TransactionEntryRepository,
   TransactionAccountRepository,
 } from "@/repositories";
-import { ACCOUNT_TYPE } from "@/db";
+import {
+  ACCOUNT_TYPE,
+  EXPENSE_SHARE_STATUS,
+  EXPENSE_SHARE_TYPE,
+  type DBType,
+  type DBTransactionType,
+} from "@/db";
 import { TransactionAccountNotFoundError } from "@/errors/transaction-account-errors";
 import { TransactionHelperService } from "./transaction-helper-service";
+import { ExpenseShareRepository } from "@/repositories/expense-share-repository";
+import { InterpersonalDebtEngine } from "./interpersonal-debt-engine";
+import { SettlementApplicationRepository } from "@/repositories/settlement-application-repository";
+import { IdempotencyKeyConflictError } from "@/errors/idempotency-errors";
+
+interface SettlementResult {
+  settlement: SettlementResponse;
+  applications: SettlementApplicationResponse[];
+  totalApplied: number;
+  outstandingBefore: number;
+  outstandingAfter: number;
+}
 
 export class SettlementService {
   private readonly settlementRepository;
   private readonly transactionRepository;
-  private readonly transactionEntryRepository;
   private readonly transactionAccountRepository;
   private readonly transactionHelperService;
+  private readonly expenseShareRepository: ExpenseShareRepository;
+  private readonly settlementApplicationRepository: SettlementApplicationRepository;
+
+  private readonly interpersonalDebtEngine: InterpersonalDebtEngine;
+  private readonly db: DBType;
+
+  /**
+   * Private helper method to wrap the repository call and ensure consistent parameter order
+   */
+  private async findAllocatableShares(
+    debtorId: number,
+    creditorId: number,
+    currency: string,
+    groupId: number | null,
+    type: EXPENSE_SHARE_TYPE | null,
+    tx: DBTransactionType
+  ) {
+    return this.expenseShareRepository.findAllocatableShares(
+      debtorId,
+      creditorId,
+      currency,
+      groupId,
+      type,
+      tx
+    );
+  }
 
   constructor({
     settlementRepository,
     transactionRepository,
-    transactionEntryRepository,
     transactionAccountRepository,
     transactionHelperService,
+    expenseShareRepository,
+    settlementApplicationRepository,
+
+    db,
+    interpersonalDebtEngine,
   }: {
     settlementRepository: SettlementRepository;
     transactionRepository: TransactionRepository;
-    transactionEntryRepository: TransactionEntryRepository;
     transactionAccountRepository: TransactionAccountRepository;
     transactionHelperService: TransactionHelperService;
+    expenseShareRepository: ExpenseShareRepository;
+    settlementApplicationRepository: SettlementApplicationRepository;
+    interpersonalDebtEngine: InterpersonalDebtEngine;
+    db: DBType;
   }) {
     this.settlementRepository = settlementRepository;
     this.transactionRepository = transactionRepository;
-    this.transactionEntryRepository = transactionEntryRepository;
     this.transactionAccountRepository = transactionAccountRepository;
     this.transactionHelperService = transactionHelperService;
+    this.expenseShareRepository = expenseShareRepository;
+    this.settlementApplicationRepository = settlementApplicationRepository;
+
+    this.db = db;
+    this.interpersonalDebtEngine = interpersonalDebtEngine;
   }
 
+  // =============================================================
+  // Basic CRUD (update & delete potentially useful for admin ops)
+  // =============================================================
   async getAllSettlements(
     limit: number = 10,
     offset: number = 0
@@ -69,20 +126,6 @@ export class SettlementService {
     }
 
     return this.settlementRepository.findByGroupId(groupId);
-  }
-
-  async createSettlement(data: SettlementCreate): Promise<SettlementResponse> {
-    // Validate that payer and payee are different
-    if (data.payerId === data.payeeId) {
-      throw new BadRequestError("Payer and payee cannot be the same user");
-    }
-
-    // Validate amount is positive
-    if (data.amount <= 0) {
-      throw new BadRequestError("Settlement amount must be positive");
-    }
-
-    return this.settlementRepository.create(data);
   }
 
   async updateSettlement(
@@ -126,107 +169,348 @@ export class SettlementService {
     return this.settlementRepository.delete(numericId);
   }
 
-  async settleExpenseDebt(
-    settlerId: number, // u2 (the one settling)
-    payerId: number, // u1 (the original payer)
-    amount: number,
-    groupId: number,
-    originalTransactionId: number // txhdr1 from original expense
-  ): Promise<SettlementResponse> {
-    // Validate inputs
-    if (settlerId === payerId) {
-      throw new BadRequestError("Settler and payer cannot be the same user");
-    }
+  /**
+   * Allocate a settlement amount against outstanding obligations (expense shares or loans)
+   * between two users using FIFO ordering.
+   *
+   * This unified implementation works with both expense shares and loans stored in the
+   * unified expense_share table.
+   *
+   * The implementation includes per-allocation ledger entries, For each allocation:
+   * 1. A child transaction is created (linked to the parent settlement transaction)
+   * 2. Double-entry ledger entries are created for the specific allocation amount
+   * 3. Transaction descriptions include detailed context (expense/loan type, share ID)
+   *
+   * This improves audit trails and ensures user_balance is fully derivable from allocation entries.
+   *
+   * @param params Settlement allocation parameters
+   * @param params.payerId User ID of the person making the payment (debtor)
+   * @param params.payeeId User ID of the person receiving the payment (creditor)
+   * @param params.amount Amount to allocate
+   * @param params.currency Currency code (3 letters)
+   * @param params.groupId Optional group ID to scope the settlement
+   * @param params.idempotencyKey Optional idempotency key for safe retries
+   * @param params.type Optional type filter (EXPENSE or LOAN)
+   * @returns Settlement result with applications and outstanding balances
+   */
+  async allocateSettlement(params: {
+    payerId: number;
+    payeeId: number;
+    amount: number;
+    currency: string;
+    groupId?: number | null;
+    idempotencyKey?: string | null;
+    type?: EXPENSE_SHARE_TYPE | null;
+  }): Promise<SettlementResult> {
+    const {
+      payerId,
+      payeeId,
+      amount,
+      currency,
+      groupId,
+      idempotencyKey,
+      type = null,
+    } = params;
 
+    if (payerId === payeeId) {
+      throw new BadRequestError("Cannot settle with self");
+    }
     if (amount <= 0) {
       throw new BadRequestError("Settlement amount must be positive");
     }
 
-    // Step 1: Debt Settlement - Transfer the loan from settler to payer
-    // u2 loan_taken -100, u1 loan_given +100
-    const settlerLoanTakenAcc =
-      await this.transactionAccountRepository.findByUserIdAndCategoryName(
-        settlerId,
-        ACCOUNT_TYPE.LOAN_TAKEN
-      );
-
-    if (!settlerLoanTakenAcc) {
-      throw new TransactionAccountNotFoundError(
-        `${settlerId} LOAN_TAKEN account`
-      );
-    }
-
-    const payerLoanGivenAcc =
-      await this.transactionAccountRepository.findByUserIdAndCategoryName(
+    const result = await this.db.transaction(async (tx) => {
+      // 1. Fetch allocatable Expense shares using our helper method based on type
+      const shares = await this.findAllocatableShares(
         payerId,
-        ACCOUNT_TYPE.LOAN_GIVEN
+        payeeId,
+        currency,
+        groupId ?? null,
+        type,
+        tx
       );
 
-    if (!payerLoanGivenAcc) {
-      throw new TransactionAccountNotFoundError(
-        `${payerId} LOAN_GIVEN account`
-      );
-    }
+      if (!shares.length) {
+        throw new BadRequestError("No outstanding obligations to settle");
+      }
 
-    // Create transaction header for debt settlement
-    const debtSettlementTxn = await this.transactionRepository.create({
-      description: `Debt settlement between users`,
-      userId: settlerId,
+      const outstandingBefore = shares.reduce(
+        (acc, s) => acc + (s.amount - s.paidAmount),
+        0
+      );
+
+      // settlement cant exceed exisintg outstanding amount (no overpay)
+      if (amount > outstandingBefore + 1e-8) {
+        throw new BadRequestError(
+          `Settlement amount ${amount} exceeds outstanding ${outstandingBefore}`
+        );
+      }
+
+      // Idempotency check (if key provided)
+      // Enhanced semantics: if key exists and payload differs -> conflict
+      // We compare critical fields (payerId, payeeId, amount, currency, groupId, type)
+      if (idempotencyKey) {
+        const existing = await this.settlementRepository.findByIdempotencyKey(
+          idempotencyKey,
+          tx
+        );
+        if (existing) {
+          // Replay semantics: verify payload matches; if differs -> conflict
+          const diffs: Record<
+            string,
+            { original: unknown; attempted: unknown }
+          > = {};
+          if (existing.payerId !== payerId)
+            diffs.payerId = { original: existing.payerId, attempted: payerId };
+          if (existing.payeeId !== payeeId)
+            diffs.payeeId = { original: existing.payeeId, attempted: payeeId };
+          if (Math.abs(existing.amount - amount) > 1e-8)
+            diffs.amount = { original: existing.amount, attempted: amount };
+          if (existing.currency !== currency)
+            diffs.currency = {
+              original: existing.currency,
+              attempted: currency,
+            };
+          const existingGroup = existing.groupId ?? null;
+          const attemptedGroup = groupId ?? null;
+          if (existingGroup !== attemptedGroup)
+            diffs.groupId = {
+              original: existingGroup,
+              attempted: attemptedGroup,
+            };
+          if (Object.keys(diffs).length) {
+            throw new IdempotencyKeyConflictError(
+              "Idempotency-Key reuse with differing payload",
+              diffs
+            );
+          }
+          // Replay: return previous allocation context (applications fetch)
+          const applications =
+            await this.settlementApplicationRepository.findBySettlementId(
+              existing.id,
+              tx
+            );
+          // Recompute outstandingBefore/after from shares and apps
+          const appliedSum = applications.reduce(
+            (acc, a) => acc + a.appliedAmount,
+            0
+          );
+          const outstandingBefore = shares.reduce(
+            (acc, s) => acc + (s.amount - s.paidAmount),
+            0
+          );
+          return {
+            settlement: existing,
+            applications,
+            totalApplied: appliedSum,
+            outstandingBefore: outstandingBefore + appliedSum, // approximate prior before
+            outstandingAfter: outstandingBefore,
+          } satisfies SettlementResult;
+        }
+      }
+
+      // 2. Create settlement ledger transaction (loan reversal)
+      const payerLoanTakenAcc =
+        await this.transactionAccountRepository.findByUserIdAndCategoryName(
+          payerId,
+          ACCOUNT_TYPE.LOAN_TAKEN
+        );
+      const payeeLoanGivenAcc =
+        await this.transactionAccountRepository.findByUserIdAndCategoryName(
+          payeeId,
+          ACCOUNT_TYPE.LOAN_GIVEN
+        );
+      if (!payerLoanTakenAcc) {
+        throw new TransactionAccountNotFoundError(
+          `${payerId} LOAN_TAKEN account`
+        );
+      }
+      if (!payeeLoanGivenAcc) {
+        throw new TransactionAccountNotFoundError(
+          `${payeeId} LOAN_GIVEN account`
+        );
+      }
+
+      // The type description helps clarify which type of obligations are being settled
+      const typeDescription =
+        type === EXPENSE_SHARE_TYPE.LOAN
+          ? "loan"
+          : type === EXPENSE_SHARE_TYPE.EXPENSE
+            ? "expense"
+            : "obligation";
+
+      const txn = await this.transactionRepository.create(
+        {
+          description: `Settlement allocation (${typeDescription}): ${payerId} -> ${payeeId}`,
+          userId: payerId,
+        },
+        tx
+      );
+
+      // TODO: Why this is here, we have to figure out
+      // Post double-entry reversing debt for full applied amount
+      if (amount > 0) {
+        await this.transactionHelperService.updateAccountsAndCreateEntries(
+          [
+            {
+              srcAcc: payerLoanTakenAcc,
+              dstAcc: payeeLoanGivenAcc,
+              amount,
+              txnId: txn.id,
+            },
+          ],
+          tx
+        );
+      }
+
+      const settlement = await this.settlementRepository.create(
+        {
+          payerId,
+          payeeId,
+          amount,
+          currency,
+          groupId: groupId ?? undefined,
+          settledAt: new Date().toISOString(),
+          transactionId: txn.id,
+          idempotencyKey: idempotencyKey ?? undefined,
+        } satisfies SettlementCreate,
+        tx
+      );
+
+      // 3. Allocate FIFO
+      let remaining = amount;
+      const applications: SettlementApplicationResponse[] = [];
+      for (const share of shares) {
+        if (remaining <= 0) break;
+        const shareRemaining = share.amount - share.paidAmount;
+        if (shareRemaining <= 0) continue;
+        const apply = Math.min(shareRemaining, remaining);
+        const newPaid = share.paidAmount + apply;
+        const newStatus =
+          Math.abs(newPaid - share.amount) < 1e-8
+            ? EXPENSE_SHARE_STATUS.PAID
+            : EXPENSE_SHARE_STATUS.PARTIALLY_PAID;
+
+        // Update the share payment using the unified repository
+        await this.expenseShareRepository.update(
+          share.id,
+          {
+            paidAmount: newPaid,
+            status: newStatus,
+          },
+          tx
+        );
+
+        const app = await this.settlementApplicationRepository.create(
+          {
+            settlementId: settlement.id,
+            expenseShareId: share.id,
+            appliedAmount: apply,
+          },
+          tx
+        );
+        applications.push(app);
+
+        const expenseShare = await this.expenseShareRepository.findById(
+          share.id,
+          tx
+        );
+        if (!expenseShare) {
+          throw new Error(`Could not find expense share with id ${share.id}`);
+        }
+
+        // Create a descriptive name for the allocation transaction
+        const shareType =
+          expenseShare.type === EXPENSE_SHARE_TYPE.LOAN ? "loan" : "expense";
+        const allocationDescription = `Allocation: ${apply} ${currency} for ${shareType} share #${share.id}`;
+
+        // Create child transaction for this specific allocation
+        const allocationTxn = await this.transactionRepository.create(
+          {
+            description: allocationDescription,
+            userId: payerId,
+            parentTransactionId: txn.id, // Link to the parent settlement transaction
+          },
+          tx
+        );
+
+        // Create allocation-specific ledger entries
+        await this.transactionHelperService.updateAccountsAndCreateEntries(
+          [
+            {
+              srcAcc: payerLoanTakenAcc,
+              dstAcc: payeeLoanGivenAcc,
+              amount: apply,
+              txnId: allocationTxn.id,
+            },
+          ],
+          tx
+        );
+
+        remaining -= apply;
+      }
+
+      const totalApplied = amount - remaining;
+      const outstandingAfter = outstandingBefore - totalApplied;
+
+      // 4. Adjust user_balance canonical direction
+      // Apply negative delta to reduce debtor's obligation by totalApplied
+      await this.interpersonalDebtEngine.recordRepayment(
+        {
+          creditorId: payeeId,
+          debtorId: payerId,
+          amount: totalApplied,
+          currency,
+          groupId: groupId ?? null,
+        },
+        tx
+      );
+
+      return {
+        settlement,
+        applications,
+        totalApplied,
+        outstandingBefore,
+        outstandingAfter,
+      } satisfies SettlementResult;
     });
 
-    // Update account balances and create entries for debt settlement
-    await this.transactionHelperService.updateAccountsAndCreateEntries([
-      {
-        srcAcc: settlerLoanTakenAcc,
-        dstAcc: payerLoanGivenAcc,
-        amount: amount,
-        txnId: debtSettlementTxn.id,
-      },
-    ]);
+    return result;
+  }
 
-    // Step 2: Payment Recording - Record that settler actually paid the money
-    // u2 outgoing -100, expense +100 (using original transaction header)
-    const settlerOutgoingAcc =
-      await this.transactionAccountRepository.findByUserIdAndCategoryName(
-        settlerId,
-        ACCOUNT_TYPE.OUTGOING
-      );
-
-    if (!settlerOutgoingAcc) {
-      throw new TransactionAccountNotFoundError(
-        `${settlerId} OUTGOING account`
-      );
-    }
-
-    const settlerExpenseAcc =
-      await this.transactionAccountRepository.findByUserIdAndCategoryName(
-        settlerId,
-        ACCOUNT_TYPE.EXPENSE
-      );
-
-    if (!settlerExpenseAcc) {
-      throw new TransactionAccountNotFoundError(`${settlerId} EXPENSE account`);
-    }
-
-    // Update account balances and create entries for payment recording
-    await this.transactionHelperService.updateAccountsAndCreateEntries([
-      {
-        srcAcc: settlerOutgoingAcc,
-        dstAcc: settlerExpenseAcc,
-        amount: amount,
-        txnId: originalTransactionId, // Use original transaction header
-      },
-    ]);
-
-    // Create settlement record
-    const settlement = await this.settlementRepository.create({
-      payerId: payerId,
-      payeeId: settlerId,
-      amount: amount,
-      groupId: groupId,
-      currency: "INR", // Default currency
+  /**
+   * Allocate a settlement amount specifically for expense shares
+   * This method is provided for compatibility with the existing API
+   */
+  async allocateExpenseShareSettlement(params: {
+    payerId: number;
+    payeeId: number;
+    amount: number;
+    currency: string;
+    groupId?: number | null;
+    idempotencyKey?: string | null;
+  }): Promise<SettlementResult> {
+    return this.allocateSettlement({
+      ...params,
+      type: EXPENSE_SHARE_TYPE.EXPENSE,
     });
+  }
 
-    return settlement;
+  /**
+   * Allocate a settlement amount specifically for loans
+   * This method is provided for the unified loan settlement API
+   */
+  async allocateLoanSettlement(params: {
+    payerId: number;
+    payeeId: number;
+    amount: number;
+    currency: string;
+    groupId?: number | null;
+    idempotencyKey?: string | null;
+  }): Promise<SettlementResult> {
+    return this.allocateSettlement({
+      ...params,
+      type: EXPENSE_SHARE_TYPE.LOAN,
+    });
   }
 }

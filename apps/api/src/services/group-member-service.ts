@@ -1,7 +1,7 @@
 import type {
   GroupMemberResponse,
   GroupMemberCreate,
-} from "@/models/group-member";
+} from "@pocket-pixie/contracts";
 import { BadRequestError, NotFoundError } from "../errors/base-error";
 import { GroupMemberRepository } from "@/repositories/group-member-repository";
 import { GroupRepository } from "@/repositories/group-repository";

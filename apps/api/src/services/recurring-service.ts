@@ -2,8 +2,8 @@ import type {
   RecurringResponse,
   RecurringCreate,
   RecurringUpdate,
-} from "@/models/recurring";
-import { BadRequestError } from "../errors/base-error";
+} from "@pocket-pixie/contracts";
+import { BadRequestError } from "@/errors/base-error";
 import { RecurringRepository } from "@/repositories/recurring-repository";
 import { TransactionAccountRepository } from "@/repositories/transaction-account-repository";
 import { ACCOUNT_TYPE, RECURRENCE_TYPE } from "@/db/constants";
@@ -79,7 +79,10 @@ export class RecurringService {
 
   async createRecurringItemWithResolution(
     userId: number,
-    data: any, // DTO data
+    data: Omit<
+      RecurringCreate,
+      "userId" | "sourceTransactionAccountID" | "targetTransactionAccountID"
+    >, // route-level input (accounts + user resolved internally)
     recurrenceType: RECURRENCE_TYPE,
     categoryName?: string,
     accountType?: ACCOUNT_TYPE
@@ -131,7 +134,10 @@ export class RecurringService {
   async updateRecurringItemWithResolution(
     userId: number,
     itemId: number,
-    data: any, // DTO data
+    data: Omit<
+      RecurringUpdate,
+      "userId" | "sourceTransactionAccountID" | "targetTransactionAccountID"
+    >, // route-level partial (accounts resolved internally)
     recurrenceType: RECURRENCE_TYPE,
     categoryName?: string,
     accountType?: ACCOUNT_TYPE

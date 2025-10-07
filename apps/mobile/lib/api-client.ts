@@ -13,8 +13,8 @@ apiClient.interceptors.request.use(async (config) => {
     if (!config.headers) {
       config.headers = new AxiosHeaders();
     }
-    if (typeof (config.headers as any).set === "function") {
-      (config.headers as any).set("Cookie", cookie);
+    if (typeof (config.headers as AxiosHeaders).set === "function") {
+      (config.headers as AxiosHeaders).set("Cookie", cookie);
     }
   }
   return config;

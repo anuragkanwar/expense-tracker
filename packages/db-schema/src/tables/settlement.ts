@@ -1,4 +1,10 @@
-import { sqliteTable, text, integer, real } from "drizzle-orm/sqlite-core";
+import {
+  sqliteTable,
+  text,
+  integer,
+  real,
+  uniqueIndex,
+} from "drizzle-orm/sqlite-core";
 import { group } from "./group";
 import { user } from "./user";
 
@@ -15,6 +21,16 @@ export const settlement = sqliteTable("settlement", {
     .references(() => user.id, { onDelete: "cascade" }),
   amount: real("amount").notNull(),
   currency: text("currency").notNull(),
+  /**
+   * Optional transaction linkage (future: enforce NOT NULL). Represents the
+   * ledger transaction capturing the loan reversal for this settlement.
+   */
+  transactionId: integer("transaction_id"),
+  /**
+   * Idempotency key supplied via header to prevent duplicate settlements on
+   * client retries. Application layer enforces uniqueness for now.
+   */
+  idempotencyKey: text("idempotency_key"),
   settledAt: integer("settled_at", { mode: "timestamp" })
     .notNull()
     .$defaultFn(() => /* @__PURE__ */ new Date()),
@@ -25,3 +41,8 @@ export const settlement = sqliteTable("settlement", {
     .$defaultFn(() => /* @__PURE__ */ new Date())
     .notNull(),
 });
+
+// Unique idempotency key index (allows multiple NULLs; enforces uniqueness when provided)
+export const settlementIdempotencyKeyIndex = uniqueIndex(
+  "settlement_idempotency_key_idx"
+).on(settlement.idempotencyKey);

@@ -6,7 +6,7 @@ import {
   SyncResponseSchema,
   MonthlyDataRequestSchema,
   MonthlyDataResponseSchema,
-} from "@/dto/connections.dto";
+} from "@pocket-pixie/contracts";
 
 export const createLinkTokenRoute = createRoute({
   method: "post",

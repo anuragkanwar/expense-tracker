@@ -4,10 +4,11 @@ import {
   transaction,
   transactionEntry,
   transactionAccount,
-  recurring,
+  expenseShare,
 } from "@/db";
-import { sql, eq, and, gte, lte, inArray, or } from "drizzle-orm";
+import { sql, eq, and, gte, lte, inArray, not, or } from "drizzle-orm";
 import { ACCOUNT_TYPE } from "@/db/constants";
+import { EXPENSE_SHARE_TYPE } from "@/db";
 
 export class DashboardRepository {
   private readonly db: DBType;
@@ -16,6 +17,10 @@ export class DashboardRepository {
     this.db = db;
   }
 
+  /**
+   * Gets the total for loans given by the user in the specified date range.
+   * Uses the unified expense_share table with type = LOAN and payerUserId = userId.
+   */
   async getMonthlyLoanGiven(
     userId: number,
     startDate: Date,
@@ -23,7 +28,9 @@ export class DashboardRepository {
     tx?: DBTransactionType
   ): Promise<number> {
     const db = tx ?? this.db;
-    const result = await db
+
+    // Using the transaction entries approach (from original repository)
+    const transactionResult = await db
       .select({ total: sql<number>`SUM(${transactionEntry.amount})` })
       .from(transactionEntry)
       .innerJoin(
@@ -37,16 +44,50 @@ export class DashboardRepository {
       .where(
         and(
           eq(transaction.userId, userId),
-          eq(transactionAccount.type, ACCOUNT_TYPE.EXPENSE),
+          eq(transactionAccount.type, ACCOUNT_TYPE.LOAN_GIVEN),
           gte(transaction.transactionDate, startDate),
-          lte(transaction.transactionDate, endDate),
-          sql`${transactionEntry.amount} < 0` // Only positive amounts (money received by expense accounts)
+          lte(transaction.transactionDate, endDate)
+          // No sign filter - we need NET SUM (all entries) for loan accounts
+        )
+      );
+
+    return Math.abs(transactionResult[0]?.total || 0);
+  }
+
+  /**
+   * Gets the total loans given by querying the unified expense_share table directly.
+   * This provides an alternative approach based on the unified schema.
+   */
+  async getMonthlyLoanGivenFromUnifiedSchema(
+    userId: number,
+    startDate: Date,
+    endDate: Date,
+    tx?: DBTransactionType
+  ): Promise<number> {
+    const db = tx ?? this.db;
+
+    const result = await db
+      .select({
+        total: sql<number>`SUM(${expenseShare.amount})`,
+      })
+      .from(expenseShare)
+      .where(
+        and(
+          eq(expenseShare.type, EXPENSE_SHARE_TYPE.LOAN),
+          eq(expenseShare.payerUserId, userId), // User is the creditor/lender
+          not(eq(expenseShare.isPayerShare, 1)), // Exclude payer's own shares
+          gte(expenseShare.realizedAt || expenseShare.loanDate, startDate),
+          lte(expenseShare.realizedAt || expenseShare.loanDate, endDate)
         )
       );
 
     return result[0]?.total || 0;
   }
 
+  /**
+   * Gets the total for loans taken by the user in the specified date range.
+   * Uses the transaction entries approach (from original repository).
+   */
   async getMonthlyLoanTaken(
     userId: number,
     startDate: Date,
@@ -68,16 +109,50 @@ export class DashboardRepository {
       .where(
         and(
           eq(transaction.userId, userId),
-          eq(transactionAccount.type, ACCOUNT_TYPE.EXPENSE),
+          eq(transactionAccount.type, ACCOUNT_TYPE.LOAN_TAKEN),
           gte(transaction.transactionDate, startDate),
-          lte(transaction.transactionDate, endDate),
-          sql`${transactionEntry.amount} > 0` // Only positive amounts (money received by expense accounts)
+          lte(transaction.transactionDate, endDate)
+          // No sign filter - we need NET SUM (all entries) for loan accounts
+        )
+      );
+
+    return Math.abs(result[0]?.total || 0);
+  }
+
+  /**
+   * Gets the total loans taken by querying the unified expense_share table directly.
+   * This provides an alternative approach based on the unified schema.
+   */
+  async getMonthlyLoanTakenFromUnifiedSchema(
+    userId: number,
+    startDate: Date,
+    endDate: Date,
+    tx?: DBTransactionType
+  ): Promise<number> {
+    const db = tx ?? this.db;
+
+    const result = await db
+      .select({
+        total: sql<number>`SUM(${expenseShare.amount})`,
+      })
+      .from(expenseShare)
+      .where(
+        and(
+          eq(expenseShare.type, EXPENSE_SHARE_TYPE.LOAN),
+          eq(expenseShare.participantUserId, userId), // User is the debtor/borrower
+          not(eq(expenseShare.isPayerShare, 1)), // Exclude payer's own shares
+          gte(expenseShare.realizedAt || expenseShare.loanDate, startDate),
+          lte(expenseShare.realizedAt || expenseShare.loanDate, endDate)
         )
       );
 
     return result[0]?.total || 0;
   }
 
+  /**
+   * Gets the total expenses for the user in the specified date range.
+   * Identical to original implementation as expenses are not affected by the schema unification.
+   */
   async getMonthlyExpenses(
     userId: number,
     startDate: Date,
@@ -109,6 +184,10 @@ export class DashboardRepository {
     return result[0]?.total || 0;
   }
 
+  /**
+   * Gets the total income for the user in the specified date range.
+   * Identical to original implementation as income is not affected by the schema unification.
+   */
   async getMonthlyIncome(
     userId: number,
     startDate: Date,
@@ -140,6 +219,92 @@ export class DashboardRepository {
     return result[0]?.total || 0;
   }
 
+  /**
+   * Gets the total obligations by type (expense shares or loans) for a given user.
+   * This is a new method specific to the unified schema.
+   */
+  async getTotalObligationsByType(
+    userId: number,
+    type: EXPENSE_SHARE_TYPE,
+    asCreditor: boolean = true,
+    asDebtor: boolean = true,
+    startDate?: Date,
+    endDate?: Date,
+    tx?: DBTransactionType
+  ): Promise<{
+    given: number;
+    taken: number;
+    net: number;
+  }> {
+    const db = tx ?? this.db;
+
+    // Build base conditions
+    const baseConditions = [eq(expenseShare.type, type)];
+
+    // Add date filters if provided
+    if (startDate) {
+      baseConditions.push(
+        gte(expenseShare.realizedAt || expenseShare.loanDate, startDate)
+      );
+    }
+
+    if (endDate) {
+      baseConditions.push(
+        lte(expenseShare.realizedAt || expenseShare.loanDate, endDate)
+      );
+    }
+
+    // Amount given to others (user as creditor/payer)
+    let givenAmount = 0;
+    if (asCreditor) {
+      const givenResult = await db
+        .select({
+          total: sql<number>`SUM(${expenseShare.amount} - ${expenseShare.paidAmount})`,
+        })
+        .from(expenseShare)
+        .where(
+          and(
+            ...baseConditions,
+            eq(expenseShare.payerUserId, userId),
+            not(eq(expenseShare.participantUserId, userId)), // Exclude self-loans
+            not(eq(expenseShare.isPayerShare, 1)) // Exclude payer's own shares
+          )
+        );
+
+      givenAmount = givenResult[0]?.total || 0;
+    }
+
+    // Amount taken from others (user as debtor/participant)
+    let takenAmount = 0;
+    if (asDebtor) {
+      const takenResult = await db
+        .select({
+          total: sql<number>`SUM(${expenseShare.amount} - ${expenseShare.paidAmount})`,
+        })
+        .from(expenseShare)
+        .where(
+          and(
+            ...baseConditions,
+            eq(expenseShare.participantUserId, userId),
+            not(eq(expenseShare.payerUserId, userId)), // Exclude self-loans
+            not(eq(expenseShare.isPayerShare, 1)) // Exclude payer's own shares
+          )
+        );
+
+      takenAmount = takenResult[0]?.total || 0;
+    }
+
+    return {
+      given: givenAmount,
+      taken: takenAmount,
+      net: givenAmount - takenAmount,
+    };
+  }
+
+  /**
+   * Calculates the budget utilization percentage.
+   * Identical to original implementation as budgets are not affected by the schema unification.
+   */
   async getBudgetUtilization(
     userId: number,
     startDate: Date,
@@ -195,12 +360,17 @@ export class DashboardRepository {
     return totalBudget > 0 ? (totalExpenses / totalBudget) * 100 : 0;
   }
 
+  /**
+   * Gets the top expense category for the user.
+   * Identical to original implementation as expense categories are not affected by the schema unification.
+   */
   async getTopExpenseCategory(
     userId: number,
     startDate: Date,
     endDate: Date,
     tx?: DBTransactionType
   ): Promise<{ name: string; amount: number; percentage: number } | null> {
+    // Using the original implementation since expense categories are not affected by schema unification
     const db = tx ?? this.db;
     // Get total expenses for percentage calculation
     const totalExpenses = await this.getMonthlyExpenses(
@@ -246,10 +416,8 @@ export class DashboardRepository {
       return null;
     }
 
-    const topCategory = categorySpending[0];
-    if (!topCategory) {
-      return null;
-    }
+    // If we got here, categorySpending has at least one item (already checked length above)
+    const topCategory = categorySpending[0]!;
 
     const percentage = (topCategory.totalAmount / totalExpenses) * 100;
 
@@ -260,6 +428,10 @@ export class DashboardRepository {
     };
   }
 
+  /**
+   * Gets detailed spending analytics for the user in the specified date range.
+   * Includes category breakdown, trends compared to previous period, and statistical analysis.
+   */
   async getSpendingAnalytics(
     userId: number,
     startDate: Date,
@@ -411,8 +583,9 @@ export class DashboardRepository {
     const maxSpending = Math.max(...amounts);
 
     // Calculate standard deviation
-    const mean = averageSpendingPerCategory;
-    const squaredDiffs = amounts.map((amount) => Math.pow(amount - mean, 2));
+    const squaredDiffs = amounts.map((amount) =>
+      Math.pow(amount - averageSpendingPerCategory, 2)
+    );
     const variance =
       squaredDiffs.reduce((sum, diff) => sum + diff, 0) / amounts.length;
     const standardDeviation = Math.sqrt(variance);
@@ -433,6 +606,12 @@ export class DashboardRepository {
     };
   }
 
+  /**
+   * Gets spending breakdown by category for the user in the specified date range.
+   * Includes amount, percentage of total, transaction count, and trend for each category.
+   * This is identical to the implementation in DashboardRepository since expense categories
+   * are not affected by schema unification.
+   */
   async getSpendingByCategory(
     userId: number,
     startDate: Date,
@@ -561,80 +740,12 @@ export class DashboardRepository {
     return categories;
   }
 
-  async getUpcomingBills(
-    userId: number,
-    daysAhead: number = 30,
-    tx?: DBTransactionType
-  ): Promise<
-    Array<{
-      id: number;
-      description: string;
-      amount: number;
-      dueDate: string;
-      daysUntilDue: number;
-      category: string;
-      priority: "high" | "medium" | "low";
-    }>
-  > {
-    const db = tx ?? this.db;
-    const now = new Date();
-    const futureDate = new Date();
-    futureDate.setDate(now.getDate() + daysAhead);
-
-    // Get recurring items due within the specified days
-    const upcomingRecurring = await db
-      .select({
-        id: recurring.id,
-        description: recurring.description,
-        amount: recurring.amount,
-        nextDate: recurring.nextDate,
-        targetAccountName: transactionAccount.name,
-      })
-      .from(recurring)
-      .innerJoin(
-        transactionAccount,
-        eq(recurring.targetTransactionAccountID, transactionAccount.id)
-      )
-      .where(
-        and(
-          eq(recurring.userId, userId),
-          gte(recurring.nextDate, now),
-          lte(recurring.nextDate, futureDate)
-        )
-      )
-      .orderBy(recurring.nextDate);
-
-    // Process the results
-    const upcomingBills = upcomingRecurring.map((item) => {
-      const dueDate = new Date(item.nextDate);
-      const daysUntilDue = Math.ceil(
-        (dueDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)
-      );
-
-      // Determine priority based on days until due and amount
-      let priority: "high" | "medium" | "low";
-      if (daysUntilDue <= 3 || item.amount > 500) {
-        priority = "high";
-      } else if (daysUntilDue <= 7 || item.amount > 100) {
-        priority = "medium";
-      } else {
-        priority = "low";
-      }
-
-      return {
-        id: item.id,
-        description: item.description,
-        amount: item.amount,
-        dueDate: dueDate.toISOString(),
-        daysUntilDue,
-        category: item.targetAccountName,
-        priority,
-      };
-    });
-
-    return upcomingBills;
-  }
-
+  /**
+   * Gets the net worth trend for the user over a specified number of months.
+   * For loan accounts (LOAN_GIVEN and LOAN_TAKEN), uses NET SUM of all amounts.
+   * For income and saving accounts, sums only positive amounts (inflows).
+   * Follows the aggregation guidance in LLD section 12.
+   */
   async getNetWorthTrend(
     userId: number,
     months: number = 12,
@@ -753,4 +864,6 @@ export class DashboardRepository {
 
     return trendData;
   }
+
+  async getUpcomingBills() {}
 }

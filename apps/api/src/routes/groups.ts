@@ -1,5 +1,4 @@
 import { OpenAPIHono } from "@hono/zod-openapi";
-import { requireAuthMiddleware } from "@/middleware/require-auth-middleware";
 import {
   createGroupRoute,
   getGroupsRoute,
@@ -11,7 +10,7 @@ import {
   removeGroupMemberRoute,
   getGroupBalancesRoute,
   getSettlementPlanRoute,
-  createSettlementRoute,
+  getGroupLoansRoute,
 } from "./groups.contracts";
 
 export const groupRoutes = new OpenAPIHono();
@@ -142,17 +141,10 @@ groupRoutes.openapi(addGroupMemberRoute, async (c) => {
     } else {
       return c.json({ message: "Invalid request body" }, 400);
     }
-  } catch (error: any) {
-    if (error.message === "Group not found") {
-      return c.json({ message: "Group not found" }, 404);
-    }
-    if (error.message === "Forbidden") {
-      return c.json({ message: "Forbidden" }, 403);
-    }
-    if (error.message.includes("already a member")) {
-      return c.json({ message: "User is already a member of this group" }, 409);
-    }
-    return c.json({ message: "Failed to add member" }, 400);
+  } catch (error: unknown) {
+    const { handleRouteError } = await import("@/utils/error-response-handler");
+    const { json, status } = handleRouteError(error);
+    return c.json(json, status);
   }
 });
 
@@ -172,14 +164,10 @@ groupRoutes.openapi(removeGroupMemberRoute, async (c) => {
       userId
     );
     return c.json({ message: "Member removed successfully" }, 200);
-  } catch (error: any) {
-    if (error.message === "Group not found") {
-      return c.json({ message: "Group not found" }, 404);
-    }
-    if (error.message === "Forbidden") {
-      return c.json({ message: "Forbidden" }, 403);
-    }
-    return c.json({ message: "Failed to remove member" }, 400);
+  } catch (error: unknown) {
+    const { handleRouteError } = await import("@/utils/error-response-handler");
+    const { json, status } = handleRouteError(error);
+    return c.json(json, status);
   }
 });
 
@@ -198,14 +186,10 @@ groupRoutes.openapi(getGroupBalancesRoute, async (c) => {
       groupId
     );
     return c.json(balances, 200);
-  } catch (error: any) {
-    if (error.message === "Group not found") {
-      return c.json({ message: "Group not found" }, 404);
-    }
-    if (error.message === "Forbidden") {
-      return c.json({ message: "Forbidden" }, 403);
-    }
-    return c.json({ message: "Failed to calculate balances" }, 400);
+  } catch (error: unknown) {
+    const { handleRouteError } = await import("@/utils/error-response-handler");
+    const { json, status } = handleRouteError(error);
+    return c.json(json, status);
   }
 });
 
@@ -224,33 +208,34 @@ groupRoutes.openapi(getSettlementPlanRoute, async (c) => {
       groupId
     );
     return c.json(settlementPlan, 200);
-  } catch (error: any) {
-    if (error.message === "Group not found") {
-      return c.json({ message: "Group not found" }, 404);
-    }
-    if (error.message === "Forbidden") {
-      return c.json({ message: "Forbidden" }, 403);
-    }
-    return c.json({ message: "Failed to calculate settlement plan" }, 400);
+  } catch (error: unknown) {
+    const { handleRouteError } = await import("@/utils/error-response-handler");
+    const { json, status } = handleRouteError(error);
+    return c.json(json, status);
   }
 });
 
-groupRoutes.openapi(createSettlementRoute, async (c) => {
-  const user = c.get("user");
-  if (!user) {
-    return c.json({ message: "Unauthorized" }, 401);
-  }
+// [REMOVED] Group direct settlement handler: Legacy group direct settlement endpoint removed as part of migration to allocation-based settlement.
 
-  const services = c.get("services");
-  const body = c.req.valid("json");
-
+// Group loan routes
+groupRoutes.openapi(getGroupLoansRoute, async (c) => {
   try {
-    await services.settlementService.createSettlement({
-      ...body,
-      payerId: user.id,
+    const user = c.get("user");
+    if (!user) return c.json({ message: "Unauthorized" }, 401);
+    const { groupId } = c.req.valid("param");
+    const query = c.req.valid("query");
+    const { loanService } = c.get("services");
+    const { page, limit } = query;
+
+    const result = await loanService.getGroupLoans(groupId, user.id, {
+      page,
+      limit,
     });
-    return c.json({ message: "Settlement recorded successfully" }, 201);
-  } catch (error: any) {
-    return c.json({ message: "Failed to record settlement" }, 400);
+
+    return c.json(result, 200);
+  } catch (error: unknown) {
+    const { handleRouteError } = await import("@/utils/error-response-handler");
+    const { json, status } = handleRouteError(error);
+    return c.json(json, status);
   }
 });

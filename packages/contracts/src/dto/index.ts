@@ -9,3 +9,5 @@ export * from "./groups.dto";
 export * from "./passbook.dto";
 export * from "./recurring-items.dto";
 export * from "./transactions.dto";
+export * from "./settlements.dto";
+export * from "./shared-schemas";

@@ -1,4 +1,9 @@
-import { sqliteTable, text, integer } from "drizzle-orm/sqlite-core";
+import {
+  sqliteTable,
+  text,
+  integer,
+  AnySQLiteColumn,
+} from "drizzle-orm/sqlite-core";
 import { user } from "./user";
 
 export const transaction = sqliteTable("transaction", {
@@ -10,6 +15,9 @@ export const transaction = sqliteTable("transaction", {
   transactionDate: integer("transaction_date", { mode: "timestamp" })
     .$defaultFn(() => /* @__PURE__ */ new Date())
     .notNull(),
+  parentTransactionId: integer("parent_transaction_id").references(
+    (): AnySQLiteColumn => transaction.id
+  ),
   createdAt: integer("created_at", { mode: "timestamp" })
     .$defaultFn(() => /* @__PURE__ */ new Date())
     .notNull(),

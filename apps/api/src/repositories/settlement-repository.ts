@@ -1,10 +1,10 @@
 import { settlement } from "@/db";
 import { eq, and } from "drizzle-orm";
-import {
+import type {
   SettlementResponse,
   SettlementCreate,
   SettlementUpdate,
-} from "@/models/settlement";
+} from "@pocket-pixie/contracts";
 import { type DBType, type DBTransactionType } from "@/db";
 
 export class SettlementRepository {
@@ -94,6 +94,26 @@ export class SettlementRepository {
     })) as SettlementResponse[];
   }
 
+  async findByIdempotencyKey(
+    key: string,
+    tx?: DBTransactionType
+  ): Promise<SettlementResponse | null> {
+    const db = tx ?? this.db;
+    const result = await db
+      .select()
+      .from(settlement)
+      .where(eq(settlement.idempotencyKey, key))
+      .limit(1);
+    if (!result.length || !result[0]) return null;
+    const row = result[0];
+    return {
+      ...row,
+      settledAt: row.settledAt.toISOString(),
+      createdAt: row.createdAt.toISOString(),
+      updatedAt: row.updatedAt.toISOString(),
+    } as SettlementResponse;
+  }
+
   async create(
     data: SettlementCreate,
     tx?: DBTransactionType
@@ -102,7 +122,7 @@ export class SettlementRepository {
     const result = await db
       .insert(settlement)
       .values({
-        ...data,
+        ...(data as Omit<SettlementCreate, "settledAt">),
         settledAt: data.settledAt ? new Date(data.settledAt) : new Date(),
         createdAt: new Date(),
         updatedAt: new Date(),
@@ -127,10 +147,11 @@ export class SettlementRepository {
     tx?: DBTransactionType
   ): Promise<SettlementResponse | null> {
     const db = tx ?? this.db;
-    const updateData: any = {
+    // Build update object excluding settledAt conversion (handled below)
+    const updateData: Partial<typeof settlement.$inferInsert> = {
       ...data,
       updatedAt: new Date(),
-    };
+    } as Partial<typeof settlement.$inferInsert>;
     if (data.settledAt) {
       updateData.settledAt = new Date(data.settledAt);
     }
