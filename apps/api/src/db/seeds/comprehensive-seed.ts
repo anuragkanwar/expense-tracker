@@ -1,4 +1,3 @@
-
 import { container } from "@/container";
 import { InjectedServices } from "@/middleware/di-middleware";
 import {
@@ -10,7 +9,10 @@ import {
   SHARE_TYPE,
   SPLIT_TYPE,
   TXN_CATEGORY,
+  EXPENSE_SHARE_TYPE,
 } from "@pocket-pixie/db-schema";
+import { db, expenseShare } from "@/db";
+import { and, eq } from "drizzle-orm";
 
 interface UserWithPassword {
   name: string;
@@ -92,13 +94,36 @@ export async function seedComprehensive() {
   console.log("Creating direct loans...");
   await createDirectLoans(services, users);
 
+  // --- VERIFICATION STEP ---
+  console.log("--- VERIFYING OBLIGATIONS BEFORE SETTLEMENT ---");
+  const [alice, bob] = users;
+  if (alice && bob) {
+    const directLoanShares = await db
+      .select()
+      .from(expenseShare)
+      .where(
+        and(
+          eq(expenseShare.type, EXPENSE_SHARE_TYPE.LOAN),
+          eq(expenseShare.payerUserId, alice.id),
+          eq(expenseShare.participantUserId, bob.id)
+        )
+      );
+    console.log("Found direct loan shares from Alice to Bob:", directLoanShares);
+    if (directLoanShares.length === 0) {
+      console.error("CRITICAL: No direct loan from Alice to Bob found before settlement.");
+    }
+  } else {
+    console.error("Alice or Bob not found for verification step.");
+  }
+  console.log("--- VERIFICATION END ---");
+
   // Create group loans
   // console.log("Creating group loans...");
   // await createGroupLoans(services, users, groups);
 
   // Create settlements (partial and full payments)
   console.log("Creating settlements...");
-  await createSettlements(services, users);
+  await createSettlements(services, users, groups);
 
   // Create budgets
   console.log("Creating budgets...");
@@ -159,7 +184,7 @@ async function createUsers(
         name: data.name,
         email: data.email,
         password: data.password,
-        currency: data.currency || "INR",
+        currency: data.currency || "USD",
       });
 
       const userId = Number(response.response.user.id);
@@ -347,21 +372,24 @@ async function createSharedExpenses(
   }
 
   // Alice pays for utilities that will be split among roommates
-  await services.transactionService.createTransaction({
-    description: "Monthly Utilities",
-    payer: alice.id,
-    amount: 300,
-    type: TXN_TYPE.EXPENSE,
-    sourceTransactionAccountID: aliceOutgoingAccount.id,
-    targetTransactionAccountID: aliceEntertainmentAccount.id,
-    sharedWith: SHARE_TYPE.GROUP,
-    groupId: roommates.id,
-    splitType: SPLIT_TYPE.EQUAL,
-    splits: [
-      { userId: bob.id, amount: 100 },
-      { userId: charlie.id, amount: 100 },
-    ],
-  });
+  await services.transactionService.createTransaction(
+    {
+      description: "Monthly Utilities",
+      payer: alice.id,
+      amount: 300,
+      type: TXN_TYPE.EXPENSE,
+      sourceTransactionAccountID: aliceOutgoingAccount.id,
+      targetTransactionAccountID: aliceEntertainmentAccount.id,
+      sharedWith: SHARE_TYPE.GROUP,
+      groupId: roommates.id,
+      splitType: SPLIT_TYPE.EQUAL,
+      splits: [
+        { userId: bob.id, amount: 100 },
+        { userId: charlie.id, amount: 100 },
+      ],
+    },
+    "USD"
+  );
 
   const bobAccounts = await services.transactionAccountService.getAll(bob);
   const bobOutgoingAccount = bobAccounts.find(
@@ -377,21 +405,24 @@ async function createSharedExpenses(
   }
 
   // Bob pays for hotel that will be split among travel buddies
-  await services.transactionService.createTransaction({
-    description: "Hotel for Weekend Trip",
-    payer: bob.id,
-    amount: 600,
-    type: TXN_TYPE.EXPENSE,
-    sourceTransactionAccountID: bobOutgoingAccount.id,
-    targetTransactionAccountID: bobEntertainmentAccount.id,
-    sharedWith: SHARE_TYPE.GROUP,
-    groupId: travelBuddies.id,
-    splitType: SPLIT_TYPE.EQUAL,
-    splits: [
-      { userId: charlie.id, amount: 200 },
-      { userId: diana.id, amount: 200 },
-    ],
-  });
+  await services.transactionService.createTransaction(
+    {
+      description: "Hotel for Weekend Trip",
+      payer: bob.id,
+      amount: 600,
+      type: TXN_TYPE.EXPENSE,
+      sourceTransactionAccountID: bobOutgoingAccount.id,
+      targetTransactionAccountID: bobEntertainmentAccount.id,
+      sharedWith: SHARE_TYPE.GROUP,
+      groupId: travelBuddies.id,
+      splitType: SPLIT_TYPE.EQUAL,
+      splits: [
+        { userId: charlie.id, amount: 200 },
+        { userId: diana.id, amount: 200 },
+      ],
+    },
+    "USD"
+  );
 }
 
 async function createDirectLoans(
@@ -452,18 +483,21 @@ async function createDirectLoans(
 
 async function createSettlements(
   services: InjectedServices,
-  users: CreatedUser[]
+  users: CreatedUser[],
+  groups: any[]
 ) {
   const [alice, bob, charlie, diana] = users;
-  if (!alice || !bob || !charlie || !diana)
-    return;
+  if (!alice || !bob || !charlie || !diana) return;
+
+  const [roommates, travelBuddies] = groups;
+
+  // --- Direct Loan Settlements ---
   // Bob partially pays back Alice ($200 out of $500 personal loan)
   await services.settlementService.allocateLoanSettlement({
     payerId: bob.id,
     payeeId: alice.id,
     amount: 200,
     currency: "USD",
-    idempotencyKey: "bob-alice-partial-repayment",
   });
 
   // Diana fully pays back Charlie ($350 personal loan)
@@ -472,7 +506,26 @@ async function createSettlements(
     payeeId: charlie.id,
     amount: 350,
     currency: "USD",
-    idempotencyKey: "diana-charlie-full-repayment",
+  });
+
+  // --- Group Expense Settlements ---
+
+  // Charlie pays back his share of utilities to Alice in the "Roommates" group
+  await services.settlementService.allocateExpenseShareSettlement({
+    payerId: charlie.id,
+    payeeId: alice.id,
+    amount: 100,
+    currency: "USD",
+    groupId: roommates.id,
+  });
+
+  // Diana partially pays back her share of the hotel to Bob in the "Travel Buddies" group
+  await services.settlementService.allocateExpenseShareSettlement({
+    payerId: diana.id,
+    payeeId: bob.id,
+    amount: 150,
+    currency: "USD",
+    groupId: travelBuddies.id,
   });
 }
 

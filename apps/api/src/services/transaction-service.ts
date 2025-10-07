@@ -281,6 +281,7 @@ export class TransactionService {
                 paidAmount: payerTotal,
                 // payer has already effectively paid their share
                 status: EXPENSE_SHARE_STATUS.PAID,
+                realizedAt: new Date(),
                 isPayerShare: 1,
               });
 
@@ -299,6 +300,7 @@ export class TransactionService {
                   amount: split.amount,
                   paidAmount: 0,
                   status: EXPENSE_SHARE_STATUS.UNPAID,
+                  realizedAt: new Date(),
                   isPayerShare: 0,
                 });
               }

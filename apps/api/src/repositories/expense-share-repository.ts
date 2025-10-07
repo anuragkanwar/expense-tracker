@@ -144,6 +144,7 @@ export class ExpenseShareRepository {
       currency,
       amount,
       loanDate,
+      realizedAt: new Date(),
       isPayerShare: 0, // Not the payer's share as it's a debt
       status: EXPENSE_SHARE_STATUS.UNPAID,
     };
