@@ -29,6 +29,7 @@ export * from "./dto/passbook.dto";
 export * from "./dto/recurring-items.dto";
 export * from "./dto/transactions.dto";
 export * from "./dto/shared-schemas";
+export * from "./dto/auth.dto";
 
 // Re-export database types that are needed by both API and mobile
 // These are commonly used enums and constants that should be available everywhere

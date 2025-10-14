@@ -9,94 +9,143 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as AppRouteRouteImport } from './routes/_app/route'
 import { Route as IndexRouteImport } from './routes/index'
-import { Route as DemoTanstackQueryRouteImport } from './routes/demo/tanstack-query'
-import { Route as DemoTableRouteImport } from './routes/demo/table'
-import { Route as DemoFormSimpleRouteImport } from './routes/demo/form.simple'
-import { Route as DemoFormAddressRouteImport } from './routes/demo/form.address'
+import { Route as AuthSignupRouteImport } from './routes/auth/signup'
+import { Route as AuthSigninRouteImport } from './routes/auth/signin'
+import { Route as AppTransactionIndexRouteImport } from './routes/_app/transaction/index'
+import { Route as AppSplitIndexRouteImport } from './routes/_app/split/index'
+import { Route as AppRecurrenceIndexRouteImport } from './routes/_app/recurrence/index'
+import { Route as AppDashboardIndexRouteImport } from './routes/_app/dashboard/index'
+import { Route as AppBudgetIndexRouteImport } from './routes/_app/budget/index'
 
+const AppRouteRoute = AppRouteRouteImport.update({
+  id: '/_app',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
-const DemoTanstackQueryRoute = DemoTanstackQueryRouteImport.update({
-  id: '/demo/tanstack-query',
-  path: '/demo/tanstack-query',
+const AuthSignupRoute = AuthSignupRouteImport.update({
+  id: '/auth/signup',
+  path: '/auth/signup',
   getParentRoute: () => rootRouteImport,
 } as any)
-const DemoTableRoute = DemoTableRouteImport.update({
-  id: '/demo/table',
-  path: '/demo/table',
+const AuthSigninRoute = AuthSigninRouteImport.update({
+  id: '/auth/signin',
+  path: '/auth/signin',
   getParentRoute: () => rootRouteImport,
 } as any)
-const DemoFormSimpleRoute = DemoFormSimpleRouteImport.update({
-  id: '/demo/form/simple',
-  path: '/demo/form/simple',
-  getParentRoute: () => rootRouteImport,
+const AppTransactionIndexRoute = AppTransactionIndexRouteImport.update({
+  id: '/transaction/',
+  path: '/transaction/',
+  getParentRoute: () => AppRouteRoute,
 } as any)
-const DemoFormAddressRoute = DemoFormAddressRouteImport.update({
-  id: '/demo/form/address',
-  path: '/demo/form/address',
-  getParentRoute: () => rootRouteImport,
+const AppSplitIndexRoute = AppSplitIndexRouteImport.update({
+  id: '/split/',
+  path: '/split/',
+  getParentRoute: () => AppRouteRoute,
+} as any)
+const AppRecurrenceIndexRoute = AppRecurrenceIndexRouteImport.update({
+  id: '/recurrence/',
+  path: '/recurrence/',
+  getParentRoute: () => AppRouteRoute,
+} as any)
+const AppDashboardIndexRoute = AppDashboardIndexRouteImport.update({
+  id: '/dashboard/',
+  path: '/dashboard/',
+  getParentRoute: () => AppRouteRoute,
+} as any)
+const AppBudgetIndexRoute = AppBudgetIndexRouteImport.update({
+  id: '/budget/',
+  path: '/budget/',
+  getParentRoute: () => AppRouteRoute,
 } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
-  '/demo/table': typeof DemoTableRoute
-  '/demo/tanstack-query': typeof DemoTanstackQueryRoute
-  '/demo/form/address': typeof DemoFormAddressRoute
-  '/demo/form/simple': typeof DemoFormSimpleRoute
+  '/auth/signin': typeof AuthSigninRoute
+  '/auth/signup': typeof AuthSignupRoute
+  '/budget': typeof AppBudgetIndexRoute
+  '/dashboard': typeof AppDashboardIndexRoute
+  '/recurrence': typeof AppRecurrenceIndexRoute
+  '/split': typeof AppSplitIndexRoute
+  '/transaction': typeof AppTransactionIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
-  '/demo/table': typeof DemoTableRoute
-  '/demo/tanstack-query': typeof DemoTanstackQueryRoute
-  '/demo/form/address': typeof DemoFormAddressRoute
-  '/demo/form/simple': typeof DemoFormSimpleRoute
+  '/auth/signin': typeof AuthSigninRoute
+  '/auth/signup': typeof AuthSignupRoute
+  '/budget': typeof AppBudgetIndexRoute
+  '/dashboard': typeof AppDashboardIndexRoute
+  '/recurrence': typeof AppRecurrenceIndexRoute
+  '/split': typeof AppSplitIndexRoute
+  '/transaction': typeof AppTransactionIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
-  '/demo/table': typeof DemoTableRoute
-  '/demo/tanstack-query': typeof DemoTanstackQueryRoute
-  '/demo/form/address': typeof DemoFormAddressRoute
-  '/demo/form/simple': typeof DemoFormSimpleRoute
+  '/_app': typeof AppRouteRouteWithChildren
+  '/auth/signin': typeof AuthSigninRoute
+  '/auth/signup': typeof AuthSignupRoute
+  '/_app/budget/': typeof AppBudgetIndexRoute
+  '/_app/dashboard/': typeof AppDashboardIndexRoute
+  '/_app/recurrence/': typeof AppRecurrenceIndexRoute
+  '/_app/split/': typeof AppSplitIndexRoute
+  '/_app/transaction/': typeof AppTransactionIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
-    | '/demo/table'
-    | '/demo/tanstack-query'
-    | '/demo/form/address'
-    | '/demo/form/simple'
+    | '/auth/signin'
+    | '/auth/signup'
+    | '/budget'
+    | '/dashboard'
+    | '/recurrence'
+    | '/split'
+    | '/transaction'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
-    | '/demo/table'
-    | '/demo/tanstack-query'
-    | '/demo/form/address'
-    | '/demo/form/simple'
+    | '/auth/signin'
+    | '/auth/signup'
+    | '/budget'
+    | '/dashboard'
+    | '/recurrence'
+    | '/split'
+    | '/transaction'
   id:
     | '__root__'
     | '/'
-    | '/demo/table'
-    | '/demo/tanstack-query'
-    | '/demo/form/address'
-    | '/demo/form/simple'
+    | '/_app'
+    | '/auth/signin'
+    | '/auth/signup'
+    | '/_app/budget/'
+    | '/_app/dashboard/'
+    | '/_app/recurrence/'
+    | '/_app/split/'
+    | '/_app/transaction/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
-  DemoTableRoute: typeof DemoTableRoute
-  DemoTanstackQueryRoute: typeof DemoTanstackQueryRoute
-  DemoFormAddressRoute: typeof DemoFormAddressRoute
-  DemoFormSimpleRoute: typeof DemoFormSimpleRoute
+  AppRouteRoute: typeof AppRouteRouteWithChildren
+  AuthSigninRoute: typeof AuthSigninRoute
+  AuthSignupRoute: typeof AuthSignupRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/_app': {
+      id: '/_app'
+      path: ''
+      fullPath: ''
+      preLoaderRoute: typeof AppRouteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/': {
       id: '/'
       path: '/'
@@ -104,43 +153,83 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/demo/tanstack-query': {
-      id: '/demo/tanstack-query'
-      path: '/demo/tanstack-query'
-      fullPath: '/demo/tanstack-query'
-      preLoaderRoute: typeof DemoTanstackQueryRouteImport
+    '/auth/signup': {
+      id: '/auth/signup'
+      path: '/auth/signup'
+      fullPath: '/auth/signup'
+      preLoaderRoute: typeof AuthSignupRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/demo/table': {
-      id: '/demo/table'
-      path: '/demo/table'
-      fullPath: '/demo/table'
-      preLoaderRoute: typeof DemoTableRouteImport
+    '/auth/signin': {
+      id: '/auth/signin'
+      path: '/auth/signin'
+      fullPath: '/auth/signin'
+      preLoaderRoute: typeof AuthSigninRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/demo/form/simple': {
-      id: '/demo/form/simple'
-      path: '/demo/form/simple'
-      fullPath: '/demo/form/simple'
-      preLoaderRoute: typeof DemoFormSimpleRouteImport
-      parentRoute: typeof rootRouteImport
+    '/_app/transaction/': {
+      id: '/_app/transaction/'
+      path: '/transaction'
+      fullPath: '/transaction'
+      preLoaderRoute: typeof AppTransactionIndexRouteImport
+      parentRoute: typeof AppRouteRoute
     }
-    '/demo/form/address': {
-      id: '/demo/form/address'
-      path: '/demo/form/address'
-      fullPath: '/demo/form/address'
-      preLoaderRoute: typeof DemoFormAddressRouteImport
-      parentRoute: typeof rootRouteImport
+    '/_app/split/': {
+      id: '/_app/split/'
+      path: '/split'
+      fullPath: '/split'
+      preLoaderRoute: typeof AppSplitIndexRouteImport
+      parentRoute: typeof AppRouteRoute
+    }
+    '/_app/recurrence/': {
+      id: '/_app/recurrence/'
+      path: '/recurrence'
+      fullPath: '/recurrence'
+      preLoaderRoute: typeof AppRecurrenceIndexRouteImport
+      parentRoute: typeof AppRouteRoute
+    }
+    '/_app/dashboard/': {
+      id: '/_app/dashboard/'
+      path: '/dashboard'
+      fullPath: '/dashboard'
+      preLoaderRoute: typeof AppDashboardIndexRouteImport
+      parentRoute: typeof AppRouteRoute
+    }
+    '/_app/budget/': {
+      id: '/_app/budget/'
+      path: '/budget'
+      fullPath: '/budget'
+      preLoaderRoute: typeof AppBudgetIndexRouteImport
+      parentRoute: typeof AppRouteRoute
     }
   }
 }
 
+interface AppRouteRouteChildren {
+  AppBudgetIndexRoute: typeof AppBudgetIndexRoute
+  AppDashboardIndexRoute: typeof AppDashboardIndexRoute
+  AppRecurrenceIndexRoute: typeof AppRecurrenceIndexRoute
+  AppSplitIndexRoute: typeof AppSplitIndexRoute
+  AppTransactionIndexRoute: typeof AppTransactionIndexRoute
+}
+
+const AppRouteRouteChildren: AppRouteRouteChildren = {
+  AppBudgetIndexRoute: AppBudgetIndexRoute,
+  AppDashboardIndexRoute: AppDashboardIndexRoute,
+  AppRecurrenceIndexRoute: AppRecurrenceIndexRoute,
+  AppSplitIndexRoute: AppSplitIndexRoute,
+  AppTransactionIndexRoute: AppTransactionIndexRoute,
+}
+
+const AppRouteRouteWithChildren = AppRouteRoute._addFileChildren(
+  AppRouteRouteChildren,
+)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
-  DemoTableRoute: DemoTableRoute,
-  DemoTanstackQueryRoute: DemoTanstackQueryRoute,
-  DemoFormAddressRoute: DemoFormAddressRoute,
-  DemoFormSimpleRoute: DemoFormSimpleRoute,
+  AppRouteRoute: AppRouteRouteWithChildren,
+  AuthSigninRoute: AuthSigninRoute,
+  AuthSignupRoute: AuthSignupRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

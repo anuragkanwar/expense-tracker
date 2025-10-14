@@ -194,6 +194,6 @@ app.notFound((c) => {
 
 export default {
   fetch: app.fetch,
-  port: 3000,
+  port: 8000,
   hostname: "0.0.0.0",
 };
