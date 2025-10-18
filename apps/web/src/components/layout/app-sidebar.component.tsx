@@ -1,5 +1,4 @@
-import { Link, redirect } from "@tanstack/react-router";
-import { useUser } from "@/api/auth/auth.hook";
+import { Link } from "@tanstack/react-router";
 import {
   Sidebar,
   SidebarContent,
@@ -11,11 +10,9 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from "../ui/sidebar";
-import { NavUser } from "./nav-user";
 import { sidebarData } from "./sidebar-state";
 
 export const AppSidebar = () => {
-  const user = useUser();
   return (
     <Sidebar collapsible="icon">
       <SidebarHeader>
@@ -53,9 +50,7 @@ export const AppSidebar = () => {
           </SidebarMenu>
         </SidebarGroup>
       </SidebarContent>
-      <SidebarFooter>
-        <NavUser user={user.data} />
-      </SidebarFooter>
+      <SidebarFooter></SidebarFooter>
     </Sidebar>
   );
 };
