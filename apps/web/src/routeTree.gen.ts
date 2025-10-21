@@ -18,6 +18,7 @@ import { Route as AppSplitIndexRouteImport } from './routes/_app/split/index'
 import { Route as AppRecurrenceIndexRouteImport } from './routes/_app/recurrence/index'
 import { Route as AppDashboardIndexRouteImport } from './routes/_app/dashboard/index'
 import { Route as AppBudgetIndexRouteImport } from './routes/_app/budget/index'
+import { Route as AppTransactionNewRouteImport } from './routes/_app/transaction/new'
 
 const AppRouteRoute = AppRouteRouteImport.update({
   id: '/_app',
@@ -63,11 +64,17 @@ const AppBudgetIndexRoute = AppBudgetIndexRouteImport.update({
   path: '/budget/',
   getParentRoute: () => AppRouteRoute,
 } as any)
+const AppTransactionNewRoute = AppTransactionNewRouteImport.update({
+  id: '/transaction/new',
+  path: '/transaction/new',
+  getParentRoute: () => AppRouteRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth/signin': typeof AuthSigninRoute
   '/auth/signup': typeof AuthSignupRoute
+  '/transaction/new': typeof AppTransactionNewRoute
   '/budget': typeof AppBudgetIndexRoute
   '/dashboard': typeof AppDashboardIndexRoute
   '/recurrence': typeof AppRecurrenceIndexRoute
@@ -78,6 +85,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth/signin': typeof AuthSigninRoute
   '/auth/signup': typeof AuthSignupRoute
+  '/transaction/new': typeof AppTransactionNewRoute
   '/budget': typeof AppBudgetIndexRoute
   '/dashboard': typeof AppDashboardIndexRoute
   '/recurrence': typeof AppRecurrenceIndexRoute
@@ -90,6 +98,7 @@ export interface FileRoutesById {
   '/_app': typeof AppRouteRouteWithChildren
   '/auth/signin': typeof AuthSigninRoute
   '/auth/signup': typeof AuthSignupRoute
+  '/_app/transaction/new': typeof AppTransactionNewRoute
   '/_app/budget/': typeof AppBudgetIndexRoute
   '/_app/dashboard/': typeof AppDashboardIndexRoute
   '/_app/recurrence/': typeof AppRecurrenceIndexRoute
@@ -102,6 +111,7 @@ export interface FileRouteTypes {
     | '/'
     | '/auth/signin'
     | '/auth/signup'
+    | '/transaction/new'
     | '/budget'
     | '/dashboard'
     | '/recurrence'
@@ -112,6 +122,7 @@ export interface FileRouteTypes {
     | '/'
     | '/auth/signin'
     | '/auth/signup'
+    | '/transaction/new'
     | '/budget'
     | '/dashboard'
     | '/recurrence'
@@ -123,6 +134,7 @@ export interface FileRouteTypes {
     | '/_app'
     | '/auth/signin'
     | '/auth/signup'
+    | '/_app/transaction/new'
     | '/_app/budget/'
     | '/_app/dashboard/'
     | '/_app/recurrence/'
@@ -202,10 +214,18 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppBudgetIndexRouteImport
       parentRoute: typeof AppRouteRoute
     }
+    '/_app/transaction/new': {
+      id: '/_app/transaction/new'
+      path: '/transaction/new'
+      fullPath: '/transaction/new'
+      preLoaderRoute: typeof AppTransactionNewRouteImport
+      parentRoute: typeof AppRouteRoute
+    }
   }
 }
 
 interface AppRouteRouteChildren {
+  AppTransactionNewRoute: typeof AppTransactionNewRoute
   AppBudgetIndexRoute: typeof AppBudgetIndexRoute
   AppDashboardIndexRoute: typeof AppDashboardIndexRoute
   AppRecurrenceIndexRoute: typeof AppRecurrenceIndexRoute
@@ -214,6 +234,7 @@ interface AppRouteRouteChildren {
 }
 
 const AppRouteRouteChildren: AppRouteRouteChildren = {
+  AppTransactionNewRoute: AppTransactionNewRoute,
   AppBudgetIndexRoute: AppBudgetIndexRoute,
   AppDashboardIndexRoute: AppDashboardIndexRoute,
   AppRecurrenceIndexRoute: AppRecurrenceIndexRoute,

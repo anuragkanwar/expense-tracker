@@ -1,4 +1,13 @@
 import { Link } from "@tanstack/react-router";
+import { PlusIcon } from "lucide-react";
+import { Button } from "../ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "../ui/dialog";
 import {
   Sidebar,
   SidebarContent,
@@ -11,6 +20,7 @@ import {
   SidebarMenuItem,
 } from "../ui/sidebar";
 import { sidebarData } from "./sidebar-state";
+import { TransactionInputCard } from "../common/transaction/transaction-input/transaction-input-card.component";
 
 export const AppSidebar = () => {
   return (
@@ -50,7 +60,23 @@ export const AppSidebar = () => {
           </SidebarMenu>
         </SidebarGroup>
       </SidebarContent>
-      <SidebarFooter></SidebarFooter>
+      <SidebarFooter>
+        <SidebarMenuButton asChild>
+          <Dialog>
+            <DialogTrigger asChild>
+              <Button className="rounded-full" size={"sm"}>
+                <PlusIcon />
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Create New Transaction</DialogTitle>
+                <TransactionInputCard />
+              </DialogHeader>
+            </DialogContent>
+          </Dialog>
+        </SidebarMenuButton>
+      </SidebarFooter>
     </Sidebar>
   );
 };

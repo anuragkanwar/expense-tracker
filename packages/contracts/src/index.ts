@@ -40,4 +40,5 @@ export {
   SHARE_TYPE,
   SPLIT_TYPE,
   TXN_TYPE,
+  TXN_CATEGORY,
 } from "@pocket-pixie/db-schema";

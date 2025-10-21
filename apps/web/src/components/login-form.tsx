@@ -1,5 +1,6 @@
+import { useForm } from "@tanstack/react-form";
 import { Link, useNavigate } from "@tanstack/react-router";
-import { useState } from "react";
+import z from "zod";
 import { useLogin } from "@/api/auth/auth.hook";
 import { Button } from "@/components/ui/button";
 import {
@@ -12,6 +13,7 @@ import {
 import {
   Field,
   FieldDescription,
+  FieldError,
   FieldGroup,
   FieldLabel,
   FieldSeparator,
@@ -20,23 +22,38 @@ import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { PasswordInput } from "./ui/password-input";
 
+const LoginFormSchema = z.object({
+  email: z.email(),
+  password: z.string().min(6, "password must be at least 6 charachters."),
+});
+
 export function LoginForm({
   className,
   ...props
 }: React.ComponentProps<"div">) {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
   const login = useLogin();
   const navigate = useNavigate();
-
-  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    await login.mutateAsync({
-      email: email,
-      password: password,
-    });
-    navigate({ to: "/dashboard" });
-  };
+  const form = useForm({
+    defaultValues: {
+      email: "",
+      password: "",
+    },
+    validators: {
+      onSubmit: LoginFormSchema,
+    },
+    onSubmit: async ({ value }) => {
+      try {
+        await login.mutateAsync({
+          email: value.email,
+          password: value.password,
+        });
+        navigate({ to: "/dashboard" });
+      } catch (error: unknown) {
+        form.fieldInfo.email.instance?.setErrorMap({ onSubmit: error });
+        form.fieldInfo.password.instance?.setErrorMap({ onSubmit: error });
+      }
+    },
+  });
 
   return (
     <div className={cn("flex flex-col gap-6", className)} {...props}>
@@ -48,7 +65,12 @@ export function LoginForm({
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleSubmit}>
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              form.handleSubmit();
+            }}
+          >
             <FieldGroup>
               <Field>
                 <Button variant="outline" type="button">
@@ -75,39 +97,65 @@ export function LoginForm({
               <FieldSeparator className="*:data-[slot=field-separator-content]:bg-card">
                 Or continue with
               </FieldSeparator>
-              <Field>
-                <FieldLabel htmlFor="email">Email</FieldLabel>
-                {/** biome-ignore lint/correctness/useUniqueElementIds: false postive */}
-                <Input
-                  id="email"
-                  type="email"
-                  placeholder="m@example.com"
-                  value={email}
-                  onChange={(ev) => {
-                    setEmail(ev.target.value);
-                  }}
-                  required
-                />
-              </Field>
-              <Field>
-                <div className="flex items-center">
-                  <FieldLabel htmlFor="password">Password</FieldLabel>
-                  <Link
-                    to="/"
-                    className="ml-auto text-sm underline-offset-4 hover:underline"
-                  >
-                    Forgot your password?
-                  </Link>
-                </div>
+              <form.Field name="email">
+                {(field) => {
+                  const isInvalid =
+                    field.state.meta.isTouched && !field.state.meta.isValid;
+                  return (
+                    <Field data-invalid={isInvalid}>
+                      <FieldLabel htmlFor="email">Email</FieldLabel>
+                      <Input
+                        id={field.name}
+                        name={field.name}
+                        onBlur={field.handleBlur}
+                        type="email"
+                        placeholder="m@example.com"
+                        aria-invalid={isInvalid}
+                        value={field.state.value}
+                        onChange={(e) => field.handleChange(e.target.value)}
+                        required
+                      />
+                      {isInvalid && (
+                        <FieldError errors={field.state.meta.errors} />
+                      )}
+                    </Field>
+                  );
+                }}
+              </form.Field>
 
-                {/** biome-ignore lint/correctness/useUniqueElementIds: false postive */}
-                <PasswordInput
-                  id="password"
-                  required
-                  value={password}
-                  onChange={(ev) => setPassword(ev.target.value)}
-                />
-              </Field>
+              <form.Field name="password">
+                {(field) => {
+                  const isInvalid =
+                    field.state.meta.isTouched && !field.state.meta.isValid;
+                  return (
+                    <Field data-invalid={isInvalid}>
+                      <div className="flex items-center">
+                        <FieldLabel htmlFor={field.name}>Password</FieldLabel>
+                        <Link
+                          to="/"
+                          className="ml-auto text-sm underline-offset-4 hover:underline"
+                        >
+                          Forgot your password?
+                        </Link>
+                      </div>
+
+                      <PasswordInput
+                        id={field.name}
+                        name={field.name}
+                        value={field.state.value}
+                        onBlur={field.handleBlur}
+                        onChange={(e) => field.handleChange(e.target.value)}
+                        placeholder="****"
+                        aria-invalid={isInvalid}
+                        required
+                      />
+                      {isInvalid && (
+                        <FieldError errors={field.state.meta.errors} />
+                      )}
+                    </Field>
+                  );
+                }}
+              </form.Field>
               <Field>
                 <Button type="submit">Login</Button>
                 <FieldDescription className="text-center">
