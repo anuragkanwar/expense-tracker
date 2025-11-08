@@ -346,21 +346,12 @@ export class TransactionService {
     const { page = 1, limit = 20, type } = filters;
     const offset = (page - 1) * limit;
 
-    // Get transactions where user is either payer or participant
-    const transactions = await this.transactionRepository.findAll(
-      limit,
-      offset
-    );
+    // Get transactions where user is the transaction owner
+    const transactions = await this.transactionRepository.findByUserId(userId);
 
-    // Filter transactions based on user involvement
-    const userTransactions = transactions.filter((t) => {
-      // User is the payer
-      if (t.userId === userId) return true;
-
-      // For now, we'll return all transactions - in a real implementation,
-      // you'd check if user is involved in the transaction splits
-      return false;
-    });
+    // For now, we'll return all user transactions - in a real implementation,
+    // you might also want to include transactions where user is a participant
+    const userTransactions = transactions;
 
     // Apply type filter if specified
     let filteredTransactions = userTransactions;

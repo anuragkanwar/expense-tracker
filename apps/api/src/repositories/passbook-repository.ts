@@ -19,11 +19,23 @@ import type {
   PassbookQueryResult,
 } from "@pocket-pixie/contracts";
 
+// Re-export PassbookFilters for backward compatibility
+export { PassbookFilters };
+import type { TransactionRepository } from "./transaction-repository";
+
 export class PassbookRepository {
   private db: DBType;
+  private transactionRepository: TransactionRepository;
 
-  constructor({ db }: { db: DBType }) {
+  constructor({
+    db,
+    transactionRepository,
+  }: {
+    db: DBType;
+    transactionRepository: TransactionRepository;
+  }) {
     this.db = db;
+    this.transactionRepository = transactionRepository;
   }
 
   async getPassbookEntries(
@@ -142,36 +154,52 @@ export class PassbookRepository {
         .limit(1000); // Higher limit to get most/all transactions
 
       // Transform regular transactions to response format
-      transactionEntries = entriesResult.map((row) => ({
-        id: row.id,
-        amount: row.amount,
-        transactionAccountId: row.transactionAccountId,
-        transactionId: row.transactionId,
-        createdAt: row.createdAt.toISOString(),
-        updatedAt: row.updatedAt.toISOString(),
-        // Include related transaction and account data
-        transaction: {
-          id: row.transactionId,
-          description: row.transactionDescription,
-          transactionDate: row.transactionDate?.toISOString(),
-          userId: row.transactionUserId,
-          parentTransactionId: row.transactionParentId || null,
-          createdAt: row.transactionCreatedAt.toISOString(),
-          updatedAt: row.transactionUpdatedAt.toISOString(),
-        },
-        transactionAccount: {
-          id: row.accountId,
-          name: row.accountName,
-          type: row.accountType,
-          balance: row.accountBalance,
-          currency: row.accountCurrency,
-          userId: row.accountUserId,
-          isPaymentSource: row.accountIsPaymentSource,
-          createdAt: row.accountCreatedAt.toISOString(),
-          updatedAt: row.accountUpdatedAt.toISOString(),
-        },
-        isExpenseShare: false,
-      }));
+      // Get unique transaction IDs to fetch full transaction data with entries
+      const uniqueTransactionIds = [
+        ...new Set(entriesResult.map((row) => row.transactionId)),
+      ];
+      const fullTransactions = await Promise.all(
+        uniqueTransactionIds.map((id) =>
+          this.transactionRepository.findById(id, tx)
+        )
+      );
+
+      // Create a map for quick lookup
+      const transactionMap = new Map(
+        fullTransactions
+          .filter((txn) => txn !== null)
+          .map((txn) => [txn!.id, txn!])
+      );
+
+      transactionEntries = entriesResult.map((row) => {
+        const fullTransaction = transactionMap.get(row.transactionId);
+        if (!fullTransaction) {
+          throw new Error(`Transaction ${row.transactionId} not found`);
+        }
+
+        return {
+          id: row.id,
+          amount: row.amount,
+          transactionAccountId: row.transactionAccountId,
+          transactionId: row.transactionId,
+          createdAt: row.createdAt.toISOString(),
+          updatedAt: row.updatedAt.toISOString(),
+          // Use the full transaction with entry from repository
+          transaction: fullTransaction,
+          transactionAccount: {
+            id: row.accountId,
+            name: row.accountName,
+            type: row.accountType,
+            balance: row.accountBalance,
+            currency: row.accountCurrency,
+            userId: row.accountUserId,
+            isPaymentSource: row.accountIsPaymentSource,
+            createdAt: row.accountCreatedAt.toISOString(),
+            updatedAt: row.accountUpdatedAt.toISOString(),
+          },
+          isExpenseShare: false,
+        };
+      });
     }
 
     let expenseShareEntries: PassbookEntryResponse[] = [];
@@ -347,6 +375,23 @@ export class PassbookRepository {
       });
     }
 
+    // Get unique transaction IDs to fetch full transaction data with entries
+    const uniqueTransactionIds = [
+      ...new Set(rows.map((row) => row.transactionId)),
+    ];
+    const fullTransactions = await Promise.all(
+      uniqueTransactionIds.map((id) =>
+        this.transactionRepository.findById(id, tx)
+      )
+    );
+
+    // Create a map for quick lookup
+    const transactionMap = new Map(
+      fullTransactions
+        .filter((txn) => txn !== null)
+        .map((txn) => [txn!.id, txn!])
+    );
+
     // Transform expense shares to passbook entries
     const entries: PassbookEntryResponse[] = rows.map((row) => {
       // Determine if this is a debit or credit from the user's perspective
@@ -358,6 +403,11 @@ export class PassbookRepository {
       const participantName =
         userMap.get(row.participantUserId) || "Unknown User";
 
+      const fullTransaction = transactionMap.get(row.transactionId);
+      if (!fullTransaction) {
+        throw new Error(`Transaction ${row.transactionId} not found`);
+      }
+
       return {
         id: row.id,
         // Use the expense share ID as the "entry" ID
@@ -367,19 +417,8 @@ export class PassbookRepository {
         transactionId: row.transactionId,
         createdAt: row.createdAt.toISOString(),
         updatedAt: row.updatedAt.toISOString(),
-        // Include related transaction data
-        transaction: {
-          id: row.transactionId,
-          description:
-            row.type === EXPENSE_SHARE_TYPE.LOAN
-              ? `Loan: ${row.description || "No description"}`
-              : `Expense: ${row.description || "No description"}`,
-          transactionDate: row.transactionDate?.toISOString(),
-          userId: row.transactionUserId,
-          parentTransactionId: row.transactionParentId || null,
-          createdAt: row.transactionCreatedAt.toISOString(),
-          updatedAt: row.transactionUpdatedAt.toISOString(),
-        },
+        // Use the full transaction with entry from repository
+        transaction: fullTransaction,
         // Use a placeholder transaction account
         transactionAccount: {
           id: -1,
@@ -462,6 +501,16 @@ export class PassbookRepository {
 
     if (result.length > 0) {
       const row = result[0]!;
+
+      // Get the full transaction with entry from repository
+      const fullTransaction = await this.transactionRepository.findById(
+        row.transactionId,
+        tx
+      );
+      if (!fullTransaction) {
+        throw new Error(`Transaction ${row.transactionId} not found`);
+      }
+
       return {
         id: row.id,
         amount: row.amount,
@@ -469,15 +518,8 @@ export class PassbookRepository {
         transactionId: row.transactionId,
         createdAt: row.createdAt.toISOString(),
         updatedAt: row.updatedAt.toISOString(),
-        transaction: {
-          id: row.transactionId,
-          description: row.transactionDescription,
-          transactionDate: row.transactionDate?.toISOString(),
-          userId: row.transactionUserId,
-          parentTransactionId: row.transactionParentId || null,
-          createdAt: row.transactionCreatedAt.toISOString(),
-          updatedAt: row.transactionUpdatedAt.toISOString(),
-        },
+        // Use the full transaction with entry from repository
+        transaction: fullTransaction,
         transactionAccount: {
           id: row.accountId,
           name: row.accountName,
@@ -549,6 +591,15 @@ export class PassbookRepository {
       userMap.set(u.id, u.name || "Unknown User");
     });
 
+    // Get the full transaction with entry from repository
+    const fullTransaction = await this.transactionRepository.findById(
+      row.transactionId,
+      tx
+    );
+    if (!fullTransaction) {
+      throw new Error(`Transaction ${row.transactionId} not found`);
+    }
+
     // Determine if this is a debit or credit from the user's perspective
     const isUserPayer = row.payerUserId === userId;
     const displayAmount = isUserPayer ? -row.amount : row.amount;
@@ -562,19 +613,8 @@ export class PassbookRepository {
       transactionId: row.transactionId,
       createdAt: row.createdAt.toISOString(),
       updatedAt: row.updatedAt.toISOString(),
-      // Include related transaction data
-      transaction: {
-        id: row.transactionId,
-        description:
-          row.type === EXPENSE_SHARE_TYPE.LOAN
-            ? `Loan: ${row.description || "No description"}`
-            : `Expense: ${row.description || "No description"}`,
-        transactionDate: row.transactionDate?.toISOString(),
-        userId: row.transactionUserId,
-        parentTransactionId: row.transactionParentId || null,
-        createdAt: row.transactionCreatedAt.toISOString(),
-        updatedAt: row.transactionUpdatedAt.toISOString(),
-      },
+      // Use the full transaction with entry from repository
+      transaction: fullTransaction,
       // Use a placeholder transaction account
       transactionAccount: {
         id: -1,

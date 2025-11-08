@@ -6,9 +6,20 @@ import {
   TransactionUpdateWithDetailsSchema,
   TransactionWithDetailsResponseSchema,
   TransactionListResponseSchema,
+  TransactionResponseSchema,
 } from "@pocket-pixie/contracts";
 import { createRoute, z } from "@hono/zod-openapi";
 import { StandardErrorSchema } from "./shared-schemas";
+
+// New Transaction List Response using updated TransactionResponseSchema
+export const NewTransactionListResponseSchema = z
+  .object({
+    transactions: z.array(TransactionResponseSchema),
+    total: z.number().openapi({ example: 100 }),
+    page: z.number().openapi({ example: 1 }),
+    limit: z.number().openapi({ example: 20 }),
+  })
+  .openapi("NewTransactionListResponse");
 
 export const createTransactionRoute = createRoute({
   method: "post",
@@ -99,7 +110,7 @@ export const getTransactionRoute = createRoute({
     200: {
       content: {
         "application/json": {
-          schema: TransactionWithDetailsResponseSchema,
+          schema: TransactionResponseSchema,
         },
       },
       description: "Transaction details retrieved successfully",
@@ -138,7 +149,7 @@ export const getGroupTransactionsRoute = createRoute({
     200: {
       content: {
         "application/json": {
-          schema: TransactionListResponseSchema,
+          schema: NewTransactionListResponseSchema,
         },
       },
       description: "Group transactions retrieved successfully",
@@ -174,12 +185,11 @@ export const updateTransactionRoute = createRoute({
     200: {
       content: {
         "application/json": {
-          schema: TransactionWithDetailsResponseSchema,
+          schema: TransactionResponseSchema,
         },
       },
       description: "Transaction updated successfully",
     },
-    400: { description: "Validation Error" },
     401: { description: "Unauthorized" },
     404: { description: "Transaction not found" },
   },
@@ -212,14 +222,7 @@ export const getTransactionsRoute = createRoute({
     200: {
       content: {
         "application/json": {
-          schema: z
-            .object({
-              transactions: z.array(LoanResponseSchema),
-              total: z.number().openapi({ example: 100 }),
-              page: z.number().openapi({ example: 1 }),
-              limit: z.number().openapi({ example: 20 }),
-            })
-            .openapi("TransactionListResponse"),
+          schema: NewTransactionListResponseSchema,
         },
       },
       description: "Transactions retrieved successfully",
@@ -257,14 +260,7 @@ export const getFriendTransactionsRoute = createRoute({
     200: {
       content: {
         "application/json": {
-          schema: z
-            .object({
-              transactions: z.array(LoanResponseSchema),
-              total: z.number().openapi({ example: 25 }),
-              page: z.number().openapi({ example: 1 }),
-              limit: z.number().openapi({ example: 20 }),
-            })
-            .openapi("FriendTransactionListResponse"),
+          schema: NewTransactionListResponseSchema,
         },
       },
       description: "Friend transactions retrieved successfully",

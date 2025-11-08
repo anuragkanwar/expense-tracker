@@ -13,6 +13,7 @@ import {
 } from "@pocket-pixie/db-schema";
 import { db, expenseShare } from "@/db";
 import { and, eq } from "drizzle-orm";
+import type { UserAuth } from "@pocket-pixie/contracts";
 
 interface UserWithPassword {
   name: string;
@@ -23,6 +24,19 @@ interface UserWithPassword {
 
 interface CreatedUser extends UserWithPassword {
   id: number;
+}
+
+// Helper function to convert CreatedUser to UserAuth
+function createdUserToAuth(user: CreatedUser): UserAuth {
+  return {
+    id: user.id,
+    email: user.email,
+    name: user.name,
+    currency: user.currency || "USD",
+    createdAt: new Date(),
+    updatedAt: new Date(),
+    emailVerified: true,
+  };
 }
 
 export async function seedComprehensive() {
@@ -80,7 +94,7 @@ export async function seedComprehensive() {
 
   // Create 2 groups
   console.log("Creating groups...");
-  const groups = await createGroups(services, users);
+  const groups = (await createGroups(services, users)) || [];
 
   // Create personal transactions for each user
   console.log("Creating personal transactions...");
@@ -108,9 +122,14 @@ export async function seedComprehensive() {
           eq(expenseShare.participantUserId, bob.id)
         )
       );
-    console.log("Found direct loan shares from Alice to Bob:", directLoanShares);
+    console.log(
+      "Found direct loan shares from Alice to Bob:",
+      directLoanShares
+    );
     if (directLoanShares.length === 0) {
-      console.error("CRITICAL: No direct loan from Alice to Bob found before settlement.");
+      console.error(
+        "CRITICAL: No direct loan from Alice to Bob found before settlement."
+      );
     }
   } else {
     console.error("Alice or Bob not found for verification step.");
@@ -184,7 +203,6 @@ async function createUsers(
         name: data.name,
         email: data.email,
         password: data.password,
-        currency: data.currency || "USD",
       });
 
       const userId = Number(response.response.user.id);
@@ -217,9 +235,12 @@ async function createFriendships(
       const user2 = users[j];
       if (!user2 || !user2.id) continue;
 
-      await services.friendService.sendFriendRequest({ id: user1.id, email: user1.email, name: user1.name }, user2.id);
+      await services.friendService.sendFriendRequest(
+        createdUserToAuth(user1),
+        user2.id
+      );
       await services.friendService.respondToFriendRequest(
-        { id: user2.id, email: user2.email, name: user2.name },
+        createdUserToAuth(user2),
         user1.id,
         "accept"
       );
@@ -234,8 +255,7 @@ async function createGroups(services: InjectedServices, users: CreatedUser[]) {
 
   const [alice, bob, charlie, diana] = users;
 
-  if (!alice || !bob || !charlie || !diana)
-    return;
+  if (!alice || !bob || !charlie || !diana) return;
   const group1 = await services.groupService.createGroup({
     name: "Roommates",
     createdBy: alice.id,
@@ -266,7 +286,9 @@ async function createPersonalTransactions(
   users: CreatedUser[]
 ) {
   for (const user of users) {
-    const accounts = await services.transactionAccountService.getAll(user);
+    const accounts = await services.transactionAccountService.getAll(
+      createdUserToAuth(user)
+    );
     const incomeAccount = accounts.find((a) => a.type === ACCOUNT_TYPE.INCOME);
     const externalAccount = accounts.find(
       (a) => a.type === ACCOUNT_TYPE.EXTERNAL
@@ -280,9 +302,7 @@ async function createPersonalTransactions(
     const entertainmentAccount = accounts.find(
       (a) => a.name === TXN_CATEGORY.ENTERTAINMENT
     );
-    const savingAccount = accounts.find(
-      (a) => a.type === ACCOUNT_TYPE.SAVING
-    );
+    const savingAccount = accounts.find((a) => a.type === ACCOUNT_TYPE.SAVING);
     const outgoingAccount = accounts.find(
       (a) => a.type === ACCOUNT_TYPE.OUTGOING
     );
@@ -296,53 +316,70 @@ async function createPersonalTransactions(
       !savingAccount ||
       !outgoingAccount
     ) {
-      console.error(`Skipping personal transactions for user ${user.id} due to missing accounts`);
+      console.error(
+        `Skipping personal transactions for user ${user.id} due to missing accounts`
+      );
       continue;
     }
 
-    // Create an income transaction
-    await services.transactionService.createTransaction({
-      description: "Monthly Salary",
-      payer: user.id,
-      amount: 5000,
-      type: TXN_TYPE.INCOME,
-      sourceTransactionAccountID: externalAccount.id,
-      targetTransactionAccountID: incomeAccount.id,
-      sharedWith: SHARE_TYPE.NONE,
-    });
+    const expenseCategories = [
+      {
+        account: groceriesAccount,
+        desc: "Grocery Shopping",
+        min: 40,
+        max: 150,
+      },
+      { account: diningAccount, desc: "Dining Out", min: 15, max: 80 },
+      {
+        account: entertainmentAccount,
+        desc: "Entertainment",
+        min: 20,
+        max: 100,
+      },
+    ];
 
-    // Create a grocery expense
-    await services.transactionService.createTransaction({
-      description: "Weekly Grocery Shopping",
-      payer: user.id,
-      amount: 120,
-      type: TXN_TYPE.EXPENSE,
-      sourceTransactionAccountID: outgoingAccount.id,
-      targetTransactionAccountID: groceriesAccount.id,
-      sharedWith: SHARE_TYPE.NONE,
-    });
+    for (let monthOffset = 0; monthOffset < 12; monthOffset++) {
+      // Income
+      await services.transactionService.createTransaction({
+        description: "Monthly Salary",
+        payer: user.id,
+        amount: Math.floor(Math.random() * 1000) + 4500,
+        type: TXN_TYPE.INCOME,
+        sourceTransactionAccountID: externalAccount.id,
+        targetTransactionAccountID: incomeAccount.id,
+        sharedWith: SHARE_TYPE.NONE,
+      });
 
-    // Create a dining expense
-    await services.transactionService.createTransaction({
-      description: "Dinner at Italian Restaurant",
-      payer: user.id,
-      amount: 85,
-      type: TXN_TYPE.EXPENSE,
-      sourceTransactionAccountID: outgoingAccount.id,
-      targetTransactionAccountID: diningAccount.id,
-      sharedWith: SHARE_TYPE.NONE,
-    });
+      // Saving
+      await services.transactionService.createTransaction({
+        description: "Monthly Savings",
+        payer: user.id,
+        amount: Math.floor(Math.random() * 400) + 800,
+        type: TXN_TYPE.SAVING,
+        sourceTransactionAccountID: outgoingAccount.id,
+        targetTransactionAccountID: savingAccount.id,
+        sharedWith: SHARE_TYPE.NONE,
+      });
 
-    // Create a saving transaction
-    await services.transactionService.createTransaction({
-      description: "Monthly Savings",
-      payer: user.id,
-      amount: 1000,
-      type: TXN_TYPE.SAVING,
-      sourceTransactionAccountID: outgoingAccount.id,
-      targetTransactionAccountID: savingAccount.id,
-      sharedWith: SHARE_TYPE.NONE,
-    });
+      // Expenses
+      for (let i = 0; i < 18; i++) {
+        const cat =
+          expenseCategories[
+            Math.floor(Math.random() * expenseCategories.length)
+          ]!;
+        const amount =
+          Math.floor(Math.random() * (cat.max - cat.min + 1)) + cat.min;
+        await services.transactionService.createTransaction({
+          description: cat.desc,
+          payer: user.id,
+          amount,
+          type: TXN_TYPE.EXPENSE,
+          sourceTransactionAccountID: outgoingAccount.id,
+          targetTransactionAccountID: cat.account.id,
+          sharedWith: SHARE_TYPE.NONE,
+        });
+      }
+    }
   }
 }
 
@@ -353,12 +390,13 @@ async function createSharedExpenses(
 ) {
   const [alice, bob, charlie, diana] = users;
 
-  if (!alice || !bob || !charlie || !diana)
-    return;
+  if (!alice || !bob || !charlie || !diana) return;
 
   const [roommates, travelBuddies] = groups;
 
-  const aliceAccounts = await services.transactionAccountService.getAll(alice);
+  const aliceAccounts = await services.transactionAccountService.getAll(
+    createdUserToAuth(alice)
+  );
   const aliceOutgoingAccount = aliceAccounts.find(
     (a) => a.type === ACCOUNT_TYPE.OUTGOING
   );
@@ -391,7 +429,9 @@ async function createSharedExpenses(
     "USD"
   );
 
-  const bobAccounts = await services.transactionAccountService.getAll(bob);
+  const bobAccounts = await services.transactionAccountService.getAll(
+    createdUserToAuth(bob)
+  );
   const bobOutgoingAccount = bobAccounts.find(
     (a) => a.type === ACCOUNT_TYPE.OUTGOING
   );
@@ -430,8 +470,7 @@ async function createDirectLoans(
   users: CreatedUser[]
 ) {
   const [alice, bob, charlie, diana] = users;
-  if (!alice || !bob || !charlie || !diana)
-    return;
+  if (!alice || !bob || !charlie || !diana) return;
   // Alice lends $500 to Bob
   await services.loanService.createLoanDirect(
     {
@@ -531,9 +570,15 @@ async function createSettlements(
 
 async function createBudgets(services: InjectedServices, users: CreatedUser[]) {
   for (const user of users) {
-    const accounts = await services.transactionAccountService.getAll(user);
-    const groceriesAccount = accounts.find((a) => a.name === TXN_CATEGORY.GROCERIES);
-    const diningAccount = accounts.find((a) => a.name === TXN_CATEGORY.DINING_OUT);
+    const accounts = await services.transactionAccountService.getAll(
+      createdUserToAuth(user)
+    );
+    const groceriesAccount = accounts.find(
+      (a) => a.name === TXN_CATEGORY.GROCERIES
+    );
+    const diningAccount = accounts.find(
+      (a) => a.name === TXN_CATEGORY.DINING_OUT
+    );
     const entertainmentAccount = accounts.find(
       (a) => a.name === TXN_CATEGORY.ENTERTAINMENT
     );

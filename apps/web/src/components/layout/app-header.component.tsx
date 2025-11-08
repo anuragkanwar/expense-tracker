@@ -1,19 +1,21 @@
 import { Bell, Search } from "lucide-react";
 import { useUser } from "@/api/auth/auth.hook";
+import { QueryBoundary } from "../common/boundry/query-boundry";
 import { ModeToggle } from "../mode-toggle";
 import { Button } from "../ui/button";
 import {
-  InputGroup,
-  InputGroupAddon,
-  InputGroupInput,
+	InputGroup,
+	InputGroupAddon,
+	InputGroupInput,
 } from "../ui/input-group";
 import { Separator } from "../ui/separator";
 import { SidebarTrigger } from "../ui/sidebar";
 import { NavUser } from "./nav-user";
 
 export const AppHeader = () => {
-  const user = useUser();
-  return (
+	const user = useUser();
+	return (
+		<QueryBoundary>
 			<div className="px-2">
 				<header className="flex gap-2 h-14 items-center justify-between px-2">
 					<div>
@@ -25,8 +27,8 @@ export const AppHeader = () => {
 							<InputGroupAddon>
 								<Search />
 							</InputGroupAddon>
-          </InputGroup>
-          <Separator orientation="vertical" />
+						</InputGroup>
+						<Separator orientation="vertical" />
 						<div className="flex gap-2">
 							<Button size={"icon"} variant={"outline"}>
 								<Bell />
@@ -39,5 +41,6 @@ export const AppHeader = () => {
 				</header>
 				<Separator />
 			</div>
-		);
+		</QueryBoundary>
+	);
 };

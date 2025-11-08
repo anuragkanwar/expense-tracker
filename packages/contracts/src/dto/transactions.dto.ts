@@ -1,9 +1,6 @@
 import { z } from "@hono/zod-openapi";
 // Import from the unified expense-share model
-import {
-  LoanResponseSchema,
-  LoanCreateSchema,
-} from "../models/expense-share";
+import { LoanResponseSchema, LoanCreateSchema } from "../models/expense-share";
 import { SHARE_TYPE, SPLIT_TYPE, TXN_TYPE } from "@pocket-pixie/db-schema";
 
 // Complex schema for creating transaction with payers and splits
@@ -143,7 +140,7 @@ export const TransactionWithDetailsResponseSchema = z
 // Pagination schema
 export const TransactionListResponseSchema = z
   .object({
-    transactions: z.array(LoanResponseSchema),
+    transactions: z.array(TransactionWithDetailsResponseSchema),
     total: z.number().openapi({ example: 100 }),
     page: z.number().openapi({ example: 1 }),
     limit: z.number().openapi({ example: 10 }),
